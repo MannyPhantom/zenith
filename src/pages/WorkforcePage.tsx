@@ -2921,7 +2921,8 @@ export default function WorkforcePage() {
                                 const scripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
                                 console.log('Google Maps scripts:', scripts.length);
                                 scripts.forEach((script, i) => {
-                                  console.log(`Script ${i + 1}:`, script.src);
+                                  const scriptElement = script as HTMLScriptElement;
+                                  console.log(`Script ${i + 1}:`, scriptElement.src);
                                 });
                                 
                                 // Try to force initialize
