@@ -23,6 +23,7 @@ import {
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { SimpleThemeToggle } from '@/components/SimpleThemeToggle'
 import {
   Accordion,
   AccordionContent,
@@ -66,6 +67,7 @@ export default function HomePage() {
             <a href="#integrations" className="text-sm font-medium hover:text-primary transition-colors">Integrations</a>
             <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</a>
             <a href="#faq" className="text-sm font-medium hover:text-primary transition-colors">FAQ</a>
+            <SimpleThemeToggle />
           </div>
         </div>
       </nav>

@@ -33,7 +33,6 @@ import {
 } from "lucide-react"
 import { LeLoLogo } from "./lelo-logo"
 import { useSidebar } from "./sidebar-context"
-import { SimpleThemeToggle } from "../src/components/SimpleThemeToggle"
 
 interface NavItem {
   label: string
@@ -210,11 +209,7 @@ export function Sidebar() {
           </div>
 
           {/* Collapse Button */}
-          <div className="p-4 border-t border-border space-y-2">
-            <div className={`flex items-center gap-2 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-              {!isCollapsed && <span className="text-sm text-muted-foreground">Theme</span>}
-              <SimpleThemeToggle />
-            </div>
+          <div className="p-4 border-t border-border">
             <Button
               variant="ghost"
               size="sm"

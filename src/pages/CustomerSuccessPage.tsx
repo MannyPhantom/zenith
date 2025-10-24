@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Users,
   AlertTriangle,
@@ -18,7 +21,6 @@ import {
   AlertCircle,
   Brain,
   Target,
-  Zap,
   BarChart3,
   TrendingDown,
   DollarSign,
@@ -26,7 +28,6 @@ import {
   Activity,
   ArrowUpRight,
   ArrowDownRight,
-  Sparkles,
   Calendar,
   Phone,
   Building,
@@ -34,6 +35,7 @@ import {
   FileText,
   Clock,
   ChevronRight,
+  Trash2,
 } from "lucide-react"
 
 export default function CustomerSuccessPage() {
@@ -41,8 +43,45 @@ export default function CustomerSuccessPage() {
   const [filterStatus, setFilterStatus] = useState("all")
   const [selectedClient, setSelectedClient] = useState<any>(null)
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [clientSearchQuery, setClientSearchQuery] = useState("")
+  const [isAddClientOpen, setIsAddClientOpen] = useState(false)
+  const [newClientName, setNewClientName] = useState("")
+  const [newClientIndustry, setNewClientIndustry] = useState("")
+  const [newClientCSM, setNewClientCSM] = useState("")
+  const [newClientARR, setNewClientARR] = useState("")
+  const [newClientRenewalDate, setNewClientRenewalDate] = useState("")
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false)
+  const [isPhoneDialogOpen, setIsPhoneDialogOpen] = useState(false)
+  const [emailSubject, setEmailSubject] = useState("")
+  const [emailMessage, setEmailMessage] = useState("")
+  const [phoneNotes, setPhoneNotes] = useState("")
+  const [isNewTaskOpen, setIsNewTaskOpen] = useState(false)
+  const [taskFilter, setTaskFilter] = useState("all")
+  const [newTaskTitle, setNewTaskTitle] = useState("")
+  const [newTaskClient, setNewTaskClient] = useState("")
+  const [newTaskDueDate, setNewTaskDueDate] = useState("")
+  const [newTaskPriority, setNewTaskPriority] = useState("medium")
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<any>(null)
+  const [editTaskTitle, setEditTaskTitle] = useState("")
+  const [editTaskClient, setEditTaskClient] = useState("")
+  const [editTaskDueDate, setEditTaskDueDate] = useState("")
+  const [editTaskPriority, setEditTaskPriority] = useState("")
+  const [editTaskStatus, setEditTaskStatus] = useState("")
+  const [isNewMilestoneOpen, setIsNewMilestoneOpen] = useState(false)
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState("")
+  const [newMilestoneClient, setNewMilestoneClient] = useState("")
+  const [newMilestoneTargetDate, setNewMilestoneTargetDate] = useState("")
+  const [newMilestoneDescription, setNewMilestoneDescription] = useState("")
+  const [isLogInteractionOpen, setIsLogInteractionOpen] = useState(false)
+  const [interactionFilter, setInteractionFilter] = useState("all")
+  const [newInteractionType, setNewInteractionType] = useState("")
+  const [newInteractionClient, setNewInteractionClient] = useState("")
+  const [newInteractionSubject, setNewInteractionSubject] = useState("")
+  const [newInteractionDescription, setNewInteractionDescription] = useState("")
 
-  const clients = [
+  const [clients, setClients] = useState([
     {
       id: 1,
       name: "Acme Corp",
@@ -143,7 +182,112 @@ export default function CustomerSuccessPage() {
       engagementScore: 55,
       healthTrend: [65, 62, 60, 58, 58],
     },
-  ]
+  ])
+
+  const [tasks, setTasks] = useState([
+    {
+      id: "1-1",
+      client: "Acme Corp",
+      task: "Complete onboarding documentation",
+      status: "completed",
+      dueDate: "2025-01-20",
+      priority: "high",
+      assignedTo: "Sarah Johnson",
+    },
+    {
+      id: "1-2", 
+      client: "Acme Corp",
+      task: "Schedule quarterly business review",
+      status: "active",
+      dueDate: "2025-01-30",
+      priority: "medium",
+      assignedTo: "Sarah Johnson",
+    },
+    {
+      id: "2-1",
+      client: "Beta Solutions",
+      task: "Address technical concerns",
+      status: "overdue",
+      dueDate: "2025-01-18",
+      priority: "high",
+      assignedTo: "Michael Chen",
+    },
+    {
+      id: "2-2",
+      client: "Beta Solutions", 
+      task: "Review usage analytics",
+      status: "active",
+      dueDate: "2025-01-28",
+      priority: "medium",
+      assignedTo: "Michael Chen",
+    },
+    {
+      id: "3-1",
+      client: "Gamma Industries",
+      task: "Product training session",
+      status: "completed",
+      dueDate: "2025-01-15",
+      priority: "medium",
+      assignedTo: "Sarah Johnson",
+    },
+    {
+      id: "4-1",
+      client: "Delta Systems",
+      task: "Upsell premium features",
+      status: "active", 
+      dueDate: "2025-02-05",
+      priority: "low",
+      assignedTo: "Emily Rodriguez",
+    },
+  ])
+
+  const [milestones, setMilestones] = useState([
+    {
+      id: "m1-1",
+      client: "Acme Corp",
+      title: "Initial Setup Complete",
+      description: "Complete platform setup and configuration",
+      status: "completed",
+      targetDate: "2024-10-15",
+      completedDate: "2024-10-12",
+    },
+    {
+      id: "m1-2",
+      client: "Acme Corp", 
+      title: "Team Training Finished",
+      description: "Train all team members on platform usage",
+      status: "completed",
+      targetDate: "2024-11-01",
+      completedDate: "2024-10-28",
+    },
+    {
+      id: "m1-3",
+      client: "Acme Corp",
+      title: "First Value Milestone",
+      description: "Achieve first measurable business value",
+      status: "in-progress",
+      targetDate: "2025-02-15",
+      completedDate: null,
+    },
+    {
+      id: "m2-1",
+      client: "Beta Solutions",
+      title: "Initial Setup Complete", 
+      description: "Complete platform setup and configuration",
+      status: "completed",
+      targetDate: "2024-09-20",
+      completedDate: "2024-09-25",
+    },
+    {
+      id: "m2-2",
+      client: "Beta Solutions",
+      title: "Team Training Finished",
+      description: "Train all team members on platform usage", 
+      status: "in-progress",
+      targetDate: "2025-01-30",
+      completedDate: null,
+    },
+  ])
 
   const getHealthColor = (score: number) => {
     if (score >= 80) return "text-green-500"
@@ -187,7 +331,283 @@ export default function CustomerSuccessPage() {
     setIsClientModalOpen(true)
   }
 
-  const filteredClients = filterStatus === "all" ? clients : clients.filter((c) => c.status === filterStatus)
+  const handleAddClient = () => {
+    if (!newClientName || !newClientIndustry || !newClientCSM || !newClientARR || !newClientRenewalDate) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    const maxId = Math.max(...clients.map(c => c.id))
+    const newClient = {
+      id: maxId + 1,
+      name: newClientName,
+      industry: newClientIndustry,
+      healthScore: 75, // Default starting health score
+      status: "moderate",
+      lastContact: "0 days",
+      tasksCompleted: 0,
+      tasksTotal: 5, // Default starting tasks
+      milestonesCompleted: 0,
+      milestonesTotal: 3, // Default starting milestones
+      churnRisk: 25, // Default low risk
+      churnTrend: "stable",
+      npsScore: 7, // Default neutral score
+      arr: parseInt(newClientARR),
+      renewalDate: newClientRenewalDate,
+      csm: newClientCSM,
+      engagementScore: 50, // Default starting engagement
+      healthTrend: [75, 75, 75, 75, 75], // Default stable trend
+    }
+
+    setClients([...clients, newClient])
+    
+    // Reset form
+    setNewClientName("")
+    setNewClientIndustry("")
+    setNewClientCSM("")
+    setNewClientARR("")
+    setNewClientRenewalDate("")
+    setIsAddClientOpen(false)
+  }
+
+  const handleSendEmail = () => {
+    if (!emailSubject || !emailMessage) {
+      alert("Please fill in both subject and message")
+      return
+    }
+
+    // Simulate sending email
+    alert(`Email sent to ${selectedClient?.name}!\n\nSubject: ${emailSubject}\n\nThis would integrate with your email system.`)
+    
+    // Reset form and close
+    setEmailSubject("")
+    setEmailMessage("")
+    setIsEmailDialogOpen(false)
+  }
+
+  const handleLogCall = () => {
+    if (!phoneNotes) {
+      alert("Please add some notes about the call")
+      return
+    }
+
+    // Simulate logging call
+    alert(`Call logged for ${selectedClient?.name}!\n\nNotes: ${phoneNotes}\n\nThis would be added to the interaction history.`)
+    
+    // Reset form and close
+    setPhoneNotes("")
+    setIsPhoneDialogOpen(false)
+  }
+
+  const handleAddTask = () => {
+    if (!newTaskTitle || !newTaskClient || !newTaskDueDate) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    const maxId = Math.max(...tasks.map(t => parseInt(t.id.split('-')[1])))
+    const clientId = clients.find(c => c.name === newTaskClient)?.id || 1
+    const newTask = {
+      id: `${clientId}-${maxId + 1}`,
+      client: newTaskClient,
+      task: newTaskTitle,
+      status: "active",
+      dueDate: newTaskDueDate,
+      priority: newTaskPriority,
+      assignedTo: clients.find(c => c.name === newTaskClient)?.csm || "Unassigned",
+    }
+
+    setTasks([...tasks, newTask])
+    
+    // Reset form
+    setNewTaskTitle("")
+    setNewTaskClient("")
+    setNewTaskDueDate("")
+    setNewTaskPriority("medium")
+    setIsNewTaskOpen(false)
+  }
+
+  const toggleTaskStatus = (taskId: string) => {
+    setTasks(tasks.map(task => 
+      task.id === taskId 
+        ? { ...task, status: task.status === "completed" ? "active" : "completed" }
+        : task
+    ))
+  }
+
+  const handleEditTask = (task: any) => {
+    setEditingTask(task)
+    setEditTaskTitle(task.task)
+    setEditTaskClient(task.client)
+    setEditTaskDueDate(task.dueDate)
+    setEditTaskPriority(task.priority)
+    setEditTaskStatus(task.status)
+    setIsEditTaskOpen(true)
+  }
+
+  const handleSaveTask = () => {
+    if (!editTaskTitle || !editTaskClient || !editTaskDueDate) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    const updatedTasks = tasks.map(task => 
+      task.id === editingTask.id 
+        ? {
+            ...task,
+            task: editTaskTitle,
+            client: editTaskClient,
+            dueDate: editTaskDueDate,
+            priority: editTaskPriority,
+            status: editTaskStatus,
+            assignedTo: clients.find(c => c.name === editTaskClient)?.csm || task.assignedTo,
+          }
+        : task
+    )
+
+    setTasks(updatedTasks)
+    
+    // Reset form
+    setEditingTask(null)
+    setEditTaskTitle("")
+    setEditTaskClient("")
+    setEditTaskDueDate("")
+    setEditTaskPriority("")
+    setEditTaskStatus("")
+    setIsEditTaskOpen(false)
+  }
+
+  const handleAddMilestone = () => {
+    if (!newMilestoneTitle || !newMilestoneClient || !newMilestoneTargetDate) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    const clientMilestones = milestones.filter(m => m.client === newMilestoneClient)
+    const maxId = clientMilestones.length > 0 
+      ? Math.max(...clientMilestones.map(m => parseInt(m.id.split('-')[1])))
+      : 0
+    const clientId = clients.find(c => c.name === newMilestoneClient)?.id || 1
+    
+    const newMilestone = {
+      id: `m${clientId}-${maxId + 1}`,
+      client: newMilestoneClient,
+      title: newMilestoneTitle,
+      description: newMilestoneDescription,
+      status: "in-progress",
+      targetDate: newMilestoneTargetDate,
+      completedDate: null,
+    }
+
+    setMilestones([...milestones, newMilestone])
+    
+    // Reset form
+    setNewMilestoneTitle("")
+    setNewMilestoneClient("")
+    setNewMilestoneTargetDate("")
+    setNewMilestoneDescription("")
+    setIsNewMilestoneOpen(false)
+  }
+
+  const [interactions, setInteractions] = useState([
+    {
+      id: "int1",
+      type: "email",
+      client: "Acme Corp",
+      subject: "Quarterly Review Invitation",
+      description: "Sent quarterly business review invitation to Acme Corp",
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+      csm: "Sarah Johnson",
+    },
+    {
+      id: "int2",
+      type: "call",
+      client: "Beta Solutions",
+      subject: "Technical Support Call",
+      description: "Discussed technical concerns and provided solutions",
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+      csm: "Michael Chen",
+    },
+    {
+      id: "int3",
+      type: "meeting",
+      client: "Delta Systems",
+      subject: "Strategy Planning Meeting",
+      description: "Discussed Q1 goals and feature roadmap",
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
+      csm: "Emily Rodriguez",
+    },
+  ])
+
+  const handleLogInteraction = () => {
+    if (!newInteractionType || !newInteractionClient || !newInteractionSubject || !newInteractionDescription) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    const newInteraction = {
+      id: `int${interactions.length + 1}`,
+      type: newInteractionType,
+      client: newInteractionClient,
+      subject: newInteractionSubject,
+      description: newInteractionDescription,
+      timestamp: new Date(),
+      csm: clients.find(c => c.name === newInteractionClient)?.csm || "Unassigned",
+    }
+
+    setInteractions([newInteraction, ...interactions]) // Add to beginning for most recent first
+    
+    // Reset form
+    setNewInteractionType("")
+    setNewInteractionClient("")
+    setNewInteractionSubject("")
+    setNewInteractionDescription("")
+    setIsLogInteractionOpen(false)
+  }
+
+  // Filtered clients for dashboard tab
+  const dashboardFilteredClients = clients.filter((client) => {
+    const statusMatch = filterStatus === "all" || client.status === filterStatus
+    const searchMatch = searchQuery === "" || 
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.csm.toLowerCase().includes(searchQuery.toLowerCase())
+    return statusMatch && searchMatch
+  })
+
+  // Filtered clients for clients tab
+  const clientsTabFilteredClients = clients.filter((client) => {
+    const searchMatch = clientSearchQuery === "" ||
+      client.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+      client.industry.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+      client.csm.toLowerCase().includes(clientSearchQuery.toLowerCase())
+    return searchMatch
+  })
+
+  // Filtered tasks based on current filter
+  const filteredTasks = tasks.filter((task) => {
+    const today = new Date()
+    const dueDate = new Date(task.dueDate)
+    const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
+    
+    switch (taskFilter) {
+      case "overdue":
+        return task.status !== "completed" && daysDiff < 0
+      case "due-soon":
+        return task.status !== "completed" && daysDiff >= 0 && daysDiff <= 7
+      case "completed":
+        return task.status === "completed"
+      case "active":
+        return task.status === "active"
+      default:
+        return true
+    }
+  })
+
+  // Filtered interactions based on current filter
+  const filteredInteractions = interactions.filter((interaction) => {
+    return interactionFilter === "all" || interaction.type === interactionFilter
+  })
 
   const atRiskCount = clients.filter((c) => c.status === "at-risk").length
   const avgHealthScore = Math.round(clients.reduce((sum, c) => sum + c.healthScore, 0) / clients.length)
@@ -223,15 +643,60 @@ export default function CustomerSuccessPage() {
               <p className="text-muted-foreground mt-2">Zenith Success - Proactive customer engagement</p>
             </div>
             <div className="flex gap-2">
+              <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
+                <DialogTrigger asChild>
               <Button variant="outline">
                 <Plus className="w-4 h-4 mr-2" />
                 New Client
               </Button>
-              <Button variant="outline">
+                </DialogTrigger>
+              </Dialog>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  alert("Send bulk email to all clients:\n\n• Newsletter\n• Product updates\n• Health check surveys\n• Renewal reminders\n\nThis would open a bulk email composer.")
+                }}
+              >
                 <Mail className="w-4 h-4 mr-2" />
                 Send Email
               </Button>
-              <Button variant="outline">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  // Export client data as CSV
+                  try {
+                    const headers = ['Client ID', 'Name', 'Industry', 'Health Score', 'Status', 'CSM', 'ARR', 'Renewal Date', 'Last Contact', 'Churn Risk']
+                    const csvData = [
+                      headers.join(','),
+                      ...clients.map(client => [
+                        client.id,
+                        `"${client.name}"`,
+                        `"${client.industry}"`,
+                        client.healthScore,
+                        client.status,
+                        `"${client.csm}"`,
+                        client.arr,
+                        client.renewalDate,
+                        `"${client.lastContact}"`,
+                        client.churnRisk
+                      ].join(','))
+                    ].join('\n')
+
+                    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
+                    const link = document.createElement('a')
+                    const url = URL.createObjectURL(blob)
+                    link.setAttribute('href', url)
+                    link.setAttribute('download', `clients_export_${new Date().toISOString().split('T')[0]}.csv`)
+                    link.style.visibility = 'hidden'
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                  } catch (error) {
+                    console.error('Error exporting clients:', error)
+                    alert('Failed to export client data. Please try again.')
+                  }
+                }}
+              >
                 <Download className="w-4 h-4 mr-2" />
                 Export Data
               </Button>
@@ -349,12 +814,33 @@ export default function CustomerSuccessPage() {
                   </div>
                   <div className="relative mt-4">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input placeholder="Search by name or contact..." className="pl-10" />
+                    <Input 
+                      placeholder="Search by name, industry, or CSM..." 
+                      className="pl-10"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredClients.map((client) => (
+                    {dashboardFilteredClients.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No clients found matching your search.</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => {
+                            setSearchQuery("")
+                            setFilterStatus("all")
+                          }}
+                        >
+                          Clear Filters
+                        </Button>
+                      </div>
+                    ) : (
+                      dashboardFilteredClients.map((client) => (
                       <div
                         key={client.id}
                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -406,7 +892,8 @@ export default function CustomerSuccessPage() {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -414,44 +901,6 @@ export default function CustomerSuccessPage() {
 
             {/* Quick Stats & Activity */}
             <div className="space-y-4">
-              <Card className="border-primary/20 bg-primary/5">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    AI Insights
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <Brain className="w-4 h-4 text-primary mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Churn Alert</p>
-                      <p className="text-xs text-muted-foreground">
-                        Beta Solutions shows 78% churn risk. Recommend immediate outreach.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Target className="w-4 h-4 text-green-500 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Upsell Opportunity</p>
-                      <p className="text-xs text-muted-foreground">
-                        Delta Systems has high engagement. Consider premium tier upgrade.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Zap className="w-4 h-4 text-yellow-500 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Action Required</p>
-                      <p className="text-xs text-muted-foreground">
-                        3 clients haven't been contacted in 7+ days. Schedule check-ins.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle>Quick Stats</CardTitle>
@@ -543,11 +992,50 @@ export default function CustomerSuccessPage() {
               <div className="flex items-center justify-between">
                 <CardTitle>Client Directory</CardTitle>
                 <div className="flex gap-2">
+                  <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
+                    <DialogTrigger asChild>
                   <Button size="sm">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Client
                   </Button>
-                  <Button variant="outline" size="sm">
+                    </DialogTrigger>
+                  </Dialog>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      // Export filtered client data as CSV
+                      try {
+                        const headers = ['Client ID', 'Name', 'Industry', 'Health Score', 'Status', 'CSM', 'ARR', 'Renewal Date']
+                        const csvData = [
+                          headers.join(','),
+                          ...clientsTabFilteredClients.map(client => [
+                            client.id,
+                            `"${client.name}"`,
+                            `"${client.industry}"`,
+                            client.healthScore,
+                            client.status,
+                            `"${client.csm}"`,
+                            client.arr,
+                            client.renewalDate
+                          ].join(','))
+                        ].join('\n')
+
+                        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
+                        const link = document.createElement('a')
+                        const url = URL.createObjectURL(blob)
+                        link.setAttribute('href', url)
+                        link.setAttribute('download', `filtered_clients_export_${new Date().toISOString().split('T')[0]}.csv`)
+                        link.style.visibility = 'hidden'
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                      } catch (error) {
+                        console.error('Error exporting clients:', error)
+                        alert('Failed to export client data. Please try again.')
+                      }
+                    }}
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     Export
                   </Button>
@@ -556,7 +1044,12 @@ export default function CustomerSuccessPage() {
               <div className="flex gap-2 mt-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input placeholder="Search clients..." className="pl-10" />
+                  <Input 
+                    placeholder="Search clients..." 
+                    className="pl-10"
+                    value={clientSearchQuery}
+                    onChange={(e) => setClientSearchQuery(e.target.value)}
+                  />
                 </div>
                 <Button variant="outline" size="sm">
                   Filter
@@ -565,7 +1058,20 @@ export default function CustomerSuccessPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {clients.map((client) => (
+                {clientsTabFilteredClients.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No clients found matching your search.</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => setClientSearchQuery("")}
+                    >
+                      Clear Search
+                    </Button>
+                  </div>
+                ) : (
+                  clientsTabFilteredClients.map((client) => (
                   <div
                     key={client.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
@@ -604,7 +1110,8 @@ export default function CustomerSuccessPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -615,61 +1122,102 @@ export default function CustomerSuccessPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Task Management</CardTitle>
+                <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
+                  <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="w-4 h-4 mr-2" />
                   New Task
                 </Button>
+                  </DialogTrigger>
+                </Dialog>
               </div>
               <div className="flex gap-2 mt-4">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant={taskFilter === "all" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setTaskFilter("all")}
+                >
                   All Tasks
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant={taskFilter === "overdue" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setTaskFilter("overdue")}
+                >
                   Overdue
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant={taskFilter === "due-soon" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setTaskFilter("due-soon")}
+                >
                   Due Soon
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant={taskFilter === "completed" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setTaskFilter("completed")}
+                >
                   Completed
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {clients
-                  .flatMap((client) => [
-                    {
-                      id: `${client.id}-1`,
-                      client: client.name,
-                      task: "Complete onboarding documentation",
-                      status: "completed",
-                      dueDate: "2 days ago",
-                      priority: "high",
-                    },
-                    {
-                      id: `${client.id}-2`,
-                      client: client.name,
-                      task: "Schedule quarterly business review",
-                      status: "active",
-                      dueDate: "In 5 days",
-                      priority: "medium",
-                    },
-                  ])
-                  .slice(0, 8)
-                  .map((task) => (
+                {filteredTasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No tasks found for the selected filter.</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => setTaskFilter("all")}
+                    >
+                      Show All Tasks
+                    </Button>
+                  </div>
+                ) : (
+                  filteredTasks.map((task) => {
+                    const today = new Date()
+                    const dueDate = new Date(task.dueDate)
+                    const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
+                    
+                    let dueDateText = ""
+                    if (task.status === "completed") {
+                      dueDateText = "Completed"
+                    } else if (daysDiff < 0) {
+                      dueDateText = `${Math.abs(daysDiff)} days overdue`
+                    } else if (daysDiff === 0) {
+                      dueDateText = "Due today"
+                    } else if (daysDiff === 1) {
+                      dueDateText = "Due tomorrow"
+                    } else {
+                      dueDateText = `Due in ${daysDiff} days`
+                    }
+
+                    return (
                     <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-3 flex-1">
+                        <button
+                          onClick={() => toggleTaskStatus(task.id)}
+                          className="hover:scale-110 transition-transform"
+                        >
                         {task.status === "completed" ? (
                           <CheckCircle2 className="w-5 h-5 text-green-500" />
                         ) : (
-                          <Circle className="w-5 h-5 text-muted-foreground" />
+                            <Circle className="w-5 h-5 text-muted-foreground hover:text-primary" />
                         )}
+                        </button>
                         <div className="flex-1">
-                          <p className="font-medium">{task.task}</p>
+                          <p className={`font-medium ${task.status === "completed" ? "line-through text-muted-foreground" : ""}`}>
+                            {task.task}
+                          </p>
                           <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                             <span>{task.client}</span>
-                            <span>Due: {task.dueDate}</span>
+                            <span className={daysDiff < 0 && task.status !== "completed" ? "text-red-500 font-medium" : ""}>
+                              {dueDateText}
+                            </span>
+                            <span>Assigned to: {task.assignedTo}</span>
                           </div>
                         </div>
                       </div>
@@ -685,12 +1233,18 @@ export default function CustomerSuccessPage() {
                         >
                           {task.priority}
                         </Badge>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditTask(task)}
+                        >
                           Edit
                         </Button>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })
+                )}
               </div>
             </CardContent>
           </Card>
@@ -701,15 +1255,23 @@ export default function CustomerSuccessPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Milestone Tracking</CardTitle>
+                <Dialog open={isNewMilestoneOpen} onOpenChange={setIsNewMilestoneOpen}>
+                  <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="w-4 h-4 mr-2" />
                   New Milestone
                 </Button>
+                  </DialogTrigger>
+                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {clients.map((client) => (
+                {clients.map((client) => {
+                  const clientMilestones = milestones.filter(m => m.client === client.name)
+                  const completedCount = clientMilestones.filter(m => m.status === "completed").length
+                  
+                  return (
                   <div key={client.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div>
@@ -719,7 +1281,7 @@ export default function CustomerSuccessPage() {
                       <div className="text-right">
                         <p className="text-sm text-muted-foreground">Progress</p>
                         <p className="text-xl font-bold">
-                          {client.milestonesCompleted}/{client.milestonesTotal}
+                            {completedCount}/{clientMilestones.length}
                         </p>
                       </div>
                     </div>
@@ -727,28 +1289,52 @@ export default function CustomerSuccessPage() {
                       <div
                         className="bg-green-500 h-2 rounded-full transition-all"
                         style={{
-                          width: `${(client.milestonesCompleted / client.milestonesTotal) * 100}%`,
+                            width: `${clientMilestones.length > 0 ? (completedCount / clientMilestones.length) * 100 : 0}%`,
                         }}
                       />
                     </div>
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        <span>Initial Setup Complete</span>
+                        {clientMilestones.length === 0 ? (
+                          <div className="text-center py-4 text-muted-foreground">
+                            <p className="text-sm">No milestones yet</p>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="mt-2"
+                              onClick={() => {
+                                setNewMilestoneClient(client.name)
+                                setIsNewMilestoneOpen(true)
+                              }}
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              Add First Milestone
+                            </Button>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
+                        ) : (
+                          clientMilestones.map((milestone) => (
+                            <div key={milestone.id} className="flex items-center gap-2 text-sm">
+                              {milestone.status === "completed" ? (
                         <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        <span>Team Training Finished</span>
+                              ) : (
+                                <Circle className="w-4 h-4 text-muted-foreground" />
+                              )}
+                              <div className="flex-1">
+                                <span className={milestone.status === "completed" ? "text-foreground" : "text-muted-foreground"}>
+                                  {milestone.title}
+                                </span>
+                                {milestone.status === "in-progress" && (
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    (Due: {new Date(milestone.targetDate).toLocaleDateString()})
+                                  </span>
+                                )}
                       </div>
-                      {client.milestonesCompleted < client.milestonesTotal && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Circle className="w-4 h-4" />
-                          <span>First Value Milestone (In Progress)</span>
                         </div>
+                          ))
                       )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </CardContent>
           </Card>
@@ -759,24 +1345,44 @@ export default function CustomerSuccessPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Communication History</CardTitle>
+                <Dialog open={isLogInteractionOpen} onOpenChange={setIsLogInteractionOpen}>
+                  <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="w-4 h-4 mr-2" />
                   Log Interaction
                 </Button>
+                  </DialogTrigger>
+                </Dialog>
               </div>
               <div className="flex gap-2 mt-4">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant={interactionFilter === "all" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setInteractionFilter("all")}
+                >
                   All
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant={interactionFilter === "email" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setInteractionFilter("email")}
+                >
                   <Mail className="w-4 h-4 mr-2" />
                   Email
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant={interactionFilter === "call" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setInteractionFilter("call")}
+                >
                   <Phone className="w-4 h-4 mr-2" />
                   Call
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant={interactionFilter === "meeting" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setInteractionFilter("meeting")}
+                >
                   <Users className="w-4 h-4 mr-2" />
                   Meeting
                 </Button>
@@ -784,29 +1390,36 @@ export default function CustomerSuccessPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {clients
-                  .flatMap((client, idx) => [
-                    {
-                      id: `${client.id}-email`,
-                      type: "email",
-                      client: client.name,
-                      subject: "Quarterly Review Invitation",
-                      description: `Sent quarterly business review invitation to ${client.name}`,
-                      timestamp: `${idx + 1} hours ago`,
-                      csm: client.csm,
-                    },
-                    {
-                      id: `${client.id}-call`,
-                      type: "call",
-                      client: client.name,
-                      subject: "Monthly Check-in Call",
-                      description: "Discussed product adoption and upcoming features",
-                      timestamp: `${idx + 2} days ago`,
-                      csm: client.csm,
-                    },
-                  ])
-                  .slice(0, 10)
-                  .map((interaction) => (
+                {filteredInteractions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No interactions found for the selected filter.</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => setInteractionFilter("all")}
+                    >
+                      Show All Interactions
+                    </Button>
+                  </div>
+                ) : (
+                  filteredInteractions.map((interaction) => {
+                    const timeAgo = () => {
+                      const now = new Date()
+                      const diff = now.getTime() - interaction.timestamp.getTime()
+                      const hours = Math.floor(diff / (1000 * 60 * 60))
+                      const days = Math.floor(hours / 24)
+                      
+                      if (days > 0) {
+                        return `${days} day${days > 1 ? 's' : ''} ago`
+                      } else if (hours > 0) {
+                        return `${hours} hour${hours > 1 ? 's' : ''} ago`
+                      } else {
+                        return "Just now"
+                      }
+                    }
+
+                    return (
                     <div
                       key={interaction.id}
                       className="flex gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -842,12 +1455,14 @@ export default function CustomerSuccessPage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {interaction.timestamp}
+                            {timeAgo()}
                           </span>
                         </div>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1019,14 +1634,23 @@ export default function CustomerSuccessPage() {
                 </div>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <Button className="mx-0 my-3.5 bg-transparent" variant="outline" size="sm">
+                <Button 
+                  className="mx-0 my-3.5 bg-transparent" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setIsEmailDialogOpen(true)}
+                  title="Send Email"
+                >
                   <Mail className="w-4 h-4" />
                 </Button>
-                <Button className="my-3.5 bg-transparent" variant="outline" size="sm">
+                <Button 
+                  className="my-3.5 bg-transparent" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setIsPhoneDialogOpen(true)}
+                  title="Log Phone Call"
+                >
                   <Phone className="w-4 h-4" />
-                </Button>
-                <Button className="my-3.5" size="sm">
-                  <Plus className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -1445,6 +2069,522 @@ export default function CustomerSuccessPage() {
               </div>
             </Tabs>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Client Dialog */}
+      <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Client</DialogTitle>
+            <DialogDescription>Create a new client account in the system</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="client-name">Client Name *</Label>
+              <Input 
+                id="client-name"
+                placeholder="Enter client name"
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="client-industry">Industry *</Label>
+              <Select value={newClientIndustry} onValueChange={setNewClientIndustry}>
+                <SelectTrigger id="client-industry">
+                  <SelectValue placeholder="Select industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Technology">Technology</SelectItem>
+                  <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                  <SelectItem value="Healthcare">Healthcare</SelectItem>
+                  <SelectItem value="Finance">Finance</SelectItem>
+                  <SelectItem value="Retail">Retail</SelectItem>
+                  <SelectItem value="Education">Education</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="client-csm">Customer Success Manager *</Label>
+              <Select value={newClientCSM} onValueChange={setNewClientCSM}>
+                <SelectTrigger id="client-csm">
+                  <SelectValue placeholder="Assign CSM" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sarah Johnson">Sarah Johnson</SelectItem>
+                  <SelectItem value="Michael Chen">Michael Chen</SelectItem>
+                  <SelectItem value="Emily Rodriguez">Emily Rodriguez</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="client-arr">Annual Recurring Revenue (ARR) *</Label>
+              <Input 
+                id="client-arr"
+                type="number"
+                placeholder="Enter ARR amount"
+                value={newClientARR}
+                onChange={(e) => setNewClientARR(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="client-renewal">Renewal Date *</Label>
+              <Input 
+                id="client-renewal"
+                type="date"
+                value={newClientRenewalDate}
+                onChange={(e) => setNewClientRenewalDate(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1" onClick={handleAddClient}>
+                Create Client
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setIsAddClientOpen(false)
+                setNewClientName("")
+                setNewClientIndustry("")
+                setNewClientCSM("")
+                setNewClientARR("")
+                setNewClientRenewalDate("")
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Dialog */}
+      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Email to {selectedClient?.name}</DialogTitle>
+            <DialogDescription>Compose and send an email to the client</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="email-to">To</Label>
+              <Input 
+                id="email-to"
+                value={`${selectedClient?.name} <contact@${selectedClient?.name.toLowerCase().replace(/\s+/g, '')}.com>`}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email-subject">Subject *</Label>
+              <Input 
+                id="email-subject"
+                placeholder="Enter email subject"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="email-message">Message *</Label>
+              <Textarea 
+                id="email-message"
+                placeholder="Enter your message..."
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                rows={6}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1" onClick={handleSendEmail}>
+                <Mail className="w-4 h-4 mr-2" />
+                Send Email
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setIsEmailDialogOpen(false)
+                setEmailSubject("")
+                setEmailMessage("")
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phone Call Dialog */}
+      <Dialog open={isPhoneDialogOpen} onOpenChange={setIsPhoneDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log Phone Call - {selectedClient?.name}</DialogTitle>
+            <DialogDescription>Record details about your phone conversation</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="phone-number">Phone Number</Label>
+              <Input 
+                id="phone-number"
+                value={`+1 (555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div>
+              <Label htmlFor="call-duration">Call Duration</Label>
+              <Select defaultValue="15min">
+                <SelectTrigger id="call-duration">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5min">5 minutes</SelectItem>
+                  <SelectItem value="15min">15 minutes</SelectItem>
+                  <SelectItem value="30min">30 minutes</SelectItem>
+                  <SelectItem value="45min">45 minutes</SelectItem>
+                  <SelectItem value="60min">1 hour</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="call-notes">Call Notes *</Label>
+              <Textarea 
+                id="call-notes"
+                placeholder="What was discussed during the call?"
+                value={phoneNotes}
+                onChange={(e) => setPhoneNotes(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1" onClick={handleLogCall}>
+                <Phone className="w-4 h-4 mr-2" />
+                Log Call
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setIsPhoneDialogOpen(false)
+                setPhoneNotes("")
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Task Dialog */}
+      <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>Add a new task for client success management</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="task-title">Task Title *</Label>
+              <Input 
+                id="task-title"
+                placeholder="Enter task description"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="task-client">Assign to Client *</Label>
+              <Select value={newTaskClient} onValueChange={setNewTaskClient}>
+                <SelectTrigger id="task-client">
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.name}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="task-priority">Priority *</Label>
+              <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                <SelectTrigger id="task-priority">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="task-due-date">Due Date *</Label>
+              <Input 
+                id="task-due-date"
+                type="date"
+                value={newTaskDueDate}
+                onChange={(e) => setNewTaskDueDate(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1" onClick={handleAddTask}>
+                Create Task
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setIsNewTaskOpen(false)
+                setNewTaskTitle("")
+                setNewTaskClient("")
+                setNewTaskDueDate("")
+                setNewTaskPriority("medium")
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={isEditTaskOpen} onOpenChange={setIsEditTaskOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>Update task details and assignment</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-task-title">Task Title *</Label>
+              <Input 
+                id="edit-task-title"
+                placeholder="Enter task description"
+                value={editTaskTitle}
+                onChange={(e) => setEditTaskTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-task-client">Assign to Client *</Label>
+              <Select value={editTaskClient} onValueChange={setEditTaskClient}>
+                <SelectTrigger id="edit-task-client">
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.name}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-task-priority">Priority *</Label>
+                <Select value={editTaskPriority} onValueChange={setEditTaskPriority}>
+                  <SelectTrigger id="edit-task-priority">
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-task-status">Status *</Label>
+                <Select value={editTaskStatus} onValueChange={setEditTaskStatus}>
+                  <SelectTrigger id="edit-task-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-task-due-date">Due Date *</Label>
+              <Input 
+                id="edit-task-due-date"
+                type="date"
+                value={editTaskDueDate}
+                onChange={(e) => setEditTaskDueDate(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1" onClick={handleSaveTask}>
+                Save Changes
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to delete "${editTaskTitle}"?`)) {
+                    setTasks(tasks.filter(t => t.id !== editingTask.id))
+                    setIsEditTaskOpen(false)
+                    setEditingTask(null)
+                    setEditTaskTitle("")
+                    setEditTaskClient("")
+                    setEditTaskDueDate("")
+                    setEditTaskPriority("")
+                    setEditTaskStatus("")
+                  }
+                }}
+              >
+                Delete
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setIsEditTaskOpen(false)
+                setEditingTask(null)
+                setEditTaskTitle("")
+                setEditTaskClient("")
+                setEditTaskDueDate("")
+                setEditTaskPriority("")
+                setEditTaskStatus("")
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Milestone Dialog */}
+      <Dialog open={isNewMilestoneOpen} onOpenChange={setIsNewMilestoneOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Milestone</DialogTitle>
+            <DialogDescription>Add a new milestone for client success tracking</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="milestone-title">Milestone Title *</Label>
+              <Input 
+                id="milestone-title"
+                placeholder="Enter milestone name"
+                value={newMilestoneTitle}
+                onChange={(e) => setNewMilestoneTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="milestone-client">Assign to Client *</Label>
+              <Select value={newMilestoneClient} onValueChange={setNewMilestoneClient}>
+                <SelectTrigger id="milestone-client">
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.name}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="milestone-description">Description</Label>
+              <Textarea 
+                id="milestone-description"
+                placeholder="Describe what this milestone represents..."
+                value={newMilestoneDescription}
+                onChange={(e) => setNewMilestoneDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="milestone-target-date">Target Date *</Label>
+              <Input 
+                id="milestone-target-date"
+                type="date"
+                value={newMilestoneTargetDate}
+                onChange={(e) => setNewMilestoneTargetDate(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1" onClick={handleAddMilestone}>
+                Create Milestone
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setIsNewMilestoneOpen(false)
+                setNewMilestoneTitle("")
+                setNewMilestoneClient("")
+                setNewMilestoneTargetDate("")
+                setNewMilestoneDescription("")
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Log Interaction Dialog */}
+      <Dialog open={isLogInteractionOpen} onOpenChange={setIsLogInteractionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log New Interaction</DialogTitle>
+            <DialogDescription>Record a communication with a client</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="interaction-type">Interaction Type *</Label>
+              <Select value={newInteractionType} onValueChange={setNewInteractionType}>
+                <SelectTrigger id="interaction-type">
+                  <SelectValue placeholder="Select interaction type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="call">Phone Call</SelectItem>
+                  <SelectItem value="meeting">Meeting</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="interaction-client">Client *</Label>
+              <Select value={newInteractionClient} onValueChange={setNewInteractionClient}>
+                <SelectTrigger id="interaction-client">
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.name}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="interaction-subject">Subject/Title *</Label>
+              <Input 
+                id="interaction-subject"
+                placeholder="Enter subject or title"
+                value={newInteractionSubject}
+                onChange={(e) => setNewInteractionSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="interaction-description">Description *</Label>
+              <Textarea 
+                id="interaction-description"
+                placeholder="Describe what was discussed or communicated..."
+                value={newInteractionDescription}
+                onChange={(e) => setNewInteractionDescription(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button className="flex-1" onClick={handleLogInteraction}>
+                Log Interaction
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setIsLogInteractionOpen(false)
+                setNewInteractionType("")
+                setNewInteractionClient("")
+                setNewInteractionSubject("")
+                setNewInteractionDescription("")
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
       </div>

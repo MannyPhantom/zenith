@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import {
   FolderKanban,
   Package,
@@ -19,7 +23,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  Download,
   Plus,
   Search,
   Settings,
@@ -27,6 +30,12 @@ import {
 
 export default function HubPage() {
   const [timeRange, setTimeRange] = useState('7d')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [createType, setCreateType] = useState('')
+  const [createTitle, setCreateTitle] = useState('')
 
   const kpis = [
     {
@@ -225,22 +234,181 @@ export default function HubPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Search className="h-4 w-4" />
-            Quick Search
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Quick Create
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export Reports
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Settings className="h-4 w-4" />
-            Settings
-          </Button>
+          <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Search className="h-4 w-4" />
+                Quick Search
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Quick Search</DialogTitle>
+                <DialogDescription>Search across all modules and data</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="search-query">Search Query</Label>
+                  <Input 
+                    id="search-query"
+                    placeholder="Search projects, tasks, clients, inventory..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1"
+                    onClick={() => {
+                      if (searchQuery.trim()) {
+                        alert(`Searching for: "${searchQuery}"`)
+                        setSearchQuery('')
+                        setIsSearchOpen(false)
+                      }
+                    }}
+                  >
+                    Search
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsSearchOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Quick Create
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Quick Create</DialogTitle>
+                <DialogDescription>Create a new item in any module</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="create-type">Type</Label>
+                  <Select value={createType} onValueChange={setCreateType}>
+                    <SelectTrigger id="create-type">
+                      <SelectValue placeholder="Select what to create" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="project">Project</SelectItem>
+                      <SelectItem value="task">Task</SelectItem>
+                      <SelectItem value="client">Client</SelectItem>
+                      <SelectItem value="inventory">Inventory Item</SelectItem>
+                      <SelectItem value="job">Workforce Job</SelectItem>
+                      <SelectItem value="employee">Employee</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="create-title">Title/Name</Label>
+                  <Input 
+                    id="create-title"
+                    placeholder="Enter title or name"
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1"
+                    onClick={() => {
+                      if (createType && createTitle.trim()) {
+                        alert(`Creating ${createType}: "${createTitle}"`)
+                        setCreateType('')
+                        setCreateTitle('')
+                        setIsCreateOpen(false)
+                      } else {
+                        alert('Please select a type and enter a title')
+                      }
+                    }}
+                  >
+                    Create
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Hub Settings</DialogTitle>
+                <DialogDescription>Configure your hub preferences</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Dashboard Layout</Label>
+                  <Select defaultValue="default">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Default Layout</SelectItem>
+                      <SelectItem value="compact">Compact View</SelectItem>
+                      <SelectItem value="detailed">Detailed View</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Default Time Range</Label>
+                  <Select defaultValue="7d">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="24h">24 Hours</SelectItem>
+                      <SelectItem value="7d">7 Days</SelectItem>
+                      <SelectItem value="30d">30 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Refresh Interval</Label>
+                  <Select defaultValue="2min">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1min">1 minute</SelectItem>
+                      <SelectItem value="2min">2 minutes</SelectItem>
+                      <SelectItem value="5min">5 minutes</SelectItem>
+                      <SelectItem value="manual">Manual only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1"
+                    onClick={() => {
+                      alert('Settings saved successfully!')
+                      setIsSettingsOpen(false)
+                    }}
+                  >
+                    Save Settings
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <div className="flex-1" />
           <div className="flex gap-2">
             <Button variant={timeRange === '24h' ? 'default' : 'outline'} size="sm" onClick={() => setTimeRange('24h')}>

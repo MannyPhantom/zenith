@@ -57,6 +57,12 @@ export default function WorkforcePage() {
   const [editingJob, setEditingJob] = useState<string | null>(null)
   const [viewingJobLocation, setViewingJobLocation] = useState<string | null>(null)
   
+  // New calendar interaction state
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false)
+  const [quickCreateDate, setQuickCreateDate] = useState<Date | null>(null)
+  const [draggedJob, setDraggedJob] = useState<any>(null)
+  const [dragOverDate, setDragOverDate] = useState<Date | null>(null)
+  
   // Edit form state for jobs
   const [editJobTitle, setEditJobTitle] = useState("")
   const [editJobTechnician, setEditJobTechnician] = useState("")
@@ -256,6 +262,94 @@ export default function WorkforcePage() {
 
   const goToToday = () => {
     setCurrentMonth(new Date())
+  }
+
+  // Quick create job on calendar cell click
+  const handleCellClick = (date: Date) => {
+    setQuickCreateDate(date)
+    setIsQuickCreateOpen(true)
+  }
+
+  const handleQuickCreateJob = () => {
+    try {
+      if (!newJobTitle || !quickCreateDate) {
+        alert("Please fill in the job title")
+        return
+      }
+
+      const maxId = Math.max(...jobs.map(j => parseInt(j.id.slice(1))))
+      const newId = `#${maxId + 1}`
+
+      const formattedDate = quickCreateDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      })
+
+      const newJob = {
+        id: newId,
+        title: newJobTitle,
+        technician: newJobTechnician || "Unassigned",
+        startDate: formattedDate,
+        endDate: formattedDate,
+        status: newJobStatus,
+      }
+
+      setJobs([...jobs, newJob])
+      
+      // Reset form
+      setNewJobTitle("")
+      setNewJobTechnician("")
+      setNewJobStatus("Assigned")
+      setIsQuickCreateOpen(false)
+      setQuickCreateDate(null)
+    } catch (error) {
+      console.error('Error creating job:', error)
+      alert('Failed to create job. Please try again.')
+    }
+  }
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, job: any) => {
+    setDraggedJob(job)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent, date: Date) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverDate(date)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverDate(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, date: Date) => {
+    e.preventDefault()
+    
+    if (!draggedJob) return
+
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    })
+
+    const updatedJobs = jobs.map(job => {
+      if (job.id === draggedJob.id) {
+        return {
+          ...job,
+          startDate: formattedDate,
+          endDate: formattedDate,
+        }
+      }
+      return job
+    })
+
+    setJobs(updatedJobs)
+    setDraggedJob(null)
+    setDragOverDate(null)
   }
 
   // Job selection handlers
@@ -622,9 +716,185 @@ export default function WorkforcePage() {
     }
   }
 
+  // Export functionality
+  const exportJobsToCSV = () => {
+    try {
+      const headers = ['Job ID', 'Title', 'Technician', 'Start Date', 'End Date', 'Status']
+      const csvData = [
+        headers.join(','),
+        ...jobs.map(job => [
+          job.id,
+          `"${job.title}"`,
+          `"${job.technician}"`,
+          job.startDate,
+          job.endDate,
+          job.status
+        ].join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `jobs_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error exporting jobs:', error)
+      alert('Failed to export jobs. Please try again.')
+    }
+  }
+
+  const exportTimesheetsToCSV = () => {
+    try {
+      const headers = ['Timesheet ID', 'Date', 'Technician', 'Job ID', 'Job Title', 'Clock In', 'Clock Out', 'Hours', 'Status', 'Notes']
+      const csvData = [
+        headers.join(','),
+        ...timesheets.map(timesheet => [
+          timesheet.id,
+          timesheet.date,
+          `"${timesheet.technician}"`,
+          timesheet.jobId,
+          `"${timesheet.jobTitle}"`,
+          timesheet.clockIn,
+          timesheet.clockOut || '',
+          timesheet.hours.toString(),
+          timesheet.status,
+          `"${timesheet.notes}"`
+        ].join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `timesheets_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error exporting timesheets:', error)
+      alert('Failed to export timesheets. Please try again.')
+    }
+  }
+
+  const exportPerformanceToPDF = () => {
+    try {
+      // Create a simple HTML report that can be printed as PDF
+      const completionRate = ((jobs.filter(j => j.status === 'Completed').length / jobs.length) * 100).toFixed(1)
+      const totalHours = timesheets.reduce((sum, t) => sum + calculateHours(t.clockIn, t.clockOut), 0).toFixed(1)
+      const avgHoursPerJob = (parseFloat(totalHours) / jobs.length).toFixed(1)
+      const activeTechnicians = technicians.filter(t => t.status === 'Active').length
+
+      const reportContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Workforce Performance Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px; }
+            .metric-card { border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+            .metric-value { font-size: 2em; font-weight: bold; color: #2563eb; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f5f5f5; }
+            .footer { margin-top: 30px; text-align: center; font-size: 0.9em; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Workforce Performance Report</h1>
+            <p>Generated on ${new Date().toLocaleDateString()}</p>
+          </div>
+          
+          <div class="metrics">
+            <div class="metric-card">
+              <div class="metric-value">${completionRate}%</div>
+              <div>Completion Rate</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">${totalHours}h</div>
+              <div>Total Hours Logged</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">${avgHoursPerJob}h</div>
+              <div>Avg Hours per Job</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">${activeTechnicians}</div>
+              <div>Active Technicians</div>
+            </div>
+          </div>
+
+          <h2>Technician Performance</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Technician</th>
+                <th>Jobs Completed</th>
+                <th>Total Hours</th>
+                <th>Avg Hours/Job</th>
+                <th>Performance %</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${technicians.map(tech => {
+                const techJobs = jobs.filter(j => j.technician === tech.name);
+                const completedJobs = techJobs.filter(j => j.status === 'Completed').length;
+                const techTimesheets = timesheets.filter(t => t.technician === tech.name);
+                const techTotalHours = techTimesheets.reduce((sum, t) => sum + calculateHours(t.clockIn, t.clockOut), 0);
+                const techAvgHours = completedJobs > 0 ? techTotalHours / completedJobs : 0;
+                const performance = completedJobs > 0 ? (completedJobs / techJobs.length) * 100 : 0;
+                
+                return `
+                  <tr>
+                    <td>${tech.name}</td>
+                    <td>${completedJobs}/${techJobs.length}</td>
+                    <td>${techTotalHours.toFixed(1)}h</td>
+                    <td>${techAvgHours.toFixed(1)}h</td>
+                    <td>${performance.toFixed(0)}%</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <p>Zenith Technologies - TaskBeacon Workforce Management</p>
+          </div>
+        </body>
+        </html>
+      `
+
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(reportContent)
+        printWindow.document.close()
+        printWindow.focus()
+        setTimeout(() => {
+          printWindow.print()
+        }, 250)
+      }
+    } catch (error) {
+      console.error('Error generating performance report:', error)
+      alert('Failed to generate performance report. Please try again.')
+    }
+  }
+
   // Google Maps initialization using traditional JavaScript API
   const initTechnicianMap = () => {
     console.log('Initializing technician map with traditional JavaScript API...');
+    
+    // Safety check - only initialize if we're on the technician map tab
+    if (activePortal !== "technician" || technicianTab !== "map") {
+      console.log('Not on technician map tab, skipping initialization');
+      return;
+    }
     
     const jobLocations = [
       { lat: 40.7128, lng: -74.0060, title: "HVAC Repair", status: "assigned", id: "#101" },
@@ -636,9 +906,11 @@ export default function WorkforcePage() {
     console.log('Map element found:', !!mapElement);
     console.log('Google available:', !!(window as any).google);
     console.log('Google Maps available:', !!(window as any).google?.maps);
+    console.log('Current tab:', technicianTab);
+    console.log('Active portal:', activePortal);
     
     if (!mapElement) {
-      console.error('Map element not found');
+      console.error('Map element not found - make sure you are on the map tab');
       return;
     }
     
@@ -767,6 +1039,13 @@ export default function WorkforcePage() {
     }
   };
 
+  // Reset map loaded state when switching away from map tab
+  useEffect(() => {
+    if (activePortal !== "technician" || technicianTab !== "map") {
+      setMapLoaded(false);
+    }
+  }, [activePortal, technicianTab]);
+
   // Load Google Maps API
   useEffect(() => {
     console.log('useEffect triggered:', { activePortal, technicianTab, mapLoaded });
@@ -774,7 +1053,14 @@ export default function WorkforcePage() {
     if (activePortal === "technician" && technicianTab === "map" && !mapLoaded) {
       console.log('✅ Conditions met - Loading Google Maps API...');
       
-      const loadGoogleMaps = () => {
+      // Add a small delay to ensure the DOM element is rendered
+      const timeoutId = setTimeout(() => {
+        if (!mapContainerRef.current) {
+          console.log('Map container not ready, retrying...');
+          return;
+        }
+        
+        const loadGoogleMaps = () => {
         // Remove any existing scripts first
         const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
         existingScripts.forEach(script => script.remove());
@@ -870,7 +1156,10 @@ export default function WorkforcePage() {
         document.head.appendChild(script);
       };
 
-      loadGoogleMaps();
+        loadGoogleMaps();
+      }, 100); // 100ms delay to ensure DOM is ready
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [activePortal, technicianTab, mapLoaded]);
 
@@ -1181,7 +1470,18 @@ export default function WorkforcePage() {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setEditingJob(job.id)
+                                  setEditJobTitle(job.title)
+                                  setEditJobTechnician(job.technician)
+                                  setEditJobStartDate(job.startDate)
+                                  setEditJobEndDate(job.endDate)
+                                  setEditJobStatus(job.status)
+                                }}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </TableCell>
@@ -1242,6 +1542,98 @@ export default function WorkforcePage() {
                   </Card>
                 </div>
               </div>
+
+              {/* Edit Job Dialog for Dashboard */}
+              <Dialog open={!!editingJob} onOpenChange={(open) => !open && setEditingJob(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Job</DialogTitle>
+                    <DialogDescription>Update job information</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="dashboard-edit-job-title">Job Title *</Label>
+                      <Input 
+                        id="dashboard-edit-job-title" 
+                        value={editJobTitle}
+                        onChange={(e) => setEditJobTitle(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dashboard-edit-job-technician">Assign Technician</Label>
+                      <Select value={editJobTechnician} onValueChange={setEditJobTechnician}>
+                        <SelectTrigger id="dashboard-edit-job-technician">
+                          <SelectValue placeholder="Select technician" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Unassigned">Unassigned</SelectItem>
+                          {technicians.map((tech) => (
+                            <SelectItem key={tech.name} value={tech.name}>
+                              {tech.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="dashboard-edit-job-start">Start Date *</Label>
+                        <Input 
+                          id="dashboard-edit-job-start" 
+                          value={editJobStartDate}
+                          onChange={(e) => setEditJobStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="dashboard-edit-job-end">End Date *</Label>
+                        <Input 
+                          id="dashboard-edit-job-end" 
+                          value={editJobEndDate}
+                          onChange={(e) => setEditJobEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="dashboard-edit-job-status">Status</Label>
+                      <Select value={editJobStatus} onValueChange={setEditJobStatus}>
+                        <SelectTrigger id="dashboard-edit-job-status">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Assigned">Assigned</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                          <SelectItem value="Overdue">Overdue</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => {
+                        if (!editJobTitle || !editJobStartDate || !editJobEndDate) {
+                          alert("Please fill in all required fields")
+                          return
+                        }
+                        
+                        const updatedJobs = jobs.map(j => 
+                          j.id === editingJob 
+                            ? { ...j, title: editJobTitle, technician: editJobTechnician, startDate: editJobStartDate, endDate: editJobEndDate, status: editJobStatus }
+                            : j
+                        )
+                        setJobs(updatedJobs)
+                        setEditingJob(null)
+                        setEditJobTitle("")
+                        setEditJobTechnician("")
+                        setEditJobStartDate("")
+                        setEditJobEndDate("")
+                        setEditJobStatus("")
+                      }}
+                    >
+                      Save Changes
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </TabsContent>
 
             <TabsContent value="schedule">
@@ -1299,13 +1691,20 @@ export default function WorkforcePage() {
                         const date = new Date(year, month, day)
                         const dayJobs = getJobsForDate(date)
                         const isToday = new Date().toDateString() === date.toDateString()
+                        const isDragOver = dragOverDate?.toDateString() === date.toDateString()
                         
                         days.push(
                           <div
                             key={day}
-                            className={`min-h-24 p-2 border rounded-lg hover:bg-accent transition-colors ${
+                            className={`min-h-24 p-2 border rounded-lg hover:bg-accent transition-colors cursor-pointer ${
                               isToday ? 'border-primary bg-primary/5' : ''
+                            } ${
+                              isDragOver ? 'bg-blue-100 border-blue-300 border-2' : ''
                             }`}
+                            onClick={() => handleCellClick(date)}
+                            onDragOver={(e) => handleDragOver(e, date)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, date)}
                           >
                             <div className={`text-sm font-semibold mb-1 ${isToday ? 'text-primary' : ''}`}>
                               {day}
@@ -1314,12 +1713,16 @@ export default function WorkforcePage() {
                               {dayJobs.slice(0, 2).map((job) => (
                                 <div
                                   key={job.id}
-                                  className={`text-xs p-1 rounded truncate font-medium cursor-pointer hover:opacity-80 transition-opacity ${
+                                  className={`text-xs p-1 rounded truncate font-medium cursor-move hover:opacity-80 transition-opacity ${
                                     job.status === 'In Progress' ? 'bg-yellow-400 text-yellow-900' :
                                     job.status === 'Completed' ? 'bg-green-400 text-green-900' :
                                     job.status === 'Overdue' ? 'bg-red-400 text-red-900' : 
                                     'bg-blue-400 text-blue-900'
+                                  } ${
+                                    draggedJob?.id === job.id ? 'opacity-50' : ''
                                   }`}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, job)}
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     setViewingCalendarJob(job)
@@ -1424,6 +1827,19 @@ export default function WorkforcePage() {
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit Job
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete "${viewingCalendarJob?.title}"?`)) {
+                            const updatedJobs = jobs.filter(j => j.id !== viewingCalendarJob?.id)
+                            setJobs(updatedJobs)
+                            setViewingCalendarJob(null)
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
                       </Button>
                       <Button variant="outline" onClick={() => setViewingCalendarJob(null)}>
                         Close
@@ -1591,6 +2007,87 @@ export default function WorkforcePage() {
                   </div>
                 </DialogContent>
               </Dialog>
+
+              {/* Quick Create Job Dialog */}
+              {isQuickCreateOpen && (
+                <Dialog open={true} onOpenChange={() => {
+                  setIsQuickCreateOpen(false)
+                  setQuickCreateDate(null)
+                  setNewJobTitle("")
+                  setNewJobTechnician("")
+                  setNewJobStatus("Assigned")
+                }}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Quick Create Job</DialogTitle>
+                      <DialogDescription>
+                        Create a new job for {quickCreateDate?.toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          month: 'long', 
+                          day: 'numeric', 
+                          year: 'numeric' 
+                        }) || 'selected date'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="quick-job-title">Job Title *</Label>
+                        <Input 
+                          id="quick-job-title" 
+                          placeholder="Enter job title"
+                          value={newJobTitle}
+                          onChange={(e) => setNewJobTitle(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="quick-job-technician">Assign Technician</Label>
+                        <Select value={newJobTechnician} onValueChange={setNewJobTechnician}>
+                          <SelectTrigger id="quick-job-technician">
+                            <SelectValue placeholder="Select technician" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Unassigned">Unassigned</SelectItem>
+                            {technicians.map((tech) => (
+                              <SelectItem key={tech.name} value={tech.name}>
+                                {tech.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="quick-job-status">Status</Label>
+                        <Select value={newJobStatus} onValueChange={setNewJobStatus}>
+                          <SelectTrigger id="quick-job-status">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Assigned">Assigned</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                            <SelectItem value="Overdue">Overdue</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex gap-2 pt-4">
+                        <Button className="flex-1" onClick={handleQuickCreateJob}>
+                          Create Job
+                        </Button>
+                        <Button variant="outline" onClick={() => {
+                          setIsQuickCreateOpen(false)
+                          setQuickCreateDate(null)
+                          setNewJobTitle("")
+                          setNewJobTechnician("")
+                          setNewJobStatus("Assigned")
+                        }}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </TabsContent>
 
             <TabsContent value="jobs">
@@ -2489,15 +2986,15 @@ export default function WorkforcePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className="w-full" onClick={exportJobsToCSV}>
                         <FileText className="h-4 w-4 mr-2" />
                         Export Jobs (CSV)
                       </Button>
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className="w-full" onClick={exportTimesheetsToCSV}>
                         <FileText className="h-4 w-4 mr-2" />
                         Export Timesheets (CSV)
                       </Button>
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className="w-full" onClick={exportPerformanceToPDF}>
                         <BarChart3 className="h-4 w-4 mr-2" />
                         Export Performance (PDF)
                       </Button>
@@ -3185,6 +3682,19 @@ export default function WorkforcePage() {
                   <Button className="flex-1">
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                     Start Job
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete "${viewingTechJobDetails?.title}"?`)) {
+                        const updatedJobs = jobs.filter(j => j.id !== viewingTechJobDetails?.id)
+                        setJobs(updatedJobs)
+                        setViewingTechJobDetails(null)
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
                   </Button>
                   <Button variant="outline" onClick={() => setViewingTechJobDetails(null)}>
                     Close
