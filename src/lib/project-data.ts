@@ -405,3 +405,24 @@ export function getProjectWithProgress(project: Project): Project {
     completedTasks,
   }
 }
+
+export function reorderTasks(projectId: string, taskId: string, newIndex: number): void {
+  const project = mockProjects.find(p => p.id === projectId)
+  if (!project) return
+  
+  const taskIndex = project.tasks.findIndex(t => t.id === taskId)
+  if (taskIndex === -1) return
+  
+  // Remove task from current position
+  const [task] = project.tasks.splice(taskIndex, 1)
+  
+  // Insert at new position
+  project.tasks.splice(newIndex, 0, task)
+  
+  console.log('[reorderTasks] Reordered task:', taskId, 'to index:', newIndex)
+  
+  // Dispatch custom event to notify other components
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('projectDataUpdated', { detail: { projectId } }))
+  }
+}
