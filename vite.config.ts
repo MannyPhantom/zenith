@@ -12,4 +12,14 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  build: {
+    chunkSizeWarningLimit: 1000, // Increase limit to 1000kb for lucide-react
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'lucide-react': ['lucide-react'],
+        },
+      },
+    },
+  },
 })
