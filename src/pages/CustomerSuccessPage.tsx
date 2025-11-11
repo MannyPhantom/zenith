@@ -367,7 +367,7 @@ export default function CustomerSuccessPage() {
       healthScore: client.health_score.toString(),
       npsScore: client.nps_score.toString(),
       engagementScore: client.engagement_score.toString(),
-      featureUsage: client.feature_usage,
+      featureUsage: client.feature_usage as "Medium" | "Low" | "High",
       csmId: client.csm_id || "",
       portalLogins: client.portal_logins.toString(),
       supportTickets: client.support_tickets.toString(),
@@ -413,10 +413,16 @@ export default function CustomerSuccessPage() {
         arr: newClient.arr,
         renewal_date: newClient.renewalDate,
         health_score: newClient.healthScore,
+        status: newClient.healthScore >= 80 ? 'healthy' : newClient.healthScore >= 50 ? 'moderate' : 'at-risk',
+        last_contact_date: new Date().toISOString(),
+        churn_risk: 100 - newClient.healthScore,
+        churn_trend: 'stable',
         nps_score: newClient.npsScore,
         engagement_score: newClient.engagementScore,
         feature_usage: newClient.featureUsage,
         csm_id: newClient.csmId || null,
+        portal_logins: 0,
+        support_tickets: 0,
       })
       
       // Reset form

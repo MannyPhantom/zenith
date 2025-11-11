@@ -255,15 +255,6 @@ export function TimelineView({ project }: TimelineViewProps) {
                                   <div className="text-xs text-muted-foreground capitalize">
                                     Status: {task.status.replace('-', ' ')}
                                   </div>
-                                  {task.tags && task.tags.length > 0 && (
-                                    <div className="flex gap-1 mt-1 flex-wrap">
-                                      {task.tags.slice(0, 3).map(tag => (
-                                        <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded">
-                                          {tag}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -364,7 +355,7 @@ export function TimelineView({ project }: TimelineViewProps) {
                   {i + 1}
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-foreground text-sm">{milestone.title}</p>
+                  <p className="font-medium text-foreground text-sm">{milestone.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(milestone.date).toLocaleDateString()}
                   </p>
