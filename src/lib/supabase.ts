@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Environment variables for Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key'
+
+// Log environment check (will be removed in production builds)
+if (import.meta.env.DEV) {
+  console.log('Supabase URL configured:', supabaseUrl !== 'https://placeholder.supabase.co')
+  console.log('Supabase Key configured:', supabaseAnonKey !== 'placeholder-key')
+}
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
