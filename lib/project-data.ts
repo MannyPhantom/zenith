@@ -7,9 +7,11 @@ export interface Task {
     name: string
     avatar: string
   }
+  startDate: string
   deadline: string
   progress: number
   description?: string
+  dependencies?: string[] // Array of task IDs this task depends on
 }
 
 export interface Project {
@@ -68,6 +70,7 @@ export const mockProjects: Project[] = [
         status: "done",
         priority: "high",
         assignee: { name: "Sarah Chen", avatar: "/placeholder.svg?height=32&width=32" },
+        startDate: "2025-02-01",
         deadline: "2025-02-20",
         progress: 100,
       },
@@ -77,8 +80,10 @@ export const mockProjects: Project[] = [
         status: "in-progress",
         priority: "high",
         assignee: { name: "Mike Johnson", avatar: "/placeholder.svg?height=32&width=32" },
+        startDate: "2025-02-15",
         deadline: "2025-02-25",
         progress: 60,
+        dependencies: ["t1"],
       },
       {
         id: "t3",
@@ -86,8 +91,10 @@ export const mockProjects: Project[] = [
         status: "review",
         priority: "medium",
         assignee: { name: "Emily Davis", avatar: "/placeholder.svg?height=32&width=32" },
+        startDate: "2025-02-18",
         deadline: "2025-02-28",
         progress: 90,
+        dependencies: ["t1"],
       },
       {
         id: "t4",
@@ -95,8 +102,10 @@ export const mockProjects: Project[] = [
         status: "todo",
         priority: "low",
         assignee: { name: "Alex Kim", avatar: "/placeholder.svg?height=32&width=32" },
+        startDate: "2025-02-26",
         deadline: "2025-03-05",
         progress: 0,
+        dependencies: ["t2"],
       },
       {
         id: "t5",
@@ -104,8 +113,32 @@ export const mockProjects: Project[] = [
         status: "blocked",
         priority: "medium",
         assignee: { name: "Sarah Chen", avatar: "/placeholder.svg?height=32&width=32" },
+        startDate: "2025-02-20",
         deadline: "2025-02-22",
         progress: 30,
+        dependencies: ["t1"],
+      },
+      {
+        id: "t6",
+        title: "User testing & feedback",
+        status: "todo",
+        priority: "high",
+        assignee: { name: "Emily Davis", avatar: "/placeholder.svg?height=32&width=32" },
+        startDate: "2025-02-28",
+        deadline: "2025-03-10",
+        progress: 0,
+        dependencies: ["t2", "t3"],
+      },
+      {
+        id: "t7",
+        title: "Performance optimization",
+        status: "backlog",
+        priority: "medium",
+        assignee: { name: "Mike Johnson", avatar: "/placeholder.svg?height=32&width=32" },
+        startDate: "2025-03-05",
+        deadline: "2025-03-12",
+        progress: 0,
+        dependencies: ["t4", "t5"],
       },
     ],
     team: [

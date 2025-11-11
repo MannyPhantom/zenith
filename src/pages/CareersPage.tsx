@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,32 +21,21 @@ import {
   Award,
   ArrowRight,
   Upload,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react"
-import { submitApplication } from "@/lib/recruitment-data"
-
-interface Job {
-  id: string
-  title: string
-  department: string
-  location: string
-  type: "full-time" | "part-time" | "contract" | "internship"
-  level: "entry" | "mid" | "senior" | "lead"
-  salary: string
-  postedDate: string
-  description: string
-  responsibilities: string[]
-  qualifications: string[]
-  benefits: string[]
-}
+import { getAllJobs, submitJobApplication, type Job } from "@/lib/recruitment-db"
 
 export default function CareersPage() {
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [locationFilter, setLocationFilter] = useState("all")
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isApplicationOpen, setIsApplicationOpen] = useState(false)
   const [applicationSubmitted, setApplicationSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // Application form state
   const [application, setApplication] = useState({
@@ -61,7 +50,8 @@ export default function CareersPage() {
     portfolio: "",
   })
 
-  const jobs: Job[] = [
+  // Fallback mock data if database is empty
+  const mockJobs: Job[] = [
     {
       id: "1",
       title: "Senior Frontend Engineer",
@@ -224,6 +214,30 @@ export default function CareersPage() {
     }
   ]
 
+  // Fetch jobs from database
+  useEffect(() => {
+    loadJobs()
+  }, [])
+
+  const loadJobs = async () => {
+    setLoading(true)
+    try {
+      const fetchedJobs = await getAllJobs()
+      // Use fetched jobs if available, otherwise fall back to mock data
+      if (fetchedJobs && fetchedJobs.length > 0) {
+        setJobs(fetchedJobs)
+      } else {
+        console.log('No jobs in database, using mock data')
+        setJobs(mockJobs)
+      }
+    } catch (error) {
+      console.error('Error loading jobs, using mock data:', error)
+      setJobs(mockJobs)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          job.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -238,46 +252,57 @@ export default function CareersPage() {
     setIsApplicationOpen(true)
   }
 
-  const handleSubmitApplication = (e: React.FormEvent) => {
+  const handleSubmitApplication = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!selectedJob) return
     
-    // Submit application to the recruitment data system
-    const submittedApplication = submitApplication({
-      jobId: selectedJob.id,
-      jobTitle: selectedJob.title,
-      department: selectedJob.department,
-      firstName: application.firstName,
-      lastName: application.lastName,
-      email: application.email,
-      phone: application.phone,
-      location: application.location,
-      resume: application.resume,
-      coverLetter: application.coverLetter,
-      linkedin: application.linkedin,
-      portfolio: application.portfolio,
-    })
+    setSubmitting(true)
     
-    console.log("Application submitted successfully:", submittedApplication)
-    setApplicationSubmitted(true)
-    
-    setTimeout(() => {
-      setIsApplicationOpen(false)
-      setApplicationSubmitted(false)
-      setApplication({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        location: "",
-        resume: null,
-        coverLetter: "",
-        linkedin: "",
-        portfolio: "",
+    try {
+      // Submit application to the database
+      const success = await submitJobApplication({
+        jobId: selectedJob.id,
+        firstName: application.firstName,
+        lastName: application.lastName,
+        email: application.email,
+        phone: application.phone,
+        location: application.location,
+        resumeFileName: application.resume?.name,
+        coverLetter: application.coverLetter,
+        linkedin: application.linkedin,
+        portfolio: application.portfolio,
       })
-      setSelectedJob(null)
-    }, 2500)
+      
+      if (success) {
+        console.log("Application submitted successfully")
+        setApplicationSubmitted(true)
+        
+        setTimeout(() => {
+          setIsApplicationOpen(false)
+          setApplicationSubmitted(false)
+          setApplication({
+            firstName: "",
+            lastName: "",
+            email: "",
+            phone: "",
+            location: "",
+            resume: null,
+            coverLetter: "",
+            linkedin: "",
+            portfolio: "",
+          })
+          setSelectedJob(null)
+        }, 2500)
+      } else {
+        alert('Failed to submit application. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error submitting application:', error)
+      alert('Failed to submit application. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const companyValues = [
@@ -393,12 +418,32 @@ export default function CareersPage() {
 
           {/* Results Count */}
           <div className="mb-4 text-muted-foreground">
-            Showing {filteredJobs.length} {filteredJobs.length === 1 ? 'position' : 'positions'}
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading positions...
+              </div>
+            ) : (
+              `Showing ${filteredJobs.length} ${filteredJobs.length === 1 ? 'position' : 'positions'}`
+            )}
           </div>
 
           {/* Job Cards */}
           <div className="space-y-6">
-            {filteredJobs.map((job) => (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : filteredJobs.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Briefcase className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-xl font-semibold mb-2">No positions found</h3>
+                <p className="text-muted-foreground">
+                  Try adjusting your search filters to find more opportunities.
+                </p>
+              </Card>
+            ) : (
+              filteredJobs.map((job) => (
               <Card key={job.id} className="hover:shadow-lg transition-all">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
@@ -539,7 +584,8 @@ export default function CareersPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -662,11 +708,24 @@ export default function CareersPage() {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsApplicationOpen(false)} className="flex-1">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsApplicationOpen(false)} 
+                    className="flex-1"
+                    disabled={submitting}
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" className="flex-1">
-                    Submit Application
+                  <Button type="submit" className="flex-1" disabled={submitting}>
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Application'
+                    )}
                   </Button>
                 </div>
               </form>

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Project, Task } from "@/lib/project-data"
-import { addTask, getProjectTeamMembers } from "@/lib/project-data"
+import { addTask, getProjectTeamMembers } from "@/lib/project-data-supabase"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { TaskDetailsDialog } from "./task-details-dialog"
 
@@ -19,11 +19,12 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ project }: CalendarViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 1, 1)) // February 2025
+  const [currentDate, setCurrentDate] = useState(new Date()) // Current month
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [tasks, setTasks] = useState<Task[]>(project.tasks)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [taskDetailsOpen, setTaskDetailsOpen] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [newEvent, setNewEvent] = useState({
     title: "",
     description: "",
@@ -32,8 +33,15 @@ export function CalendarView({ project }: CalendarViewProps) {
     status: "todo" as Task["status"],
     date: "",
   })
-  
-  const teamMembers = getProjectTeamMembers(project.id)
+
+  // Load team members
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      const members = await getProjectTeamMembers(project.id)
+      setTeamMembers(members)
+    }
+    loadTeamMembers()
+  }, [project.id])
 
   // Update tasks when project data changes
   useEffect(() => {
@@ -81,13 +89,13 @@ export function CalendarView({ project }: CalendarViewProps) {
 
   // Map tasks to calendar dates
   const getTasksForDate = (day: number) => {
-    const dateStr = `2025-02-${day.toString().padStart(2, "0")}`
-    return tasks.filter((task) => task.deadline === dateStr)
+    const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`
+    return tasks.filter((task) => task.deadline && task.deadline === dateStr)
   }
 
-  const handleAddEvent = () => {
-    if (newEvent.title && newEvent.assignee && newEvent.date) {
-      const assigneeMember = teamMembers.find(m => m.name === newEvent.assignee)
+  const handleAddEvent = async () => {
+    if (newEvent.title && newEvent.assignee) {
+      const assigneeMember = teamMembers.find((m: any) => m.name === newEvent.assignee)
       
       const taskData: Omit<Task, 'id'> = {
         title: newEvent.title,
@@ -98,12 +106,12 @@ export function CalendarView({ project }: CalendarViewProps) {
           name: newEvent.assignee,
           avatar: assigneeMember?.avatar || "/placeholder.svg?height=32&width=32",
         },
-        deadline: newEvent.date,
+        deadline: newEvent.date || "", // Empty string if no deadline
         progress: 0,
       }
       
       // Add task/event to global data store
-      const newTaskWithId = addTask(project.id, taskData)
+      const newTaskWithId = await addTask(project.id, taskData)
       
       if (!newTaskWithId) {
         console.error("[CalendarView] Failed to add task")
@@ -169,8 +177,11 @@ export function CalendarView({ project }: CalendarViewProps) {
 
           {/* Calendar Days */}
           {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
-            const tasks = getTasksForDate(day)
-            const isToday = day === 10 // Simulating today as Feb 10
+            const dayTasks = getTasksForDate(day)
+            const today = new Date()
+            const isToday = day === today.getDate() && 
+                           currentDate.getMonth() === today.getMonth() && 
+                           currentDate.getFullYear() === today.getFullYear()
 
             return (
               <div
@@ -189,15 +200,15 @@ export function CalendarView({ project }: CalendarViewProps) {
                   >
                     {day}
                   </span>
-                  {tasks.length > 0 && (
+                  {dayTasks.length > 0 && (
                     <Badge variant="secondary" className="text-xs h-5">
-                      {tasks.length}
+                      {dayTasks.length}
                     </Badge>
                   )}
                 </div>
 
                 <div className="space-y-1">
-                  {tasks.slice(0, 3).map((task) => (
+                  {dayTasks.slice(0, 3).map((task) => (
                     <div
                       key={task.id}
                       onClick={() => {
@@ -220,8 +231,8 @@ export function CalendarView({ project }: CalendarViewProps) {
                       {task.title}
                     </div>
                   ))}
-                  {tasks.length > 3 && (
-                    <div className="text-xs text-muted-foreground text-center">+{tasks.length - 3} more</div>
+                  {dayTasks.length > 3 && (
+                    <div className="text-xs text-muted-foreground text-center">+{dayTasks.length - 3} more</div>
                   )}
                 </div>
               </div>
@@ -235,41 +246,50 @@ export function CalendarView({ project }: CalendarViewProps) {
         <h3 className="text-lg font-semibold mb-4 text-foreground">Upcoming Deadlines</h3>
         <div className="space-y-3">
           {tasks
-            .filter((t) => t.status !== "done")
+            .filter((t) => t.status !== "done" && t.deadline)
             .slice(0, 5)
-            .map((task) => (
-              <div
-                key={task.id}
-                onClick={() => {
-                  setSelectedTask(task)
-                  setTaskDetailsOpen(true)
-                }}
-                className="flex items-center gap-4 p-3 rounded-lg border border-border/40 hover:border-primary/40 hover:bg-muted/20 transition-all cursor-pointer"
-              >
-                <div className="text-center min-w-[60px]">
-                  <p className="text-2xl font-bold text-foreground">{task.deadline.split("-")[2]}</p>
-                  <p className="text-xs text-muted-foreground">FEB</p>
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{task.title}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${
-                        task.priority === "high"
-                          ? "border-red-500 text-red-600 bg-red-500/20 dark:text-red-400"
-                        : task.priority === "medium"
-                            ? "border-yellow-500 text-yellow-600 bg-yellow-500/20 dark:text-yellow-400"
-                            : "border-green-500 text-green-600 bg-green-500/20 dark:text-green-400"
-                      }`}
-                    >
-                      {task.priority}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
+            .map((task) => {
+              const deadlineDate = new Date(task.deadline)
+              const day = deadlineDate.getDate()
+              const month = deadlineDate.toLocaleString('en-US', { month: 'short' }).toUpperCase()
+              
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => {
+                    setSelectedTask(task)
+                    setTaskDetailsOpen(true)
+                  }}
+                  className="flex items-center gap-4 p-3 rounded-lg border border-border/40 hover:border-primary/40 hover:bg-muted/20 transition-all cursor-pointer"
+                >
+                  <div className="text-center min-w-[60px]">
+                    <p className="text-2xl font-bold text-foreground">{day}</p>
+                    <p className="text-xs text-muted-foreground">{month}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">{task.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${
+                          task.priority === "high"
+                            ? "border-red-500 text-red-600 bg-red-500/20 dark:text-red-400"
+                          : task.priority === "medium"
+                              ? "border-yellow-500 text-yellow-600 bg-yellow-500/20 dark:text-yellow-400"
+                              : "border-green-500 text-green-600 bg-green-500/20 dark:text-green-400"
+                        }`}
+                      >
+                        {task.priority}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
+          {tasks.filter((t) => t.status !== "done" && t.deadline).length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">No upcoming deadlines</p>
+          )}
         </div>
       </Card>
 
@@ -326,7 +346,7 @@ export function CalendarView({ project }: CalendarViewProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="event-date">Date *</Label>
+                <Label htmlFor="event-date">Date (Optional)</Label>
                 <Input
                   id="event-date"
                   type="date"
@@ -382,7 +402,7 @@ export function CalendarView({ project }: CalendarViewProps) {
             </Button>
             <Button 
               onClick={handleAddEvent}
-              disabled={!newEvent.title || !newEvent.assignee || !newEvent.date}
+              disabled={!newEvent.title || !newEvent.assignee}
             >
               Add Event
             </Button>

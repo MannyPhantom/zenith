@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { getProjectById, getProjectWithProgress, type Task } from "@/lib/project-data"
+import { getProjectById, getProjectWithProgress, type Task, type Project } from "@/lib/project-data-supabase"
 import {
   ArrowLeft,
   List,
@@ -18,6 +18,8 @@ import {
   BarChart3,
   AlertCircle,
   Clock,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { KanbanBoard } from "./kanban-board"
@@ -27,6 +29,9 @@ import { TimelineView } from "./timeline-view"
 import { TeamManagement } from "./team-management"
 import { FileManagement } from "./file-management"
 import { SprintView } from "./sprint-view"
+import { PlanView } from "./plan-view"
+import { ReportsView } from "./reports-view"
+import { ShareView } from "./share-view"
 import { AddTaskDialog } from "./add-task-dialog"
 import { TaskDetailsDialog } from "./task-details-dialog"
 
@@ -35,27 +40,44 @@ interface ProjectDetailProps {
 }
 
 export function ProjectDetail({ projectId }: ProjectDetailProps) {
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [project, setProject] = useState<Project | null>(null)
+  const [loading, setLoading] = useState(true)
   const [activeView, setActiveView] = useState("board")
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false)
   const [addTaskDefaultStatus, setAddTaskDefaultStatus] = useState<Task["status"]>("todo")
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [taskDetailsOpen, setTaskDetailsOpen] = useState(false)
+  const [showAllActivities, setShowAllActivities] = useState(false)
   
   console.log("[ProjectDetail] Rendering, dialog open:", addTaskDialogOpen)
   
-  // Get project with calculated progress (recalculates when refreshKey changes)
-  const project = useMemo(() => {
-    const baseProject = getProjectById(projectId)
-    return baseProject ? getProjectWithProgress(baseProject) : null
-  }, [projectId, refreshKey])
+  // Load project data
+  const loadProject = async () => {
+    try {
+      setLoading(true)
+      const data = await getProjectById(projectId)
+      if (data) {
+        const projectWithProgress = await getProjectWithProgress(data)
+        setProject(projectWithProgress)
+      }
+    } catch (err) {
+      console.error('Error loading project:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Initial load
+  useEffect(() => {
+    loadProject()
+  }, [projectId])
 
   // Listen for data updates and refresh
   useEffect(() => {
     const handleProjectUpdate = (event: CustomEvent) => {
       if (event.detail.projectId === projectId) {
         console.log('Project data updated, refreshing...')
-        setRefreshKey(prev => prev + 1)
+        loadProject()
       }
     }
     
@@ -113,9 +135,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   {project.status}
                 </Badge>
                 <Badge variant="outline" className="border-primary text-primary bg-primary/20 text-base px-3 py-1">
-                  Due: {project.deadline}
-                </Badge>
-                <Badge variant="outline" className="border-primary text-primary bg-primary/20 text-base px-3 py-1">
                   {project.progress}% Complete
                 </Badge>
               </div>
@@ -143,9 +162,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* KPI Cards - Hide for Files, Share, and Reports views */}
+      {activeView !== "files" && activeView !== "share" && activeView !== "reports" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Card className="p-4 bg-gradient-to-br from-card to-card/50 border-border/40">
             <div className="flex items-center justify-between">
               <div>
@@ -159,39 +178,27 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             </div>
           </Card>
 
-          <Card className="p-4 bg-gradient-to-br from-destructive/10 to-card/50 border-destructive/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-base text-muted-foreground mb-1">Upcoming Deadlines</p>
-                <p className="text-4xl font-bold text-destructive">
-                  {project.tasks.filter((t) => t.status !== "done").length}
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {project.tasks.filter((t) => t.status !== "done" && new Date(t.deadline) < new Date()).length} overdue
-                </p>
-              </div>
-              <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
-                <AlertCircle className="w-7 h-7 text-destructive" />
-              </div>
-            </div>
-          </Card>
-
           <Card className="p-4 bg-gradient-to-br from-card to-card/50 border-border/40">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base text-muted-foreground mb-1">Hours Logged</p>
-                <p className="text-4xl font-bold text-foreground">142</p>
-                <p className="text-sm text-muted-foreground mt-2">This sprint</p>
+                <p className="text-base text-muted-foreground mb-1">Tasks</p>
+                <p className="text-4xl font-bold text-foreground">
+                  {project.completedTasks}/{project.totalTasks}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {project.tasks.filter((t) => t.status !== "done").length} remaining
+                </p>
               </div>
               <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                <Clock className="w-7 h-7 text-primary" />
+                <AlertCircle className="w-7 h-7 text-primary" />
               </div>
             </div>
           </Card>
         </div>
+      )}
 
-        {/* Main Content Area */}
-        <div className="w-full">
+      {/* Main Content Area */}
+      <div className="w-full">
           {activeView === "board" && (
             <KanbanBoard 
               project={project} 
@@ -208,30 +215,21 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             />
           )}
           {activeView === "table" && <TableView project={project} />}
+          {activeView === "plan" && <PlanView project={project} onProjectUpdate={() => loadProject()} />}
           {activeView === "calendar" && <CalendarView project={project} />}
           {activeView === "timeline" && <TimelineView project={project} />}
-          {activeView === "sprint" && <SprintView project={project} />}
-          {activeView === "team" && <TeamManagement project={project} />}
-          {activeView === "files" && <FileManagement project={project} />}
-          {activeView !== "board" &&
-            activeView !== "table" &&
-            activeView !== "calendar" &&
-            activeView !== "timeline" &&
-            activeView !== "sprint" &&
-            activeView !== "team" &&
-            activeView !== "files" && (
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-4 capitalize">{activeView} View</h2>
-                <p className="text-muted-foreground">{activeView} view coming soon...</p>
-              </Card>
-            )}
+          {activeView === "sprint" && <SprintView project={project} onProjectUpdate={loadProject} />}
+          {activeView === "team" && <TeamManagement project={project} onProjectUpdate={loadProject} />}
+          {activeView === "files" && <FileManagement project={project} onProjectUpdate={loadProject} />}
+          {activeView === "reports" && <ReportsView project={project} />}
+          {activeView === "share" && <ShareView project={project} />}
         </div>
 
         {/* Activity Timeline */}
         <Card className="p-6 mt-6">
           <h2 className="text-xl font-semibold mb-4 text-foreground">Activity Timeline</h2>
           <div className="space-y-4">
-            {project.activities.map((activity) => (
+            {(showAllActivities ? project.activities : project.activities.slice(0, 5)).map((activity) => (
               <div
                 key={activity.id}
                 className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/20 transition-colors"
@@ -248,8 +246,29 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </div>
             ))}
           </div>
+          {project.activities.length > 5 && (
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllActivities(!showAllActivities)}
+                className="text-sm"
+              >
+                {showAllActivities ? (
+                  <>
+                    <ChevronUp className="h-4 w-4 mr-2" />
+                    Show Less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More ({project.activities.length - 5} more)
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </Card>
-      </div>
     </div>
 
     <AddTaskDialog

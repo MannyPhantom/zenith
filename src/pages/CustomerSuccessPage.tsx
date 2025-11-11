@@ -1,293 +1,233 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Users,
-  AlertTriangle,
   TrendingUp,
   Search,
   Plus,
   Mail,
   Download,
-  CheckCircle2,
-  Circle,
-  AlertCircle,
   Brain,
-  Target,
-  BarChart3,
-  TrendingDown,
   DollarSign,
   Award,
   Activity,
   ArrowUpRight,
   ArrowDownRight,
+  ChevronRight,
+  TrendingDown,
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  Edit,
+  Trash2,
+  Eye,
   Calendar,
   Phone,
   Building,
-  User,
-  FileText,
+  BarChart3,
+  Target,
+  Sparkles,
   Clock,
-  ChevronRight,
-  Trash2,
 } from "lucide-react"
+import * as api from '@/lib/customer-success-api'
+import type { Client, ClientTask, ClientMilestone, ClientInteraction } from '@/lib/customer-success-api'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 export default function CustomerSuccessPage() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [filterStatus, setFilterStatus] = useState("all")
-  const [selectedClient, setSelectedClient] = useState<any>(null)
-  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [clientSearchQuery, setClientSearchQuery] = useState("")
-  const [isAddClientOpen, setIsAddClientOpen] = useState(false)
-  const [newClientName, setNewClientName] = useState("")
-  const [newClientIndustry, setNewClientIndustry] = useState("")
-  const [newClientCSM, setNewClientCSM] = useState("")
-  const [newClientARR, setNewClientARR] = useState("")
-  const [newClientRenewalDate, setNewClientRenewalDate] = useState("")
-  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false)
-  const [isPhoneDialogOpen, setIsPhoneDialogOpen] = useState(false)
-  const [emailSubject, setEmailSubject] = useState("")
-  const [emailMessage, setEmailMessage] = useState("")
-  const [phoneNotes, setPhoneNotes] = useState("")
-  const [isNewTaskOpen, setIsNewTaskOpen] = useState(false)
-  const [taskFilter, setTaskFilter] = useState("all")
-  const [newTaskTitle, setNewTaskTitle] = useState("")
-  const [newTaskClient, setNewTaskClient] = useState("")
-  const [newTaskDueDate, setNewTaskDueDate] = useState("")
-  const [newTaskPriority, setNewTaskPriority] = useState("medium")
-  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState<any>(null)
-  const [editTaskTitle, setEditTaskTitle] = useState("")
-  const [editTaskClient, setEditTaskClient] = useState("")
-  const [editTaskDueDate, setEditTaskDueDate] = useState("")
-  const [editTaskPriority, setEditTaskPriority] = useState("")
-  const [editTaskStatus, setEditTaskStatus] = useState("")
-  const [isNewMilestoneOpen, setIsNewMilestoneOpen] = useState(false)
-  const [newMilestoneTitle, setNewMilestoneTitle] = useState("")
-  const [newMilestoneClient, setNewMilestoneClient] = useState("")
-  const [newMilestoneTargetDate, setNewMilestoneTargetDate] = useState("")
-  const [newMilestoneDescription, setNewMilestoneDescription] = useState("")
-  const [isLogInteractionOpen, setIsLogInteractionOpen] = useState(false)
-  const [interactionFilter, setInteractionFilter] = useState("all")
-  const [newInteractionType, setNewInteractionType] = useState("")
-  const [newInteractionClient, setNewInteractionClient] = useState("")
-  const [newInteractionSubject, setNewInteractionSubject] = useState("")
-  const [newInteractionDescription, setNewInteractionDescription] = useState("")
+  
+  // Client management state
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [clientsSearchQuery, setClientsSearchQuery] = useState("")
+  const [clientsFilterStatus, setClientsFilterStatus] = useState("all")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Task management state
+  const [selectedTask, setSelectedTask] = useState<ClientTask | null>(null)
+  const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false)
+  const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false)
+  const [tasksSearchQuery, setTasksSearchQuery] = useState("")
+  const [tasksFilterStatus, setTasksFilterStatus] = useState("all")
+  
+  // CSM user management state
+  const [isAddCSMDialogOpen, setIsAddCSMDialogOpen] = useState(false)
+  const [csmUsers, setCsmUsers] = useState<api.CSMUser[]>([])
+  const [newCSMUser, setNewCSMUser] = useState({
+    name: "",
+    email: "",
+    avatar: "",
+  })
+  
+  // Add client form state
+  const [newClient, setNewClient] = useState({
+    name: "",
+    industry: "",
+    arr: 100000,
+    renewalDate: "",
+    healthScore: 75,
+    npsScore: 7,
+    engagementScore: 50,
+    featureUsage: "Medium" as "Low" | "Medium" | "High",
+    csmId: "",
+  })
+  
+  // Edit client form state
+  const [editClientData, setEditClientData] = useState({
+    name: "",
+    industry: "",
+    arr: "",
+    renewalDate: "",
+    healthScore: "",
+    npsScore: "",
+    engagementScore: "",
+    featureUsage: "Medium" as "Low" | "Medium" | "High",
+    csmId: "",
+    portalLogins: "",
+    supportTickets: "",
+  })
+  
+  // Add task form state
+  const [newTask, setNewTask] = useState({
+    clientId: "",
+    title: "",
+    status: "active" as "active" | "completed" | "overdue",
+    dueDate: "",
+    priority: "medium" as "low" | "medium" | "high",
+    assignedTo: "",
+  })
+  
+  // Edit task form state
+  const [editTaskData, setEditTaskData] = useState({
+    clientId: "",
+    title: "",
+    status: "active" as "active" | "completed" | "overdue",
+    dueDate: "",
+    priority: "medium" as "low" | "medium" | "high",
+    assignedTo: "",
+  })
 
-  const [clients, setClients] = useState([
-    {
-      id: 1,
-      name: "Acme Corp",
-      industry: "Technology",
-      healthScore: 85,
-      status: "healthy",
-      lastContact: "3 days",
-      tasksCompleted: 12,
-      tasksTotal: 15,
-      milestonesCompleted: 4,
-      milestonesTotal: 5,
-      churnRisk: 15,
-      churnTrend: "down",
-      npsScore: 9,
-      arr: 120000,
-      renewalDate: "2025-06-15",
-      csm: "Sarah Johnson",
-      engagementScore: 92,
-      healthTrend: [75, 78, 82, 85, 85],
-    },
-    {
-      id: 2,
-      name: "Beta Solutions",
-      industry: "Manufacturing",
-      healthScore: 45,
-      status: "at-risk",
-      lastContact: "12 days",
-      tasksCompleted: 5,
-      tasksTotal: 18,
-      milestonesCompleted: 2,
-      milestonesTotal: 6,
-      churnRisk: 78,
-      churnTrend: "up",
-      npsScore: 4,
-      arr: 85000,
-      renewalDate: "2025-04-20",
-      csm: "Michael Chen",
-      engagementScore: 38,
-      healthTrend: [68, 62, 55, 48, 45],
-    },
-    {
-      id: 3,
-      name: "Gamma Industries",
-      industry: "Healthcare",
-      healthScore: 72,
-      status: "moderate",
-      lastContact: "2 days",
-      tasksCompleted: 8,
-      tasksTotal: 12,
-      milestonesCompleted: 3,
-      milestonesTotal: 4,
-      churnRisk: 35,
-      churnTrend: "stable",
-      npsScore: 7,
-      arr: 95000,
-      renewalDate: "2025-08-10",
-      csm: "Sarah Johnson",
-      engagementScore: 68,
-      healthTrend: [70, 71, 70, 72, 72],
-    },
-    {
-      id: 4,
-      name: "Delta Systems",
-      industry: "Finance",
-      healthScore: 91,
-      status: "healthy",
-      lastContact: "1 day",
-      tasksCompleted: 14,
-      tasksTotal: 15,
-      milestonesCompleted: 5,
-      milestonesTotal: 5,
-      churnRisk: 8,
-      churnTrend: "down",
-      npsScore: 10,
-      arr: 250000,
-      renewalDate: "2025-12-01",
-      csm: "Emily Rodriguez",
-      engagementScore: 95,
-      healthTrend: [88, 89, 90, 91, 91],
-    },
-    {
-      id: 5,
-      name: "Epsilon Tech",
-      industry: "Retail",
-      healthScore: 58,
-      status: "moderate",
-      lastContact: "7 days",
-      tasksCompleted: 6,
-      tasksTotal: 14,
-      milestonesCompleted: 2,
-      milestonesTotal: 5,
-      churnRisk: 52,
-      churnTrend: "up",
-      npsScore: 6,
-      arr: 72000,
-      renewalDate: "2025-05-15",
-      csm: "Michael Chen",
-      engagementScore: 55,
-      healthTrend: [65, 62, 60, 58, 58],
-    },
-  ])
+  // Milestone management state
+  const [selectedMilestone, setSelectedMilestone] = useState<ClientMilestone | null>(null)
+  const [isAddMilestoneDialogOpen, setIsAddMilestoneDialogOpen] = useState(false)
+  const [isEditMilestoneDialogOpen, setIsEditMilestoneDialogOpen] = useState(false)
+  const [milestonesSearchQuery, setMilestonesSearchQuery] = useState("")
+  const [milestonesFilterStatus, setMilestonesFilterStatus] = useState<"all" | "completed" | "in-progress" | "upcoming">("all")
 
-  const [tasks, setTasks] = useState([
-    {
-      id: "1-1",
-      client: "Acme Corp",
-      task: "Complete onboarding documentation",
-      status: "completed",
-      dueDate: "2025-01-20",
-      priority: "high",
-      assignedTo: "Sarah Johnson",
-    },
-    {
-      id: "1-2", 
-      client: "Acme Corp",
-      task: "Schedule quarterly business review",
-      status: "active",
-      dueDate: "2025-01-30",
-      priority: "medium",
-      assignedTo: "Sarah Johnson",
-    },
-    {
-      id: "2-1",
-      client: "Beta Solutions",
-      task: "Address technical concerns",
-      status: "overdue",
-      dueDate: "2025-01-18",
-      priority: "high",
-      assignedTo: "Michael Chen",
-    },
-    {
-      id: "2-2",
-      client: "Beta Solutions", 
-      task: "Review usage analytics",
-      status: "active",
-      dueDate: "2025-01-28",
-      priority: "medium",
-      assignedTo: "Michael Chen",
-    },
-    {
-      id: "3-1",
-      client: "Gamma Industries",
-      task: "Product training session",
-      status: "completed",
-      dueDate: "2025-01-15",
-      priority: "medium",
-      assignedTo: "Sarah Johnson",
-    },
-    {
-      id: "4-1",
-      client: "Delta Systems",
-      task: "Upsell premium features",
-      status: "active", 
-      dueDate: "2025-02-05",
-      priority: "low",
-      assignedTo: "Emily Rodriguez",
-    },
-  ])
+  // Add milestone form state
+  const [newMilestone, setNewMilestone] = useState({
+    clientId: "",
+    title: "",
+    description: "",
+    status: "upcoming" as "completed" | "in-progress" | "upcoming",
+    targetDate: "",
+    completedDate: "",
+  })
 
-  const [milestones, setMilestones] = useState([
-    {
-      id: "m1-1",
-      client: "Acme Corp",
-      title: "Initial Setup Complete",
-      description: "Complete platform setup and configuration",
-      status: "completed",
-      targetDate: "2024-10-15",
-      completedDate: "2024-10-12",
-    },
-    {
-      id: "m1-2",
-      client: "Acme Corp", 
-      title: "Team Training Finished",
-      description: "Train all team members on platform usage",
-      status: "completed",
-      targetDate: "2024-11-01",
-      completedDate: "2024-10-28",
-    },
-    {
-      id: "m1-3",
-      client: "Acme Corp",
-      title: "First Value Milestone",
-      description: "Achieve first measurable business value",
-      status: "in-progress",
-      targetDate: "2025-02-15",
-      completedDate: null,
-    },
-    {
-      id: "m2-1",
-      client: "Beta Solutions",
-      title: "Initial Setup Complete", 
-      description: "Complete platform setup and configuration",
-      status: "completed",
-      targetDate: "2024-09-20",
-      completedDate: "2024-09-25",
-    },
-    {
-      id: "m2-2",
-      client: "Beta Solutions",
-      title: "Team Training Finished",
-      description: "Train all team members on platform usage", 
-      status: "in-progress",
-      targetDate: "2025-01-30",
-      completedDate: null,
-    },
-  ])
+  // Edit milestone form state
+  const [editMilestoneData, setEditMilestoneData] = useState({
+    title: "",
+    description: "",
+    status: "upcoming" as "completed" | "in-progress" | "upcoming",
+    targetDate: "",
+    completedDate: "",
+  })
+
+  // Interaction management state
+  const [selectedInteraction, setSelectedInteraction] = useState<ClientInteraction | null>(null)
+  const [isAddInteractionDialogOpen, setIsAddInteractionDialogOpen] = useState(false)
+  const [isEditInteractionDialogOpen, setIsEditInteractionDialogOpen] = useState(false)
+  const [interactionsSearchQuery, setInteractionsSearchQuery] = useState("")
+  const [interactionsFilterType, setInteractionsFilterType] = useState<"all" | "email" | "call" | "meeting">("all")
+
+  // Add interaction form state
+  const [newInteraction, setNewInteraction] = useState({
+    clientId: "",
+    type: "email" as "email" | "call" | "meeting",
+    subject: "",
+    description: "",
+    csmId: "",
+    interactionDate: new Date().toISOString().split('T')[0],
+  })
+
+  // Edit interaction form state
+  const [editInteractionData, setEditInteractionData] = useState({
+    type: "email" as "email" | "call" | "meeting",
+    subject: "",
+    description: "",
+    csmId: "",
+    interactionDate: "",
+  })
+  
+  // Data state
+  const [clients, setClients] = useState<Client[]>([])
+  const [tasks, setTasks] = useState<ClientTask[]>([])
+  const [milestones, setMilestones] = useState<ClientMilestone[]>([])
+  const [interactions, setInteractions] = useState<ClientInteraction[]>([])
+  const [stats, setStats] = useState({
+    totalClients: 0,
+    atRiskCount: 0,
+    avgHealthScore: 0,
+    totalARR: 0,
+    avgNPS: 0,
+    highChurnRiskCount: 0,
+    completedTasks: 0,
+    totalTasks: 0,
+    overdueTasks: 0,
+  })
+  
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Load all data
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Fetch all data in parallel
+      const [
+        clientsData,
+        tasksData,
+        milestonesData,
+        interactionsData,
+        statsData,
+        csmUsersData,
+      ] = await Promise.all([
+        api.getAllClients(),
+        api.getAllTasks(),
+        api.getAllMilestones(),
+        api.getAllInteractions(),
+        api.getClientStats(),
+        api.getAllCSMUsers(),
+      ])
+
+      setClients(clientsData)
+      setTasks(tasksData)
+      setMilestones(milestonesData)
+      setInteractions(interactionsData)
+      setStats(statsData)
+      setCsmUsers(csmUsersData)
+    } catch (error) {
+      console.error('Error loading customer success data:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const getHealthColor = (score: number) => {
     if (score >= 80) return "text-green-500"
@@ -326,243 +266,45 @@ export default function CustomerSuccessPage() {
     )
   }
 
-  const handleViewClient = (client: any) => {
-    setSelectedClient(client)
-    setIsClientModalOpen(true)
-  }
-
-  const handleAddClient = () => {
-    if (!newClientName || !newClientIndustry || !newClientCSM || !newClientARR || !newClientRenewalDate) {
-      alert("Please fill in all required fields")
-      return
-    }
-
-    const maxId = Math.max(...clients.map(c => c.id))
-    const newClient = {
-      id: maxId + 1,
-      name: newClientName,
-      industry: newClientIndustry,
-      healthScore: 75, // Default starting health score
-      status: "moderate",
-      lastContact: "0 days",
-      tasksCompleted: 0,
-      tasksTotal: 5, // Default starting tasks
-      milestonesCompleted: 0,
-      milestonesTotal: 3, // Default starting milestones
-      churnRisk: 25, // Default low risk
-      churnTrend: "stable",
-      npsScore: 7, // Default neutral score
-      arr: parseInt(newClientARR),
-      renewalDate: newClientRenewalDate,
-      csm: newClientCSM,
-      engagementScore: 50, // Default starting engagement
-      healthTrend: [75, 75, 75, 75, 75], // Default stable trend
-    }
-
-    setClients([...clients, newClient])
+  const getTimeSince = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
     
-    // Reset form
-    setNewClientName("")
-    setNewClientIndustry("")
-    setNewClientCSM("")
-    setNewClientARR("")
-    setNewClientRenewalDate("")
-    setIsAddClientOpen(false)
+    if (diffDays === 0) return "today"
+    if (diffDays === 1) return "1 day"
+    return `${diffDays} days`
   }
 
-  const handleSendEmail = () => {
-    if (!emailSubject || !emailMessage) {
-      alert("Please fill in both subject and message")
-      return
-    }
+  const getClientTaskCounts = (clientId: string) => {
+    const clientTasks = tasks.filter(t => t.client_id === clientId)
+    const completed = clientTasks.filter(t => t.status === 'completed').length
+    return { completed, total: clientTasks.length }
+  }
 
-    // Simulate sending email
-    alert(`Email sent to ${selectedClient?.name}!\n\nSubject: ${emailSubject}\n\nThis would integrate with your email system.`)
+  const getClientMilestoneCounts = (clientId: string) => {
+    const clientMilestones = milestones.filter(m => m.client_id === clientId)
+    const completed = clientMilestones.filter(m => m.status === 'completed').length
+    return { completed, total: clientMilestones.length }
+  }
+
+  const getHealthTrend = (clientId: string) => {
+    // For now, return a simple trend based on current health score
+    // In a real app, you'd fetch health history from the database
+    const client = clients.find(c => c.id === clientId)
+    if (!client) return [70, 70, 70, 70, 70]
     
-    // Reset form and close
-    setEmailSubject("")
-    setEmailMessage("")
-    setIsEmailDialogOpen(false)
-  }
-
-  const handleLogCall = () => {
-    if (!phoneNotes) {
-      alert("Please add some notes about the call")
-      return
-    }
-
-    // Simulate logging call
-    alert(`Call logged for ${selectedClient?.name}!\n\nNotes: ${phoneNotes}\n\nThis would be added to the interaction history.`)
-    
-    // Reset form and close
-    setPhoneNotes("")
-    setIsPhoneDialogOpen(false)
-  }
-
-  const handleAddTask = () => {
-    if (!newTaskTitle || !newTaskClient || !newTaskDueDate) {
-      alert("Please fill in all required fields")
-      return
-    }
-
-    const maxId = Math.max(...tasks.map(t => parseInt(t.id.split('-')[1])))
-    const clientId = clients.find(c => c.name === newTaskClient)?.id || 1
-    const newTask = {
-      id: `${clientId}-${maxId + 1}`,
-      client: newTaskClient,
-      task: newTaskTitle,
-      status: "active",
-      dueDate: newTaskDueDate,
-      priority: newTaskPriority,
-      assignedTo: clients.find(c => c.name === newTaskClient)?.csm || "Unassigned",
-    }
-
-    setTasks([...tasks, newTask])
-    
-    // Reset form
-    setNewTaskTitle("")
-    setNewTaskClient("")
-    setNewTaskDueDate("")
-    setNewTaskPriority("medium")
-    setIsNewTaskOpen(false)
-  }
-
-  const toggleTaskStatus = (taskId: string) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, status: task.status === "completed" ? "active" : "completed" }
-        : task
-    ))
-  }
-
-  const handleEditTask = (task: any) => {
-    setEditingTask(task)
-    setEditTaskTitle(task.task)
-    setEditTaskClient(task.client)
-    setEditTaskDueDate(task.dueDate)
-    setEditTaskPriority(task.priority)
-    setEditTaskStatus(task.status)
-    setIsEditTaskOpen(true)
-  }
-
-  const handleSaveTask = () => {
-    if (!editTaskTitle || !editTaskClient || !editTaskDueDate) {
-      alert("Please fill in all required fields")
-      return
-    }
-
-    const updatedTasks = tasks.map(task => 
-      task.id === editingTask.id 
-        ? {
-            ...task,
-            task: editTaskTitle,
-            client: editTaskClient,
-            dueDate: editTaskDueDate,
-            priority: editTaskPriority,
-            status: editTaskStatus,
-            assignedTo: clients.find(c => c.name === editTaskClient)?.csm || task.assignedTo,
-          }
-        : task
-    )
-
-    setTasks(updatedTasks)
-    
-    // Reset form
-    setEditingTask(null)
-    setEditTaskTitle("")
-    setEditTaskClient("")
-    setEditTaskDueDate("")
-    setEditTaskPriority("")
-    setEditTaskStatus("")
-    setIsEditTaskOpen(false)
-  }
-
-  const handleAddMilestone = () => {
-    if (!newMilestoneTitle || !newMilestoneClient || !newMilestoneTargetDate) {
-      alert("Please fill in all required fields")
-      return
-    }
-
-    const clientMilestones = milestones.filter(m => m.client === newMilestoneClient)
-    const maxId = clientMilestones.length > 0 
-      ? Math.max(...clientMilestones.map(m => parseInt(m.id.split('-')[1])))
-      : 0
-    const clientId = clients.find(c => c.name === newMilestoneClient)?.id || 1
-    
-    const newMilestone = {
-      id: `m${clientId}-${maxId + 1}`,
-      client: newMilestoneClient,
-      title: newMilestoneTitle,
-      description: newMilestoneDescription,
-      status: "in-progress",
-      targetDate: newMilestoneTargetDate,
-      completedDate: null,
-    }
-
-    setMilestones([...milestones, newMilestone])
-    
-    // Reset form
-    setNewMilestoneTitle("")
-    setNewMilestoneClient("")
-    setNewMilestoneTargetDate("")
-    setNewMilestoneDescription("")
-    setIsNewMilestoneOpen(false)
-  }
-
-  const [interactions, setInteractions] = useState([
-    {
-      id: "int1",
-      type: "email",
-      client: "Acme Corp",
-      subject: "Quarterly Review Invitation",
-      description: "Sent quarterly business review invitation to Acme Corp",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      csm: "Sarah Johnson",
-    },
-    {
-      id: "int2",
-      type: "call",
-      client: "Beta Solutions",
-      subject: "Technical Support Call",
-      description: "Discussed technical concerns and provided solutions",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-      csm: "Michael Chen",
-    },
-    {
-      id: "int3",
-      type: "meeting",
-      client: "Delta Systems",
-      subject: "Strategy Planning Meeting",
-      description: "Discussed Q1 goals and feature roadmap",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-      csm: "Emily Rodriguez",
-    },
-  ])
-
-  const handleLogInteraction = () => {
-    if (!newInteractionType || !newInteractionClient || !newInteractionSubject || !newInteractionDescription) {
-      alert("Please fill in all required fields")
-      return
-    }
-
-    const newInteraction = {
-      id: `int${interactions.length + 1}`,
-      type: newInteractionType,
-      client: newInteractionClient,
-      subject: newInteractionSubject,
-      description: newInteractionDescription,
-      timestamp: new Date(),
-      csm: clients.find(c => c.name === newInteractionClient)?.csm || "Unassigned",
-    }
-
-    setInteractions([newInteraction, ...interactions]) // Add to beginning for most recent first
-    
-    // Reset form
-    setNewInteractionType("")
-    setNewInteractionClient("")
-    setNewInteractionSubject("")
-    setNewInteractionDescription("")
-    setIsLogInteractionOpen(false)
+    // Generate a simple trend around the current score
+    const current = client.health_score
+    const variation = 5
+    return [
+      Math.max(0, Math.min(100, current - variation * 2)),
+      Math.max(0, Math.min(100, current - variation)),
+      Math.max(0, Math.min(100, current)),
+      Math.max(0, Math.min(100, current + variation)),
+      Math.max(0, Math.min(100, current)),
+    ]
   }
 
   // Filtered clients for dashboard tab
@@ -571,52 +313,648 @@ export default function CustomerSuccessPage() {
     const searchMatch = searchQuery === "" || 
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.csm.toLowerCase().includes(searchQuery.toLowerCase())
+      client.csm?.name.toLowerCase().includes(searchQuery.toLowerCase())
     return statusMatch && searchMatch
   })
 
-  // Filtered clients for clients tab
-  const clientsTabFilteredClients = clients.filter((client) => {
-    const searchMatch = clientSearchQuery === "" ||
-      client.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
-      client.industry.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
-      client.csm.toLowerCase().includes(clientSearchQuery.toLowerCase())
-    return searchMatch
-  })
+  const handleExportClients = () => {
+    try {
+      const headers = ['Client ID', 'Name', 'Industry', 'Health Score', 'Status', 'CSM', 'ARR', 'Renewal Date', 'Last Contact', 'Churn Risk']
+      const csvData = [
+        headers.join(','),
+        ...clients.map(client => [
+          client.id,
+          `"${client.name}"`,
+          `"${client.industry}"`,
+          client.health_score,
+          client.status,
+          `"${client.csm?.name || 'Unassigned'}"`,
+          client.arr,
+          client.renewal_date,
+          `"${getTimeSince(client.last_contact_date)} ago"`,
+          client.churn_risk
+        ].join(','))
+      ].join('\n')
 
-  // Filtered tasks based on current filter
-  const filteredTasks = tasks.filter((task) => {
-    const today = new Date()
-    const dueDate = new Date(task.dueDate)
-    const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
-    
-    switch (taskFilter) {
-      case "overdue":
-        return task.status !== "completed" && daysDiff < 0
-      case "due-soon":
-        return task.status !== "completed" && daysDiff >= 0 && daysDiff <= 7
-      case "completed":
-        return task.status === "completed"
-      case "active":
-        return task.status === "active"
-      default:
-        return true
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `clients_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error exporting clients:', error)
+      alert('Failed to export client data. Please try again.')
     }
+  }
+
+  const handleViewClient = (client: Client) => {
+    setSelectedClient(client)
+    setIsViewDialogOpen(true)
+  }
+
+  const handleEditClient = (client: Client) => {
+    setSelectedClient(client)
+    // Pre-populate the edit form with current client data
+    setEditClientData({
+      name: client.name,
+      industry: client.industry,
+      arr: client.arr.toString(),
+      renewalDate: client.renewal_date,
+      healthScore: client.health_score.toString(),
+      npsScore: client.nps_score.toString(),
+      engagementScore: client.engagement_score.toString(),
+      featureUsage: client.feature_usage,
+      csmId: client.csm_id || "",
+      portalLogins: client.portal_logins.toString(),
+      supportTickets: client.support_tickets.toString(),
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleDeleteClient = async (clientId: string) => {
+    if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
+      return
+    }
+    
+    try {
+      await api.deleteClient(clientId)
+      // Reload all data to refresh stats
+      await loadData()
+      // Close any open dialogs
+      setIsViewDialogOpen(false)
+      setIsEditDialogOpen(false)
+      setSelectedClient(null)
+      alert('Client deleted successfully')
+    } catch (error) {
+      console.error('Error deleting client:', error)
+      alert('Failed to delete client. Please try again.')
+    }
+  }
+
+  const handleAddClient = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validate required fields
+    if (!newClient.name || !newClient.industry || !newClient.renewalDate) {
+      alert('Please fill in all required fields (Company Name, Industry, Renewal Date)')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      await api.createClient({
+        name: newClient.name,
+        industry: newClient.industry,
+        arr: newClient.arr,
+        renewal_date: newClient.renewalDate,
+        health_score: newClient.healthScore,
+        nps_score: newClient.npsScore,
+        engagement_score: newClient.engagementScore,
+        feature_usage: newClient.featureUsage,
+        csm_id: newClient.csmId || null,
+      })
+      
+      // Reset form
+      setNewClient({
+        name: "",
+        industry: "",
+        arr: 100000,
+        renewalDate: "",
+        healthScore: 75,
+        npsScore: 7,
+        engagementScore: 50,
+        featureUsage: "Medium",
+        csmId: "",
+      })
+      
+      // Close dialog and reload data
+      setIsAddDialogOpen(false)
+      await loadData()
+      alert('Client added successfully!')
+    } catch (error) {
+      console.error('Error adding client:', error)
+      alert('Failed to add client. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleAddCSMUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validate required fields
+    if (!newCSMUser.name || !newCSMUser.email) {
+      alert('Please fill in all required fields (Name and Email)')
+      return
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newCSMUser.email)) {
+      alert('Please enter a valid email address')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      await api.createCSMUser({
+        name: newCSMUser.name,
+        email: newCSMUser.email,
+        avatar: newCSMUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(newCSMUser.name)}`,
+      })
+      
+      // Reset form
+      setNewCSMUser({
+        name: "",
+        email: "",
+        avatar: "",
+      })
+      
+      // Close dialog and reload data
+      setIsAddCSMDialogOpen(false)
+      await loadData()
+      alert('CSM user added successfully!')
+    } catch (error) {
+      console.error('Error adding CSM user:', error)
+      alert('Failed to add CSM user. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSaveClientChanges = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedClient) return
+    
+    // Validate required fields
+    if (!editClientData.name || !editClientData.industry || !editClientData.renewalDate) {
+      alert('Please fill in all required fields (Company Name, Industry, Renewal Date)')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      await api.updateClient(selectedClient.id, {
+        name: editClientData.name,
+        industry: editClientData.industry,
+        arr: parseInt(editClientData.arr) || 0,
+        renewal_date: editClientData.renewalDate,
+        health_score: parseInt(editClientData.healthScore) || 0,
+        nps_score: parseInt(editClientData.npsScore) || 0,
+        engagement_score: parseInt(editClientData.engagementScore) || 0,
+        feature_usage: editClientData.featureUsage,
+        csm_id: editClientData.csmId || null,
+        portal_logins: parseInt(editClientData.portalLogins) || 0,
+        support_tickets: parseInt(editClientData.supportTickets) || 0,
+      })
+      
+      // Close dialog and reload data
+      setIsEditDialogOpen(false)
+      setSelectedClient(null)
+      await loadData()
+      alert('Client updated successfully!')
+    } catch (error) {
+      console.error('Error updating client:', error)
+      alert('Failed to update client. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!newTask.clientId || !newTask.title || !newTask.dueDate) {
+      alert('Please fill in all required fields')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      await api.createTask({
+        client_id: newTask.clientId,
+        title: newTask.title,
+        status: newTask.status,
+        due_date: newTask.dueDate,
+        priority: newTask.priority,
+        assigned_to: newTask.assignedTo || null,
+      })
+      
+      setNewTask({
+        clientId: "",
+        title: "",
+        status: "active",
+        dueDate: "",
+        priority: "medium",
+        assignedTo: "",
+      })
+      
+      setIsAddTaskDialogOpen(false)
+      await loadData()
+      alert('Task created successfully!')
+    } catch (error) {
+      console.error('Error creating task:', error)
+      alert('Failed to create task. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleEditTask = (task: ClientTask) => {
+    setSelectedTask(task)
+    setEditTaskData({
+      clientId: task.client_id,
+      title: task.title,
+      status: task.status,
+      dueDate: task.due_date,
+      priority: task.priority,
+      assignedTo: task.assigned_to || "",
+    })
+    setIsEditTaskDialogOpen(true)
+  }
+
+  const handleSaveTaskChanges = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedTask) return
+    
+    if (!editTaskData.title || !editTaskData.dueDate) {
+      alert('Please fill in all required fields')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      await api.updateTask(selectedTask.id, {
+        title: editTaskData.title,
+        status: editTaskData.status,
+        due_date: editTaskData.dueDate,
+        priority: editTaskData.priority,
+        assigned_to: editTaskData.assignedTo || null,
+      })
+      
+      setIsEditTaskDialogOpen(false)
+      setSelectedTask(null)
+      await loadData()
+      alert('Task updated successfully!')
+    } catch (error) {
+      console.error('Error updating task:', error)
+      alert('Failed to update task. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) {
+      return
+    }
+    
+    try {
+      await api.deleteTask(taskId)
+      await loadData()
+      alert('Task deleted successfully')
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      alert('Failed to delete task. Please try again.')
+    }
+  }
+
+  // ==================== MILESTONE HANDLERS ====================
+
+  const handleAddMilestone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!newMilestone.clientId || !newMilestone.title || !newMilestone.targetDate) {
+      alert('Please fill in all required fields (Client, Title, Target Date)')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      const milestoneData = {
+        client_id: newMilestone.clientId,
+        title: newMilestone.title,
+        description: newMilestone.description || undefined,
+        status: newMilestone.status,
+        target_date: newMilestone.targetDate,
+        completed_date: newMilestone.completedDate || undefined,
+      }
+      
+      await api.createMilestone(milestoneData)
+      
+      setIsAddMilestoneDialogOpen(false)
+      setNewMilestone({
+        clientId: "",
+        title: "",
+        description: "",
+        status: "upcoming",
+        targetDate: "",
+        completedDate: "",
+      })
+      await loadData()
+      alert('Milestone created successfully!')
+    } catch (error) {
+      console.error('Error creating milestone:', error)
+      alert('Failed to create milestone. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleEditMilestone = (milestone: ClientMilestone) => {
+    setSelectedMilestone(milestone)
+    setEditMilestoneData({
+      title: milestone.title,
+      description: milestone.description || "",
+      status: milestone.status,
+      targetDate: milestone.target_date,
+      completedDate: milestone.completed_date || "",
+    })
+    setIsEditMilestoneDialogOpen(true)
+  }
+
+  const handleSaveMilestoneChanges = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedMilestone) return
+    
+    if (!editMilestoneData.title || !editMilestoneData.targetDate) {
+      alert('Please fill in all required fields (Title, Target Date)')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      await api.updateMilestone(selectedMilestone.id, {
+        title: editMilestoneData.title,
+        description: editMilestoneData.description || undefined,
+        status: editMilestoneData.status,
+        target_date: editMilestoneData.targetDate,
+        completed_date: editMilestoneData.completedDate || undefined,
+      })
+      
+      setIsEditMilestoneDialogOpen(false)
+      setSelectedMilestone(null)
+      await loadData()
+      alert('Milestone updated successfully!')
+    } catch (error) {
+      console.error('Error updating milestone:', error)
+      alert('Failed to update milestone. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteMilestone = async (milestoneId: string) => {
+    if (!confirm('Are you sure you want to delete this milestone?')) {
+      return
+    }
+    
+    try {
+      await api.deleteMilestone(milestoneId)
+      await loadData()
+      alert('Milestone deleted successfully')
+    } catch (error) {
+      console.error('Error deleting milestone:', error)
+      alert('Failed to delete milestone. Please try again.')
+    }
+  }
+
+  // ==================== INTERACTION HANDLERS ====================
+
+  const handleAddInteraction = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!newInteraction.clientId || !newInteraction.subject || !newInteraction.interactionDate) {
+      alert('Please fill in all required fields (Client, Subject, Date)')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      const interactionData = {
+        client_id: newInteraction.clientId,
+        type: newInteraction.type,
+        subject: newInteraction.subject,
+        description: newInteraction.description,
+        csm_id: newInteraction.csmId || null,
+        interaction_date: newInteraction.interactionDate,
+      }
+      
+      await api.createInteraction(interactionData)
+      
+      setIsAddInteractionDialogOpen(false)
+      setNewInteraction({
+        clientId: "",
+        type: "email",
+        subject: "",
+        description: "",
+        csmId: "",
+        interactionDate: new Date().toISOString().split('T')[0],
+      })
+      await loadData()
+      alert('Interaction logged successfully!')
+    } catch (error) {
+      console.error('Error creating interaction:', error)
+      alert('Failed to log interaction. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleEditInteraction = (interaction: ClientInteraction) => {
+    setSelectedInteraction(interaction)
+    setEditInteractionData({
+      type: interaction.type,
+      subject: interaction.subject,
+      description: interaction.description,
+      csmId: interaction.csm_id || "",
+      interactionDate: interaction.interaction_date,
+    })
+    setIsEditInteractionDialogOpen(true)
+  }
+
+  const handleSaveInteractionChanges = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedInteraction) return
+    
+    if (!editInteractionData.subject || !editInteractionData.interactionDate) {
+      alert('Please fill in all required fields (Subject, Date)')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      await api.updateInteraction(selectedInteraction.id, {
+        type: editInteractionData.type,
+        subject: editInteractionData.subject,
+        description: editInteractionData.description,
+        csm_id: editInteractionData.csmId || null,
+        interaction_date: editInteractionData.interactionDate,
+      })
+      
+      setIsEditInteractionDialogOpen(false)
+      setSelectedInteraction(null)
+      await loadData()
+      alert('Interaction updated successfully!')
+    } catch (error) {
+      console.error('Error updating interaction:', error)
+      alert('Failed to update interaction. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteInteraction = async (interactionId: string) => {
+    if (!confirm('Are you sure you want to delete this interaction?')) {
+      return
+    }
+    
+    try {
+      await api.deleteInteraction(interactionId)
+      await loadData()
+      alert('Interaction deleted successfully')
+    } catch (error) {
+      console.error('Error deleting interaction:', error)
+      alert('Failed to delete interaction. Please try again.')
+    }
+  }
+
+  // Filtered clients for the Clients tab
+  const filteredClientsTab = clients.filter((client) => {
+    const statusMatch = clientsFilterStatus === "all" || client.status === clientsFilterStatus
+    const searchMatch = clientsSearchQuery === "" || 
+      client.name.toLowerCase().includes(clientsSearchQuery.toLowerCase()) ||
+      client.industry.toLowerCase().includes(clientsSearchQuery.toLowerCase()) ||
+      client.csm?.name.toLowerCase().includes(clientsSearchQuery.toLowerCase())
+    return statusMatch && searchMatch
   })
 
-  // Filtered interactions based on current filter
-  const filteredInteractions = interactions.filter((interaction) => {
-    return interactionFilter === "all" || interaction.type === interactionFilter
+  // Filtered tasks for the Tasks tab
+  const filteredTasksTab = tasks.filter((task) => {
+    const statusMatch = tasksFilterStatus === "all" || task.status === tasksFilterStatus
+    const searchMatch = tasksSearchQuery === "" || 
+      task.title.toLowerCase().includes(tasksSearchQuery.toLowerCase()) ||
+      task.client?.name.toLowerCase().includes(tasksSearchQuery.toLowerCase()) ||
+      task.csm?.name.toLowerCase().includes(tasksSearchQuery.toLowerCase())
+    return statusMatch && searchMatch
   })
 
-  const atRiskCount = clients.filter((c) => c.status === "at-risk").length
-  const avgHealthScore = Math.round(clients.reduce((sum, c) => sum + c.healthScore, 0) / clients.length)
-  const avgDaysSinceTouch = Math.round(
-    clients.reduce((sum, c) => sum + Number.parseInt(c.lastContact), 0) / clients.length,
-  )
-  const totalARR = clients.reduce((sum, c) => sum + c.arr, 0)
-  const avgNPS = Math.round(clients.reduce((sum, c) => sum + c.npsScore, 0) / clients.length)
-  const highChurnRiskCount = clients.filter((c) => c.churnRisk > 60).length
+  // Filtered milestones for the Milestones tab
+  const filteredMilestonesTab = milestones.filter((milestone) => {
+    const statusMatch = milestonesFilterStatus === "all" || milestone.status === milestonesFilterStatus
+    const searchMatch = milestonesSearchQuery === "" || 
+      milestone.title.toLowerCase().includes(milestonesSearchQuery.toLowerCase()) ||
+      milestone.client?.name.toLowerCase().includes(milestonesSearchQuery.toLowerCase())
+    return statusMatch && searchMatch
+  })
+
+  // Filtered interactions for the Interactions tab
+  const filteredInteractionsTab = interactions.filter((interaction) => {
+    const typeMatch = interactionsFilterType === "all" || interaction.type === interactionsFilterType
+    const searchMatch = interactionsSearchQuery === "" || 
+      interaction.subject.toLowerCase().includes(interactionsSearchQuery.toLowerCase()) ||
+      interaction.client?.name.toLowerCase().includes(interactionsSearchQuery.toLowerCase()) ||
+      interaction.csm?.name.toLowerCase().includes(interactionsSearchQuery.toLowerCase())
+    return typeMatch && searchMatch
+  })
+
+  const getTaskStatusBadge = (status: string) => {
+    if (status === "completed")
+      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Completed</Badge>
+    if (status === "overdue")
+      return <Badge className="bg-red-500/10 text-red-500 border-red-500/20">Overdue</Badge>
+    return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">Active</Badge>
+  }
+
+  const getMilestoneStatusBadge = (status: string) => {
+    if (status === "completed")
+      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Completed</Badge>
+    if (status === "in-progress")
+      return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">In Progress</Badge>
+    return <Badge className="bg-gray-500/10 text-gray-500 border-gray-500/20">Upcoming</Badge>
+  }
+
+  const getInteractionTypeBadge = (type: string) => {
+    if (type === "email")
+      return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20"><Mail className="w-3 h-3 mr-1" />Email</Badge>
+    if (type === "call")
+      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><Phone className="w-3 h-3 mr-1" />Call</Badge>
+    return <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20"><Users className="w-3 h-3 mr-1" />Meeting</Badge>
+  }
+
+  const getPriorityBadge = (priority: string) => {
+    if (priority === "high")
+      return <Badge className="bg-red-500/10 text-red-500 border-red-500/20">High</Badge>
+    if (priority === "low")
+      return <Badge className="bg-gray-500/10 text-gray-500 border-gray-500/20">Low</Badge>
+    return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Medium</Badge>
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading customer success data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show migration prompt if no data
+  if (!isLoading && clients.length === 0) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <Card className="max-w-2xl">
+          <CardHeader>
+            <CardTitle className="text-2xl">No Customer Success Data Found</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              It looks like your database hasn't been populated with customer success data yet.
+            </p>
+            
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <h3 className="font-semibold mb-2">Setup Steps:</h3>
+              <ol className="text-sm space-y-2 ml-4 list-decimal">
+                <li>Run the database schema in Supabase SQL Editor: <code className="bg-muted px-1 py-0.5 rounded">customer-success-schema.sql</code></li>
+                <li>Run the data migration by clicking the button below</li>
+              </ol>
+            </div>
+
+            <Button 
+              size="lg" 
+              onClick={() => window.location.href = '/migrate-customer-success'}
+              className="w-full"
+            >
+              Go to Migration Page
+            </Button>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Or manually navigate to: <code className="bg-muted px-1 py-0.5 rounded">/migrate-customer-success</code>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -643,60 +981,86 @@ export default function CustomerSuccessPage() {
               <p className="text-muted-foreground mt-2">Zenith Success - Proactive customer engagement</p>
             </div>
             <div className="flex gap-2">
-              <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
+              <Dialog open={isAddCSMDialogOpen} onOpenChange={setIsAddCSMDialogOpen}>
                 <DialogTrigger asChild>
-              <Button variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                New Client
-              </Button>
+                  <Button variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add CSM User
+                  </Button>
                 </DialogTrigger>
-              </Dialog>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  alert("Send bulk email to all clients:\n\n• Newsletter\n• Product updates\n• Health check surveys\n• Renewal reminders\n\nThis would open a bulk email composer.")
-                }}
-              >
-                <Mail className="w-4 h-4 mr-2" />
-                Send Email
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  // Export client data as CSV
-                  try {
-                    const headers = ['Client ID', 'Name', 'Industry', 'Health Score', 'Status', 'CSM', 'ARR', 'Renewal Date', 'Last Contact', 'Churn Risk']
-                    const csvData = [
-                      headers.join(','),
-                      ...clients.map(client => [
-                        client.id,
-                        `"${client.name}"`,
-                        `"${client.industry}"`,
-                        client.healthScore,
-                        client.status,
-                        `"${client.csm}"`,
-                        client.arr,
-                        client.renewalDate,
-                        `"${client.lastContact}"`,
-                        client.churnRisk
-                      ].join(','))
-                    ].join('\n')
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Add CSM User</DialogTitle>
+                    <DialogDescription>
+                      Add a new Customer Success Manager to your team
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleAddCSMUser} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="csmName">Full Name *</Label>
+                      <Input 
+                        id="csmName"
+                        placeholder="Sarah Johnson"
+                        value={newCSMUser.name}
+                        onChange={(e) => setNewCSMUser({...newCSMUser, name: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="csmEmail">Email Address *</Label>
+                      <Input 
+                        id="csmEmail"
+                        type="email"
+                        placeholder="sarah.johnson@company.com"
+                        value={newCSMUser.email}
+                        onChange={(e) => setNewCSMUser({...newCSMUser, email: e.target.value})}
+                        required
+                      />
+                    </div>
 
-                    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
-                    const link = document.createElement('a')
-                    const url = URL.createObjectURL(blob)
-                    link.setAttribute('href', url)
-                    link.setAttribute('download', `clients_export_${new Date().toISOString().split('T')[0]}.csv`)
-                    link.style.visibility = 'hidden'
-                    document.body.appendChild(link)
-                    link.click()
-                    document.body.removeChild(link)
-                  } catch (error) {
-                    console.error('Error exporting clients:', error)
-                    alert('Failed to export client data. Please try again.')
-                  }
-                }}
-              >
+                    <div className="space-y-2">
+                      <Label htmlFor="csmAvatar">Avatar URL (Optional)</Label>
+                      <Input 
+                        id="csmAvatar"
+                        type="url"
+                        placeholder="https://example.com/avatar.jpg"
+                        value={newCSMUser.avatar}
+                        onChange={(e) => setNewCSMUser({...newCSMUser, avatar: e.target.value})}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Leave blank to auto-generate an avatar based on the name
+                      </p>
+                    </div>
+
+                    <DialogFooter>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        onClick={() => {
+                          setIsAddCSMDialogOpen(false)
+                          setNewCSMUser({ name: "", email: "", avatar: "" })
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Adding...
+                          </>
+                        ) : (
+                          'Add CSM User'
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              
+              <Button variant="outline" onClick={handleExportClients}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Data
               </Button>
@@ -705,16 +1069,14 @@ export default function CustomerSuccessPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div>
-
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Clients</p>
-                <p className="text-3xl font-bold">{clients.length}</p>
+                <p className="text-3xl font-bold">{stats.totalClients}</p>
                 <p className="text-xs text-muted-foreground mt-1">Active client accounts</p>
               </div>
               <Users className="w-8 h-8 text-primary" />
@@ -727,7 +1089,7 @@ export default function CustomerSuccessPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">High Churn Risk</p>
-                <p className="text-3xl font-bold text-red-500">{highChurnRiskCount}</p>
+                <p className="text-3xl font-bold text-red-500">{stats.highChurnRiskCount}</p>
                 <p className="text-xs text-muted-foreground mt-1">Predicted churn &gt;60%</p>
               </div>
               <Brain className="w-8 h-8 text-red-500" />
@@ -740,7 +1102,7 @@ export default function CustomerSuccessPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total ARR</p>
-                <p className="text-3xl font-bold">${(totalARR / 1000).toFixed(0)}K</p>
+                <p className="text-3xl font-bold">${(stats.totalARR / 1000).toFixed(0)}K</p>
                 <p className="text-xs text-muted-foreground mt-1">Annual recurring revenue</p>
               </div>
               <DollarSign className="w-8 h-8 text-green-500" />
@@ -753,7 +1115,7 @@ export default function CustomerSuccessPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Avg NPS Score</p>
-                <p className="text-3xl font-bold">{avgNPS}</p>
+                <p className="text-3xl font-bold">{stats.avgNPS}</p>
                 <p className="text-xs text-muted-foreground mt-1">Net Promoter Score</p>
               </div>
               <Award className="w-8 h-8 text-primary" />
@@ -840,59 +1202,65 @@ export default function CustomerSuccessPage() {
                         </Button>
                       </div>
                     ) : (
-                      dashboardFilteredClients.map((client) => (
-                      <div
-                        key={client.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold">{client.name}</h3>
-                            {getHealthBadge(client.status)}
-                            {getChurnRiskBadge(client.churnRisk)}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{client.industry}</p>
-                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                            <span>Last contact: {client.lastContact} ago</span>
-                            <span>
-                              Tasks: {client.tasksCompleted}/{client.tasksTotal}
-                            </span>
-                            <span>
-                              Milestones: {client.milestonesCompleted}/{client.milestonesTotal}
-                            </span>
-                            <span>ARR: ${(client.arr / 1000).toFixed(0)}K</span>
-                            <span>Renewal: {new Date(client.renewalDate).toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs text-muted-foreground">Health Trend:</span>
-                            <div className="flex items-end gap-0.5 h-6">
-                              {client.healthTrend.map((score, idx) => (
-                                <div
-                                  key={idx}
-                                  className={`w-2 rounded-t ${
-                                    score >= 80 ? "bg-green-500" : score >= 50 ? "bg-yellow-500" : "bg-red-500"
-                                  }`}
-                                  style={{ height: `${(score / 100) * 100}%` }}
-                                />
-                              ))}
+                      dashboardFilteredClients.map((client) => {
+                        const taskCounts = getClientTaskCounts(client.id)
+                        const milestoneCounts = getClientMilestoneCounts(client.id)
+                        const healthTrend = getHealthTrend(client.id)
+                        
+                        return (
+                        <div
+                          key={client.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="font-semibold">{client.name}</h3>
+                              {getHealthBadge(client.status)}
+                              {getChurnRiskBadge(client.churn_risk)}
                             </div>
-                            {client.churnTrend === "up" && <ArrowUpRight className="w-4 h-4 text-red-500" />}
-                            {client.churnTrend === "down" && <ArrowDownRight className="w-4 h-4 text-green-500" />}
+                            <p className="text-sm text-muted-foreground">{client.industry}</p>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                              <span>Last contact: {getTimeSince(client.last_contact_date)} ago</span>
+                              <span>Tasks: {taskCounts.completed}/{taskCounts.total}</span>
+                              <span>Milestones: {milestoneCounts.completed}/{milestoneCounts.total}</span>
+                              <span>ARR: ${(client.arr / 1000).toFixed(0)}K</span>
+                              <span>Renewal: {new Date(client.renewal_date).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs text-muted-foreground">Health Trend:</span>
+                              <div className="flex items-end gap-0.5 h-6">
+                                {healthTrend.map((score, idx) => (
+                                  <div
+                                    key={idx}
+                                    className={`w-2 rounded-t ${
+                                      score >= 80 ? "bg-green-500" : score >= 50 ? "bg-yellow-500" : "bg-red-500"
+                                    }`}
+                                    style={{ height: `${(score / 100) * 100}%` }}
+                                  />
+                                ))}
+                              </div>
+                              {client.churn_trend === "up" && <ArrowUpRight className="w-4 h-4 text-red-500" />}
+                              {client.churn_trend === "down" && <ArrowDownRight className="w-4 h-4 text-green-500" />}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Health Score</p>
+                              <p className={`text-2xl font-bold ${getHealthColor(client.health_score)}`}>
+                                {client.health_score}%
+                              </p>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleViewClient(client)}
+                            >
+                              View
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Health Score</p>
-                            <p className={`text-2xl font-bold ${getHealthColor(client.healthScore)}`}>
-                              {client.healthScore}%
-                            </p>
-                          </div>
-                          <Button variant="outline" size="sm" onClick={() => handleViewClient(client)}>
-                            View
-                          </Button>
-                        </div>
-                      </div>
-                      ))
+                        )
+                      })
                     )}
                   </div>
                 </CardContent>
@@ -909,37 +1277,35 @@ export default function CustomerSuccessPage() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-muted-foreground">Task Progress</span>
-                      <span className="text-sm font-semibold">75%</span>
+                      <span className="text-sm font-semibold">
+                        {stats.totalTasks > 0 
+                          ? Math.round((stats.completedTasks / stats.totalTasks) * 100) 
+                          : 0}%
+                      </span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full" style={{ width: "75%" }}></div>
+                      <div 
+                        className="bg-primary h-2 rounded-full" 
+                        style={{ 
+                          width: `${stats.totalTasks > 0 
+                            ? (stats.completedTasks / stats.totalTasks) * 100 
+                            : 0}%` 
+                        }}
+                      ></div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">45/60 completed</p>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Milestone Progress</span>
-                      <span className="text-sm font-semibold">80%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div className="bg-green-500 h-2 rounded-full" style={{ width: "80%" }}></div>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">12/15 completed</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {stats.completedTasks}/{stats.totalTasks} completed
+                    </p>
                   </div>
 
                   <div className="pt-4 border-t space-y-2">
                     <div className="flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-red-500" />
-                      <span className="text-sm">5 tasks overdue</span>
+                      <span className="text-sm">{stats.overdueTasks} tasks overdue</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm">2 milestones overdue</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-orange-500" />
-                      <span className="text-sm">3 clients need follow-up</span>
+                      <span className="text-sm">{stats.atRiskCount} clients at risk</span>
                     </div>
                   </div>
                 </CardContent>
@@ -951,34 +1317,22 @@ export default function CustomerSuccessPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm">New task added for Acme Corp</p>
-                        <p className="text-xs text-muted-foreground">2 hours ago</p>
+                    {interactions.slice(0, 4).map((interaction) => (
+                      <div key={interaction.id} className="flex items-start gap-3">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm">{interaction.subject}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {getTimeSince(interaction.interaction_date)} ago
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm">Milestone completed for Beta Solutions</p>
-                        <p className="text-xs text-muted-foreground">5 hours ago</p>
+                    ))}
+                    {interactions.length === 0 && (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-muted-foreground">No recent activity</p>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <TrendingUp className="w-4 h-4 text-blue-500 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm">Health score updated for Gamma Industries</p>
-                        <p className="text-xs text-muted-foreground">1 day ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Circle className="w-4 h-4 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm">Client portal accessed by Delta Systems</p>
-                        <p className="text-xs text-muted-foreground">2 days ago</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -990,1604 +1344,2693 @@ export default function CustomerSuccessPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Client Directory</CardTitle>
-                <div className="flex gap-2">
-                  <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
-                    <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Client
-                  </Button>
-                    </DialogTrigger>
-                  </Dialog>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      // Export filtered client data as CSV
-                      try {
-                        const headers = ['Client ID', 'Name', 'Industry', 'Health Score', 'Status', 'CSM', 'ARR', 'Renewal Date']
-                        const csvData = [
-                          headers.join(','),
-                          ...clientsTabFilteredClients.map(client => [
-                            client.id,
-                            `"${client.name}"`,
-                            `"${client.industry}"`,
-                            client.healthScore,
-                            client.status,
-                            `"${client.csm}"`,
-                            client.arr,
-                            client.renewalDate
-                          ].join(','))
-                        ].join('\n')
-
-                        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
-                        const link = document.createElement('a')
-                        const url = URL.createObjectURL(blob)
-                        link.setAttribute('href', url)
-                        link.setAttribute('download', `filtered_clients_export_${new Date().toISOString().split('T')[0]}.csv`)
-                        link.style.visibility = 'hidden'
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
-                      } catch (error) {
-                        console.error('Error exporting clients:', error)
-                        alert('Failed to export client data. Please try again.')
-                      }
-                    }}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export
-                  </Button>
+                <div>
+                  <CardTitle>Client Directory</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Manage all your customer accounts and relationships
+                  </p>
                 </div>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Client
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Add New Client</DialogTitle>
+                      <DialogDescription>
+                        Create a new client account in the customer success platform
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddClient} className="space-y-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name">Company Name *</Label>
+                          <Input 
+                            id="name"
+                            placeholder="Acme Corporation"
+                            value={newClient.name}
+                            onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="industry">Industry *</Label>
+                          <Input 
+                            id="industry"
+                            placeholder="Technology"
+                            value={newClient.industry}
+                            onChange={(e) => setNewClient({...newClient, industry: e.target.value})}
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="arr">Annual Recurring Revenue (ARR) *</Label>
+                          <Input 
+                            id="arr"
+                            type="number"
+                            min="0"
+                            step="1000"
+                            placeholder="100000"
+                            value={newClient.arr}
+                            onChange={(e) => setNewClient({...newClient, arr: parseInt(e.target.value) || 0})}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="renewalDate">Renewal Date *</Label>
+                          <Input 
+                            id="renewalDate"
+                            type="date"
+                            value={newClient.renewalDate}
+                            onChange={(e) => setNewClient({...newClient, renewalDate: e.target.value})}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="healthScore">Health Score (0-100)</Label>
+                          <Input 
+                            id="healthScore"
+                            type="number"
+                            min="0"
+                            max="100"
+                            placeholder="75"
+                            value={newClient.healthScore}
+                            onChange={(e) => setNewClient({...newClient, healthScore: parseInt(e.target.value) || 0})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="npsScore">NPS Score (0-10)</Label>
+                          <Input 
+                            id="npsScore"
+                            type="number"
+                            min="0"
+                            max="10"
+                            placeholder="7"
+                            value={newClient.npsScore}
+                            onChange={(e) => setNewClient({...newClient, npsScore: parseInt(e.target.value) || 0})}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="engagementScore">Engagement Score (0-100)</Label>
+                          <Input 
+                            id="engagementScore"
+                            type="number"
+                            min="0"
+                            max="100"
+                            placeholder="50"
+                            value={newClient.engagementScore}
+                            onChange={(e) => setNewClient({...newClient, engagementScore: parseInt(e.target.value) || 0})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="featureUsage">Feature Usage</Label>
+                          <select 
+                            id="featureUsage"
+                            className="w-full px-3 py-2 border rounded-md bg-background"
+                            value={newClient.featureUsage}
+                            onChange={(e) => setNewClient({...newClient, featureUsage: e.target.value as "Low" | "Medium" | "High"})}
+                          >
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="csmId">Assign CSM (Optional)</Label>
+                        <select 
+                          id="csmId"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={newClient.csmId}
+                          onChange={(e) => setNewClient({...newClient, csmId: e.target.value})}
+                        >
+                          <option value="">Unassigned</option>
+                          {csmUsers.map((csm) => (
+                            <option key={csm.id} value={csm.id}>
+                              {csm.name} ({csm.email})
+                            </option>
+                          ))}
+                        </select>
+                        {csmUsers.length === 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            No CSM users available. Add one using the "Add CSM User" button in the header.
+                          </p>
+                        )}
+                      </div>
+
+                      <DialogFooter>
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          onClick={() => {
+                            setIsAddDialogOpen(false)
+                            // Reset form
+                            setNewClient({
+                              name: "",
+                              industry: "",
+                              arr: 100000,
+                              renewalDate: "",
+                              healthScore: 75,
+                              npsScore: 7,
+                              engagementScore: 50,
+                              featureUsage: "Medium",
+                              csmId: "",
+                            })
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting ? (
+                            <>
+                              <span className="animate-spin mr-2">⏳</span>
+                              Adding...
+                            </>
+                          ) : (
+                            'Add Client'
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </div>
-              <div className="flex gap-2 mt-4">
+
+              {/* Search and Filters */}
+              <div className="flex items-center gap-4 mt-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search clients..." 
+                    placeholder="Search by name, industry, or CSM..." 
                     className="pl-10"
-                    value={clientSearchQuery}
-                    onChange={(e) => setClientSearchQuery(e.target.value)}
+                    value={clientsSearchQuery}
+                    onChange={(e) => setClientsSearchQuery(e.target.value)}
                   />
                 </div>
-                <Button variant="outline" size="sm">
-                  Filter
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant={clientsFilterStatus === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setClientsFilterStatus("all")}
+                  >
+                    All ({clients.length})
+                  </Button>
+                  <Button
+                    variant={clientsFilterStatus === "healthy" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setClientsFilterStatus("healthy")}
+                  >
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Healthy
+                  </Button>
+                  <Button
+                    variant={clientsFilterStatus === "moderate" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setClientsFilterStatus("moderate")}
+                  >
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Moderate
+                  </Button>
+                  <Button
+                    variant={clientsFilterStatus === "at-risk" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setClientsFilterStatus("at-risk")}
+                  >
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    At Risk
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {clientsTabFilteredClients.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No clients found matching your search.</p>
+              {filteredClientsTab.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No clients found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {clientsSearchQuery || clientsFilterStatus !== "all" 
+                      ? "Try adjusting your search or filters"
+                      : "Get started by adding your first client"}
+                  </p>
+                  {clientsSearchQuery || clientsFilterStatus !== "all" ? (
                     <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-2"
-                      onClick={() => setClientSearchQuery("")}
+                      variant="outline"
+                      onClick={() => {
+                        setClientsSearchQuery("")
+                        setClientsFilterStatus("all")
+                      }}
                     >
-                      Clear Search
+                      Clear Filters
                     </Button>
-                  </div>
-                ) : (
-                  clientsTabFilteredClients.map((client) => (
-                  <div
-                    key={client.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => handleViewClient(client)}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold">{client.name}</h3>
-                        {getHealthBadge(client.status)}
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Industry</p>
-                          <p className="font-medium">{client.industry}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">CSM</p>
-                          <p className="font-medium">{client.csm}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">ARR</p>
-                          <p className="font-medium">${(client.arr / 1000).toFixed(0)}K</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Renewal</p>
-                          <p className="font-medium">{new Date(client.renewalDate).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Health</p>
-                        <p className={`text-2xl font-bold ${getHealthColor(client.healthScore)}`}>
-                          {client.healthScore}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Your First Client
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Health Score</TableHead>
+                        <TableHead>Churn Risk</TableHead>
+                        <TableHead>CSM</TableHead>
+                        <TableHead className="text-right">ARR</TableHead>
+                        <TableHead>Renewal Date</TableHead>
+                        <TableHead>Last Contact</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredClientsTab.map((client) => (
+                        <TableRow key={client.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{client.name}</div>
+                              <div className="text-sm text-muted-foreground">{client.industry}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getHealthBadge(client.status)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-full bg-muted rounded-full h-2 max-w-[60px]">
+                                <div 
+                                  className={`h-2 rounded-full ${
+                                    client.health_score >= 80 ? "bg-green-500" : 
+                                    client.health_score >= 50 ? "bg-yellow-500" : 
+                                    "bg-red-500"
+                                  }`}
+                                  style={{ width: `${client.health_score}%` }}
+                                ></div>
+                              </div>
+                              <span className={`text-sm font-semibold ${getHealthColor(client.health_score)}`}>
+                                {client.health_score}%
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getChurnRiskBadge(client.churn_risk)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {client.csm ? (
+                                <>
+                                  {client.csm.avatar && (
+                                    <img 
+                                      src={client.csm.avatar} 
+                                      alt={client.csm.name}
+                                      className="w-6 h-6 rounded-full"
+                                    />
+                                  )}
+                                  <span className="text-sm">{client.csm.name}</span>
+                                </>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">Unassigned</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            ${(client.arr / 1000).toFixed(0)}K
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 text-sm">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(client.renewal_date).toLocaleDateString()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              {getTimeSince(client.last_contact_date)} ago
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleViewClient(client)}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditClient(client)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteClient(client.id)}
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* View Client Dialog */}
+          <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+              {selectedClient && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl">{selectedClient.name}</DialogTitle>
+                    <DialogDescription className="text-sm">
+                      {selectedClient.industry} • Client ID: {selectedClient.id.substring(0, 8)}
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-6 py-4">
+                    {/* Status Overview */}
+                    <div className="grid grid-cols-4 gap-3">
+                      <Card className="bg-card">
+                        <CardContent className="pt-4 pb-4 px-3">
+                          <div className="text-center space-y-2">
+                            <p className="text-xs text-muted-foreground">Health Score</p>
+                            <p className={`text-2xl font-bold ${getHealthColor(selectedClient.health_score)}`}>
+                              {selectedClient.health_score}%
+                            </p>
+                            <div className="flex justify-center">
+                              {getHealthBadge(selectedClient.status)}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-card">
+                        <CardContent className="pt-4 pb-4 px-3">
+                          <div className="text-center space-y-2">
+                            <p className="text-xs text-muted-foreground">Churn Risk</p>
+                            <p className="text-2xl font-bold">{selectedClient.churn_risk}%</p>
+                            <div className="flex justify-center">
+                              {getChurnRiskBadge(selectedClient.churn_risk)}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-card">
+                        <CardContent className="pt-4 pb-4 px-3">
+                          <div className="text-center space-y-2">
+                            <p className="text-xs text-muted-foreground">NPS Score</p>
+                            <p className="text-2xl font-bold">{selectedClient.nps_score}/10</p>
+                            <div className="flex justify-center">
+                              <Badge variant="outline" className="text-xs">
+                                {selectedClient.nps_score >= 9 ? "Promoter" : 
+                                 selectedClient.nps_score >= 7 ? "Passive" : "Detractor"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-card">
+                        <CardContent className="pt-4 pb-4 px-3">
+                          <div className="text-center space-y-2">
+                            <p className="text-xs text-muted-foreground">ARR</p>
+                            <p className="text-2xl font-bold">${(selectedClient.arr / 1000).toFixed(0)}K</p>
+                            <p className="text-xs text-muted-foreground">Annual Value</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Detailed Information */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <Card className="bg-card">
+                        <CardContent className="pt-6 pb-6 space-y-6">
+                          <div>
+                            <h4 className="font-semibold mb-4 flex items-center gap-2 text-base">
+                              <Building className="w-4 h-4" />
+                              Company Information
+                            </h4>
+                            <div className="space-y-3 text-sm">
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground whitespace-nowrap">Industry:</span>
+                                <span className="font-medium text-right">{selectedClient.industry}</span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground whitespace-nowrap">Renewal Date:</span>
+                                <span className="font-medium text-right">
+                                  {new Date(selectedClient.renewal_date).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span className="text-muted-foreground whitespace-nowrap">Last Contact:</span>
+                                <span className="font-medium text-right">
+                                  {getTimeSince(selectedClient.last_contact_date)} ago
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="border-t pt-4">
+                            <h4 className="font-semibold mb-4 flex items-center gap-2 text-base">
+                              <Users className="w-4 h-4" />
+                              Account Management
+                            </h4>
+                            <div className="space-y-3 text-sm">
+                              <div className="flex justify-between items-center gap-4">
+                                <span className="text-muted-foreground whitespace-nowrap">CSM:</span>
+                                {selectedClient.csm ? (
+                                  <div className="flex items-center gap-2">
+                                    {selectedClient.csm.avatar && (
+                                      <img 
+                                        src={selectedClient.csm.avatar} 
+                                        alt={selectedClient.csm.name}
+                                        className="w-5 h-5 rounded-full"
+                                      />
+                                    )}
+                                    <span className="font-medium">{selectedClient.csm.name}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Unassigned</span>
+                                )}
+                              </div>
+                              {selectedClient.csm?.email && (
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-muted-foreground whitespace-nowrap">Email:</span>
+                                  <span className="font-medium text-right break-all">{selectedClient.csm.email}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-card">
+                        <CardContent className="pt-6 pb-6">
+                          <div>
+                            <h4 className="font-semibold mb-4 flex items-center gap-2 text-base">
+                              <BarChart3 className="w-4 h-4" />
+                              Engagement Metrics
+                            </h4>
+                            <div className="space-y-4">
+                              <div>
+                                <div className="flex justify-between text-sm mb-2">
+                                  <span className="text-muted-foreground">Engagement Score</span>
+                                  <span className="font-semibold">{selectedClient.engagement_score}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-2.5">
+                                  <div 
+                                    className="bg-blue-500 h-2.5 rounded-full transition-all" 
+                                    style={{ width: `${selectedClient.engagement_score}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                              <div className="flex justify-between text-sm pt-2">
+                                <span className="text-muted-foreground">Portal Logins:</span>
+                                <span className="font-medium">{selectedClient.portal_logins}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Feature Usage:</span>
+                                <Badge variant="outline" className="text-xs">{selectedClient.feature_usage}</Badge>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Support Tickets:</span>
+                                <span className="font-medium">{selectedClient.support_tickets}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Quick Stats */}
+                    <div>
+                      <h4 className="font-semibold mb-4 flex items-center gap-2 text-base">
+                        <Target className="w-4 h-4" />
+                        Activity Overview
+                      </h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <Card className="bg-card">
+                          <CardContent className="pt-4 pb-4 text-center">
+                            <p className="text-xs text-muted-foreground mb-1">Tasks</p>
+                            <p className="text-2xl font-bold">
+                              {getClientTaskCounts(selectedClient.id).completed}/
+                              {getClientTaskCounts(selectedClient.id).total}
+                            </p>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-card">
+                          <CardContent className="pt-4 pb-4 text-center">
+                            <p className="text-xs text-muted-foreground mb-1">Milestones</p>
+                            <p className="text-2xl font-bold">
+                              {getClientMilestoneCounts(selectedClient.id).completed}/
+                              {getClientMilestoneCounts(selectedClient.id).total}
+                            </p>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-card">
+                          <CardContent className="pt-4 pb-4 text-center">
+                            <p className="text-xs text-muted-foreground mb-1">Interactions</p>
+                            <p className="text-2xl font-bold">
+                              {interactions.filter(i => i.client_id === selectedClient.id).length}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                      Close
+                    </Button>
+                    <Button onClick={() => {
+                      setIsViewDialogOpen(false)
+                      handleEditClient(selectedClient)
+                    }}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Client
+                    </Button>
+                  </DialogFooter>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Client Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              {selectedClient && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>Edit Client: {selectedClient.name}</DialogTitle>
+                    <DialogDescription>
+                      Update client information and account details
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSaveClientChanges} className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="editName">Company Name *</Label>
+                        <Input 
+                          id="editName"
+                          value={editClientData.name}
+                          onChange={(e) => setEditClientData({...editClientData, name: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editIndustry">Industry *</Label>
+                        <Input 
+                          id="editIndustry"
+                          value={editClientData.industry}
+                          onChange={(e) => setEditClientData({...editClientData, industry: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="editArr">ARR *</Label>
+                        <Input 
+                          id="editArr"
+                          type="number"
+                          min="0"
+                          step="1000"
+                          placeholder="100000"
+                          value={editClientData.arr}
+                          onChange={(e) => setEditClientData({...editClientData, arr: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editRenewalDate">Renewal Date *</Label>
+                        <Input 
+                          id="editRenewalDate"
+                          type="date"
+                          value={editClientData.renewalDate}
+                          onChange={(e) => setEditClientData({...editClientData, renewalDate: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="editHealthScore">Health Score (0-100)</Label>
+                        <Input 
+                          id="editHealthScore"
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="75"
+                          value={editClientData.healthScore}
+                          onChange={(e) => setEditClientData({...editClientData, healthScore: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editNpsScore">NPS Score (0-10)</Label>
+                        <Input 
+                          id="editNpsScore"
+                          type="number"
+                          min="0"
+                          max="10"
+                          placeholder="7"
+                          value={editClientData.npsScore}
+                          onChange={(e) => setEditClientData({...editClientData, npsScore: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editEngagement">Engagement (0-100)</Label>
+                        <Input 
+                          id="editEngagement"
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="50"
+                          value={editClientData.engagementScore}
+                          onChange={(e) => setEditClientData({...editClientData, engagementScore: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="editFeatureUsage">Feature Usage</Label>
+                        <select 
+                          id="editFeatureUsage"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={editClientData.featureUsage}
+                          onChange={(e) => setEditClientData({...editClientData, featureUsage: e.target.value as "Low" | "Medium" | "High"})}
+                        >
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editCsmId">Assign CSM</Label>
+                        <select 
+                          id="editCsmId"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={editClientData.csmId}
+                          onChange={(e) => setEditClientData({...editClientData, csmId: e.target.value})}
+                        >
+                          <option value="">Unassigned</option>
+                          {csmUsers.map((csm) => (
+                            <option key={csm.id} value={csm.id}>
+                              {csm.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="editPortalLogins">Portal Logins</Label>
+                        <Input 
+                          id="editPortalLogins"
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={editClientData.portalLogins}
+                          onChange={(e) => setEditClientData({...editClientData, portalLogins: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editSupportTickets">Support Tickets</Label>
+                        <Input 
+                          id="editSupportTickets"
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={editClientData.supportTickets}
+                          onChange={(e) => setEditClientData({...editClientData, supportTickets: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        onClick={() => {
+                          setIsEditDialogOpen(false)
+                          setSelectedClient(null)
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="tasks">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Task Management</CardTitle>
-                <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
+                <div>
+                  <CardTitle>Task Management</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Manage tasks and action items for your clients
+                  </p>
+                </div>
+                <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
                   <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Task
-                </Button>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Task
+                    </Button>
                   </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Create New Task</DialogTitle>
+                      <DialogDescription>
+                        Add a new task for a client
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddTask} className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="taskClient">Client *</Label>
+                        <select 
+                          id="taskClient"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={newTask.clientId}
+                          onChange={(e) => setNewTask({...newTask, clientId: e.target.value})}
+                          required
+                        >
+                          <option value="">Select a client...</option>
+                          {clients.map((client) => (
+                            <option key={client.id} value={client.id}>
+                              {client.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="taskTitle">Task Title *</Label>
+                        <Input 
+                          id="taskTitle"
+                          placeholder="Follow up on product feedback"
+                          value={newTask.title}
+                          onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="taskStatus">Status</Label>
+                          <select 
+                            id="taskStatus"
+                            className="w-full px-3 py-2 border rounded-md bg-background"
+                            value={newTask.status}
+                            onChange={(e) => setNewTask({...newTask, status: e.target.value as "active" | "completed" | "overdue"})}
+                          >
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                            <option value="overdue">Overdue</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="taskPriority">Priority</Label>
+                          <select 
+                            id="taskPriority"
+                            className="w-full px-3 py-2 border rounded-md bg-background"
+                            value={newTask.priority}
+                            onChange={(e) => setNewTask({...newTask, priority: e.target.value as "low" | "medium" | "high"})}
+                          >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="taskDueDate">Due Date *</Label>
+                        <Input 
+                          id="taskDueDate"
+                          type="date"
+                          value={newTask.dueDate}
+                          onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="taskAssignedTo">Assign To</Label>
+                        <select 
+                          id="taskAssignedTo"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={newTask.assignedTo}
+                          onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
+                        >
+                          <option value="">Unassigned</option>
+                          {csmUsers.map((csm) => (
+                            <option key={csm.id} value={csm.id}>
+                              {csm.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <DialogFooter>
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          onClick={() => {
+                            setIsAddTaskDialogOpen(false)
+                            setNewTask({
+                              clientId: "",
+                              title: "",
+                              status: "active",
+                              dueDate: "",
+                              priority: "medium",
+                              assignedTo: "",
+                            })
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting ? (
+                            <>
+                              <span className="animate-spin mr-2">⏳</span>
+                              Creating...
+                            </>
+                          ) : (
+                            'Create Task'
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
                 </Dialog>
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button 
-                  variant={taskFilter === "all" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTaskFilter("all")}
-                >
-                  All Tasks
-                </Button>
-                <Button 
-                  variant={taskFilter === "overdue" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTaskFilter("overdue")}
-                >
-                  Overdue
-                </Button>
-                <Button 
-                  variant={taskFilter === "due-soon" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTaskFilter("due-soon")}
-                >
-                  Due Soon
-                </Button>
-                <Button 
-                  variant={taskFilter === "completed" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTaskFilter("completed")}
-                >
-                  Completed
-                </Button>
+
+              {/* Search and Filters */}
+              <div className="flex items-center gap-4 mt-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search tasks by title, client, or assignee..." 
+                    className="pl-10"
+                    value={tasksSearchQuery}
+                    onChange={(e) => setTasksSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={tasksFilterStatus === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTasksFilterStatus("all")}
+                  >
+                    All ({tasks.length})
+                  </Button>
+                  <Button
+                    variant={tasksFilterStatus === "active" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTasksFilterStatus("active")}
+                  >
+                    Active
+                  </Button>
+                  <Button
+                    variant={tasksFilterStatus === "completed" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTasksFilterStatus("completed")}
+                  >
+                    Completed
+                  </Button>
+                  <Button
+                    variant={tasksFilterStatus === "overdue" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTasksFilterStatus("overdue")}
+                  >
+                    Overdue
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {filteredTasks.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No tasks found for the selected filter.</p>
+              {filteredTasksTab.length === 0 ? (
+                <div className="text-center py-12">
+                  <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No tasks found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {tasksSearchQuery || tasksFilterStatus !== "all" 
+                      ? "Try adjusting your search or filters"
+                      : "Get started by creating your first task"}
+                  </p>
+                  {tasksSearchQuery || tasksFilterStatus !== "all" ? (
                     <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-2"
-                      onClick={() => setTaskFilter("all")}
+                      variant="outline"
+                      onClick={() => {
+                        setTasksSearchQuery("")
+                        setTasksFilterStatus("all")
+                      }}
                     >
-                      Show All Tasks
+                      Clear Filters
                     </Button>
-                  </div>
-                ) : (
-                  filteredTasks.map((task) => {
-                    const today = new Date()
-                    const dueDate = new Date(task.dueDate)
-                    const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
-                    
-                    let dueDateText = ""
-                    if (task.status === "completed") {
-                      dueDateText = "Completed"
-                    } else if (daysDiff < 0) {
-                      dueDateText = `${Math.abs(daysDiff)} days overdue`
-                    } else if (daysDiff === 0) {
-                      dueDateText = "Due today"
-                    } else if (daysDiff === 1) {
-                      dueDateText = "Due tomorrow"
-                    } else {
-                      dueDateText = `Due in ${daysDiff} days`
-                    }
-
-                    return (
-                    <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3 flex-1">
-                        <button
-                          onClick={() => toggleTaskStatus(task.id)}
-                          className="hover:scale-110 transition-transform"
-                        >
-                        {task.status === "completed" ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-500" />
-                        ) : (
-                            <Circle className="w-5 h-5 text-muted-foreground hover:text-primary" />
-                        )}
-                        </button>
-                        <div className="flex-1">
-                          <p className={`font-medium ${task.status === "completed" ? "line-through text-muted-foreground" : ""}`}>
-                            {task.task}
-                          </p>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                            <span>{task.client}</span>
-                            <span className={daysDiff < 0 && task.status !== "completed" ? "text-red-500 font-medium" : ""}>
-                              {dueDateText}
-                            </span>
-                            <span>Assigned to: {task.assignedTo}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          className={
-                            task.priority === "high"
-                              ? "bg-red-500/10 text-red-500 border-red-500/20"
-                              : task.priority === "medium"
-                                ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                                : "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                          }
-                        >
-                          {task.priority}
-                        </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEditTask(task)}
-                        >
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-                    )
-                  })
-                )}
-              </div>
+                  ) : (
+                    <Button onClick={() => setIsAddTaskDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Task
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Task</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead>Assigned To</TableHead>
+                        <TableHead>Due Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTasksTab.map((task) => (
+                        <TableRow key={task.id}>
+                          <TableCell className="font-medium">{task.title}</TableCell>
+                          <TableCell>
+                            {task.client ? task.client.name : 'Unknown Client'}
+                          </TableCell>
+                          <TableCell>
+                            {getTaskStatusBadge(task.status)}
+                          </TableCell>
+                          <TableCell>
+                            {getPriorityBadge(task.priority)}
+                          </TableCell>
+                          <TableCell>
+                            {task.csm ? (
+                              <div className="flex items-center gap-2">
+                                {task.csm.avatar && (
+                                  <img 
+                                    src={task.csm.avatar} 
+                                    alt={task.csm.name}
+                                    className="w-6 h-6 rounded-full"
+                                  />
+                                )}
+                                <span className="text-sm">{task.csm.name}</span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Unassigned</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {new Date(task.due_date).toLocaleDateString()}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditTask(task)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Edit Task Dialog */}
+          <Dialog open={isEditTaskDialogOpen} onOpenChange={setIsEditTaskDialogOpen}>
+            <DialogContent className="max-w-md">
+              {selectedTask && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>Edit Task</DialogTitle>
+                    <DialogDescription>
+                      Update task details
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSaveTaskChanges} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="editTaskTitle">Task Title *</Label>
+                      <Input 
+                        id="editTaskTitle"
+                        value={editTaskData.title}
+                        onChange={(e) => setEditTaskData({...editTaskData, title: e.target.value})}
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="editTaskStatus">Status</Label>
+                        <select 
+                          id="editTaskStatus"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={editTaskData.status}
+                          onChange={(e) => setEditTaskData({...editTaskData, status: e.target.value as "active" | "completed" | "overdue"})}
+                        >
+                          <option value="active">Active</option>
+                          <option value="completed">Completed</option>
+                          <option value="overdue">Overdue</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editTaskPriority">Priority</Label>
+                        <select 
+                          id="editTaskPriority"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={editTaskData.priority}
+                          onChange={(e) => setEditTaskData({...editTaskData, priority: e.target.value as "low" | "medium" | "high"})}
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="editTaskDueDate">Due Date *</Label>
+                      <Input 
+                        id="editTaskDueDate"
+                        type="date"
+                        value={editTaskData.dueDate}
+                        onChange={(e) => setEditTaskData({...editTaskData, dueDate: e.target.value})}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="editTaskAssignedTo">Assign To</Label>
+                      <select 
+                        id="editTaskAssignedTo"
+                        className="w-full px-3 py-2 border rounded-md bg-background"
+                        value={editTaskData.assignedTo}
+                        onChange={(e) => setEditTaskData({...editTaskData, assignedTo: e.target.value})}
+                      >
+                        <option value="">Unassigned</option>
+                        {csmUsers.map((csm) => (
+                          <option key={csm.id} value={csm.id}>
+                            {csm.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <DialogFooter>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        onClick={() => {
+                          setIsEditTaskDialogOpen(false)
+                          setSelectedTask(null)
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="milestones">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Milestone Tracking</CardTitle>
-                <Dialog open={isNewMilestoneOpen} onOpenChange={setIsNewMilestoneOpen}>
+                <div>
+                  <CardTitle>Milestone Tracking</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Track key milestones and achievements for your clients
+                  </p>
+                </div>
+                <Dialog open={isAddMilestoneDialogOpen} onOpenChange={setIsAddMilestoneDialogOpen}>
                   <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Milestone
-                </Button>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Milestone
+                    </Button>
                   </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Create New Milestone</DialogTitle>
+                      <DialogDescription>
+                        Add a new milestone for a client
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddMilestone} className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="milestoneClient">Client *</Label>
+                        <select
+                          id="milestoneClient"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={newMilestone.clientId}
+                          onChange={(e) => setNewMilestone({...newMilestone, clientId: e.target.value})}
+                          required
+                        >
+                          <option value="">Select a client</option>
+                          {clients.map((client) => (
+                            <option key={client.id} value={client.id}>
+                              {client.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="milestoneTitle">Milestone Title *</Label>
+                        <Input
+                          id="milestoneTitle"
+                          value={newMilestone.title}
+                          onChange={(e) => setNewMilestone({...newMilestone, title: e.target.value})}
+                          placeholder="e.g., Complete onboarding"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="milestoneDescription">Description</Label>
+                        <Textarea
+                          id="milestoneDescription"
+                          value={newMilestone.description}
+                          onChange={(e) => setNewMilestone({...newMilestone, description: e.target.value})}
+                          placeholder="Optional description"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="milestoneStatus">Status</Label>
+                          <select
+                            id="milestoneStatus"
+                            className="w-full px-3 py-2 border rounded-md bg-background"
+                            value={newMilestone.status}
+                            onChange={(e) => setNewMilestone({...newMilestone, status: e.target.value as "completed" | "in-progress" | "upcoming"})}
+                          >
+                            <option value="upcoming">Upcoming</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="milestoneTargetDate">Target Date *</Label>
+                          <Input
+                            id="milestoneTargetDate"
+                            type="date"
+                            value={newMilestone.targetDate}
+                            onChange={(e) => setNewMilestone({...newMilestone, targetDate: e.target.value})}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {newMilestone.status === "completed" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="milestoneCompletedDate">Completed Date</Label>
+                          <Input
+                            id="milestoneCompletedDate"
+                            type="date"
+                            value={newMilestone.completedDate}
+                            onChange={(e) => setNewMilestone({...newMilestone, completedDate: e.target.value})}
+                          />
+                        </div>
+                      )}
+
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsAddMilestoneDialogOpen(false)
+                            setNewMilestone({
+                              clientId: "",
+                              title: "",
+                              description: "",
+                              status: "upcoming",
+                              targetDate: "",
+                              completedDate: "",
+                            })
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting ? (
+                            <>
+                              <span className="animate-spin mr-2">⏳</span>
+                              Creating...
+                            </>
+                          ) : (
+                            'Create Milestone'
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
                 </Dialog>
+              </div>
+
+              {/* Search and Filters for Milestones */}
+              <div className="flex items-center gap-4 mt-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search milestones by title or client..."
+                    className="pl-10"
+                    value={milestonesSearchQuery}
+                    onChange={(e) => setMilestonesSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={milestonesFilterStatus === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMilestonesFilterStatus("all")}
+                  >
+                    All ({milestones.length})
+                  </Button>
+                  <Button
+                    variant={milestonesFilterStatus === "upcoming" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMilestonesFilterStatus("upcoming")}
+                  >
+                    Upcoming
+                  </Button>
+                  <Button
+                    variant={milestonesFilterStatus === "in-progress" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMilestonesFilterStatus("in-progress")}
+                  >
+                    In Progress
+                  </Button>
+                  <Button
+                    variant={milestonesFilterStatus === "completed" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMilestonesFilterStatus("completed")}
+                  >
+                    Completed
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {clients.map((client) => {
-                  const clientMilestones = milestones.filter(m => m.client === client.name)
-                  const completedCount = clientMilestones.filter(m => m.status === "completed").length
-                  
-                  return (
-                  <div key={client.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold">{client.name}</h3>
-                        <p className="text-sm text-muted-foreground">{client.industry}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Progress</p>
-                        <p className="text-xl font-bold">
-                            {completedCount}/{clientMilestones.length}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2 mb-3">
-                      <div
-                        className="bg-green-500 h-2 rounded-full transition-all"
-                        style={{
-                            width: `${clientMilestones.length > 0 ? (completedCount / clientMilestones.length) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                        {clientMilestones.length === 0 ? (
-                          <div className="text-center py-4 text-muted-foreground">
-                            <p className="text-sm">No milestones yet</p>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="mt-2"
-                              onClick={() => {
-                                setNewMilestoneClient(client.name)
-                                setIsNewMilestoneOpen(true)
-                              }}
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              Add First Milestone
-                            </Button>
-                      </div>
-                        ) : (
-                          clientMilestones.map((milestone) => (
-                            <div key={milestone.id} className="flex items-center gap-2 text-sm">
-                              {milestone.status === "completed" ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Circle className="w-4 h-4 text-muted-foreground" />
+              {filteredMilestonesTab.length === 0 ? (
+                <div className="text-center py-12">
+                  <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No milestones found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {milestonesSearchQuery || milestonesFilterStatus !== "all"
+                      ? "Try adjusting your search or filters"
+                      : "Get started by creating your first milestone"}
+                  </p>
+                  {milestonesSearchQuery || milestonesFilterStatus !== "all" ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setMilestonesSearchQuery("")
+                        setMilestonesFilterStatus("all")
+                      }}
+                    >
+                      Clear Filters
+                    </Button>
+                  ) : (
+                    <Button onClick={() => setIsAddMilestoneDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Milestone
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Milestone</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Target Date</TableHead>
+                        <TableHead>Completed Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMilestonesTab.map((milestone) => (
+                        <TableRow key={milestone.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{milestone.title}</div>
+                              {milestone.description && (
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  {milestone.description}
+                                </div>
                               )}
-                              <div className="flex-1">
-                                <span className={milestone.status === "completed" ? "text-foreground" : "text-muted-foreground"}>
-                                  {milestone.title}
-                                </span>
-                                {milestone.status === "in-progress" && (
-                                  <span className="text-xs text-muted-foreground ml-2">
-                                    (Due: {new Date(milestone.targetDate).toLocaleDateString()})
-                                  </span>
-                                )}
-                      </div>
-                        </div>
-                          ))
-                      )}
-                    </div>
-                  </div>
-                  )
-                })}
-              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {milestone.client ? milestone.client.name : 'Unknown Client'}
+                          </TableCell>
+                          <TableCell>
+                            {getMilestoneStatusBadge(milestone.status)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {new Date(milestone.target_date).toLocaleDateString()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {milestone.completed_date ? (
+                              <div className="text-sm">
+                                {new Date(milestone.completed_date).toLocaleDateString()}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditMilestone(milestone)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteMilestone(milestone.id)}
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Edit Milestone Dialog */}
+          <Dialog open={isEditMilestoneDialogOpen} onOpenChange={setIsEditMilestoneDialogOpen}>
+            <DialogContent className="max-w-md">
+              {selectedMilestone && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>Edit Milestone</DialogTitle>
+                    <DialogDescription>
+                      Update milestone details
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSaveMilestoneChanges} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="editMilestoneTitle">Milestone Title *</Label>
+                      <Input
+                        id="editMilestoneTitle"
+                        value={editMilestoneData.title}
+                        onChange={(e) => setEditMilestoneData({...editMilestoneData, title: e.target.value})}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="editMilestoneDescription">Description</Label>
+                      <Textarea
+                        id="editMilestoneDescription"
+                        value={editMilestoneData.description}
+                        onChange={(e) => setEditMilestoneData({...editMilestoneData, description: e.target.value})}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="editMilestoneStatus">Status</Label>
+                        <select
+                          id="editMilestoneStatus"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={editMilestoneData.status}
+                          onChange={(e) => setEditMilestoneData({...editMilestoneData, status: e.target.value as "completed" | "in-progress" | "upcoming"})}
+                        >
+                          <option value="upcoming">Upcoming</option>
+                          <option value="in-progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editMilestoneTargetDate">Target Date *</Label>
+                        <Input
+                          id="editMilestoneTargetDate"
+                          type="date"
+                          value={editMilestoneData.targetDate}
+                          onChange={(e) => setEditMilestoneData({...editMilestoneData, targetDate: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {editMilestoneData.status === "completed" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="editMilestoneCompletedDate">Completed Date</Label>
+                        <Input
+                          id="editMilestoneCompletedDate"
+                          type="date"
+                          value={editMilestoneData.completedDate}
+                          onChange={(e) => setEditMilestoneData({...editMilestoneData, completedDate: e.target.value})}
+                        />
+                      </div>
+                    )}
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditMilestoneDialogOpen(false)
+                          setSelectedMilestone(null)
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="interactions">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Communication History</CardTitle>
-                <Dialog open={isLogInteractionOpen} onOpenChange={setIsLogInteractionOpen}>
+                <div>
+                  <CardTitle>Communication History</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Track all client interactions and communications
+                  </p>
+                </div>
+                <Dialog open={isAddInteractionDialogOpen} onOpenChange={setIsAddInteractionDialogOpen}>
                   <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Log Interaction
-                </Button>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Log Interaction
+                    </Button>
                   </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Log New Interaction</DialogTitle>
+                      <DialogDescription>
+                        Record a client communication
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddInteraction} className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="interactionClient">Client *</Label>
+                        <select
+                          id="interactionClient"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={newInteraction.clientId}
+                          onChange={(e) => setNewInteraction({...newInteraction, clientId: e.target.value})}
+                          required
+                        >
+                          <option value="">Select a client</option>
+                          {clients.map((client) => (
+                            <option key={client.id} value={client.id}>
+                              {client.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="interactionType">Type</Label>
+                          <select
+                            id="interactionType"
+                            className="w-full px-3 py-2 border rounded-md bg-background"
+                            value={newInteraction.type}
+                            onChange={(e) => setNewInteraction({...newInteraction, type: e.target.value as "email" | "call" | "meeting"})}
+                          >
+                            <option value="email">Email</option>
+                            <option value="call">Call</option>
+                            <option value="meeting">Meeting</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="interactionDate">Date *</Label>
+                          <Input
+                            id="interactionDate"
+                            type="date"
+                            value={newInteraction.interactionDate}
+                            onChange={(e) => setNewInteraction({...newInteraction, interactionDate: e.target.value})}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="interactionSubject">Subject *</Label>
+                        <Input
+                          id="interactionSubject"
+                          value={newInteraction.subject}
+                          onChange={(e) => setNewInteraction({...newInteraction, subject: e.target.value})}
+                          placeholder="e.g., Quarterly business review"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="interactionDescription">Notes</Label>
+                        <Textarea
+                          id="interactionDescription"
+                          value={newInteraction.description}
+                          onChange={(e) => setNewInteraction({...newInteraction, description: e.target.value})}
+                          placeholder="Add details about the interaction..."
+                          rows={4}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="interactionCSM">CSM</Label>
+                        <select
+                          id="interactionCSM"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={newInteraction.csmId}
+                          onChange={(e) => setNewInteraction({...newInteraction, csmId: e.target.value})}
+                        >
+                          <option value="">Not assigned</option>
+                          {csmUsers.map((csm) => (
+                            <option key={csm.id} value={csm.id}>
+                              {csm.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsAddInteractionDialogOpen(false)
+                            setNewInteraction({
+                              clientId: "",
+                              type: "email",
+                              subject: "",
+                              description: "",
+                              csmId: "",
+                              interactionDate: new Date().toISOString().split('T')[0],
+                            })
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting ? (
+                            <>
+                              <span className="animate-spin mr-2">⏳</span>
+                              Logging...
+                            </>
+                          ) : (
+                            'Log Interaction'
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
                 </Dialog>
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button 
-                  variant={interactionFilter === "all" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setInteractionFilter("all")}
-                >
-                  All
-                </Button>
-                <Button 
-                  variant={interactionFilter === "email" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setInteractionFilter("email")}
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Email
-                </Button>
-                <Button 
-                  variant={interactionFilter === "call" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setInteractionFilter("call")}
-                >
-                  <Phone className="w-4 h-4 mr-2" />
-                  Call
-                </Button>
-                <Button 
-                  variant={interactionFilter === "meeting" ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setInteractionFilter("meeting")}
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  Meeting
-                </Button>
+
+              {/* Search and Filters for Interactions */}
+              <div className="flex items-center gap-4 mt-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search interactions by subject, client, or CSM..."
+                    className="pl-10"
+                    value={interactionsSearchQuery}
+                    onChange={(e) => setInteractionsSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={interactionsFilterType === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInteractionsFilterType("all")}
+                  >
+                    All ({interactions.length})
+                  </Button>
+                  <Button
+                    variant={interactionsFilterType === "email" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInteractionsFilterType("email")}
+                  >
+                    <Mail className="w-4 h-4 mr-1" />
+                    Email
+                  </Button>
+                  <Button
+                    variant={interactionsFilterType === "call" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInteractionsFilterType("call")}
+                  >
+                    <Phone className="w-4 h-4 mr-1" />
+                    Call
+                  </Button>
+                  <Button
+                    variant={interactionsFilterType === "meeting" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInteractionsFilterType("meeting")}
+                  >
+                    <Users className="w-4 h-4 mr-1" />
+                    Meeting
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {filteredInteractions.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No interactions found for the selected filter.</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-2"
-                      onClick={() => setInteractionFilter("all")}
+              {filteredInteractionsTab.length === 0 ? (
+                <div className="text-center py-12">
+                  <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No interactions found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {interactionsSearchQuery || interactionsFilterType !== "all"
+                      ? "Try adjusting your search or filters"
+                      : "Get started by logging your first interaction"}
+                  </p>
+                  {interactionsSearchQuery || interactionsFilterType !== "all" ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setInteractionsSearchQuery("")
+                        setInteractionsFilterType("all")
+                      }}
                     >
-                      Show All Interactions
+                      Clear Filters
                     </Button>
+                  ) : (
+                    <Button onClick={() => setIsAddInteractionDialogOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Log Your First Interaction
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>CSM</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredInteractionsTab.map((interaction) => (
+                        <TableRow key={interaction.id}>
+                          <TableCell>
+                            <div className="text-sm">
+                              {new Date(interaction.interaction_date).toLocaleDateString()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getInteractionTypeBadge(interaction.type)}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{interaction.subject}</div>
+                              {interaction.description && (
+                                <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                  {interaction.description}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {interaction.client ? interaction.client.name : 'Unknown Client'}
+                          </TableCell>
+                          <TableCell>
+                            {interaction.csm ? (
+                              <div className="flex items-center gap-2">
+                                {interaction.csm.avatar && (
+                                  <img
+                                    src={interaction.csm.avatar}
+                                    alt={interaction.csm.name}
+                                    className="w-6 h-6 rounded-full"
+                                  />
+                                )}
+                                <span className="text-sm">{interaction.csm.name}</span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditInteraction(interaction)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteInteraction(interaction.id)}
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Edit Interaction Dialog */}
+          <Dialog open={isEditInteractionDialogOpen} onOpenChange={setIsEditInteractionDialogOpen}>
+            <DialogContent className="max-w-md">
+              {selectedInteraction && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>Edit Interaction</DialogTitle>
+                    <DialogDescription>
+                      Update interaction details
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSaveInteractionChanges} className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="editInteractionType">Type</Label>
+                        <select
+                          id="editInteractionType"
+                          className="w-full px-3 py-2 border rounded-md bg-background"
+                          value={editInteractionData.type}
+                          onChange={(e) => setEditInteractionData({...editInteractionData, type: e.target.value as "email" | "call" | "meeting"})}
+                        >
+                          <option value="email">Email</option>
+                          <option value="call">Call</option>
+                          <option value="meeting">Meeting</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="editInteractionDate">Date *</Label>
+                        <Input
+                          id="editInteractionDate"
+                          type="date"
+                          value={editInteractionData.interactionDate}
+                          onChange={(e) => setEditInteractionData({...editInteractionData, interactionDate: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="editInteractionSubject">Subject *</Label>
+                      <Input
+                        id="editInteractionSubject"
+                        value={editInteractionData.subject}
+                        onChange={(e) => setEditInteractionData({...editInteractionData, subject: e.target.value})}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="editInteractionDescription">Notes</Label>
+                      <Textarea
+                        id="editInteractionDescription"
+                        value={editInteractionData.description}
+                        onChange={(e) => setEditInteractionData({...editInteractionData, description: e.target.value})}
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="editInteractionCSM">CSM</Label>
+                      <select
+                        id="editInteractionCSM"
+                        className="w-full px-3 py-2 border rounded-md bg-background"
+                        value={editInteractionData.csmId}
+                        onChange={(e) => setEditInteractionData({...editInteractionData, csmId: e.target.value})}
+                      >
+                        <option value="">Not assigned</option>
+                        {csmUsers.map((csm) => (
+                          <option key={csm.id} value={csm.id}>
+                            {csm.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditInteractionDialogOpen(false)
+                          setSelectedInteraction(null)
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          {/* Key Metrics Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Client Growth</p>
+                  <p className="text-2xl font-bold">{clients.length}</p>
+                  <div className="flex items-center gap-1 text-sm">
+                    <TrendingUp className="w-4 h-4 text-green-500" />
+                    <span className="text-green-500">+12%</span>
+                    <span className="text-muted-foreground">vs last quarter</span>
                   </div>
-                ) : (
-                  filteredInteractions.map((interaction) => {
-                    const timeAgo = () => {
-                      const now = new Date()
-                      const diff = now.getTime() - interaction.timestamp.getTime()
-                      const hours = Math.floor(diff / (1000 * 60 * 60))
-                      const days = Math.floor(hours / 24)
-                      
-                      if (days > 0) {
-                        return `${days} day${days > 1 ? 's' : ''} ago`
-                      } else if (hours > 0) {
-                        return `${hours} hour${hours > 1 ? 's' : ''} ago`
-                      } else {
-                        return "Just now"
-                      }
-                    }
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Avg Health Score</p>
+                  <p className="text-2xl font-bold">{stats.avgHealthScore}%</p>
+                  <div className="flex items-center gap-1 text-sm">
+                    <TrendingUp className="w-4 h-4 text-green-500" />
+                    <span className="text-green-500">+5%</span>
+                    <span className="text-muted-foreground">vs last month</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Task Completion Rate</p>
+                  <p className="text-2xl font-bold">
+                    {stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}%
+                  </p>
+                  <div className="flex items-center gap-1 text-sm">
+                    <span className="text-muted-foreground">{stats.completedTasks} of {stats.totalTasks} tasks</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Interactions This Month</p>
+                  <p className="text-2xl font-bold">{interactions.length}</p>
+                  <div className="flex items-center gap-1 text-sm">
+                    <Activity className="w-4 h-4 text-blue-500" />
+                    <span className="text-muted-foreground">Across all clients</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Client Health Distribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Client Health Distribution</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Breakdown of clients by health status
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                        <span className="text-sm">Healthy (80-100)</span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {clients.filter(c => c.health_score >= 80).length} clients
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{
+                          width: `${clients.length > 0 ? (clients.filter(c => c.health_score >= 80).length / clients.length) * 100 : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                        <span className="text-sm">Moderate (60-79)</span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {clients.filter(c => c.health_score >= 60 && c.health_score < 80).length} clients
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-yellow-500 h-2 rounded-full"
+                        style={{
+                          width: `${clients.length > 0 ? (clients.filter(c => c.health_score >= 60 && c.health_score < 80).length / clients.length) * 100 : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                        <span className="text-sm">At Risk (&lt;60)</span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {clients.filter(c => c.health_score < 60).length} clients
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-red-500 h-2 rounded-full"
+                        style={{
+                          width: `${clients.length > 0 ? (clients.filter(c => c.health_score < 60).length / clients.length) * 100 : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-muted rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Target className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium">Goal: 80% Healthy Clients</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Current: {clients.length > 0 ? Math.round((clients.filter(c => c.health_score >= 80).length / clients.length) * 100) : 0}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Revenue Analytics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue Analytics</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  ARR breakdown and insights
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total ARR</p>
+                      <p className="text-2xl font-bold">${(stats.totalARR / 1000).toFixed(0)}K</p>
+                    </div>
+                    <DollarSign className="w-8 h-8 text-green-500" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Healthy Clients ARR</span>
+                      <span className="text-sm font-medium">
+                        ${(clients.filter(c => c.health_score >= 80).reduce((sum, c) => sum + c.arr, 0) / 1000).toFixed(0)}K
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Moderate Clients ARR</span>
+                      <span className="text-sm font-medium">
+                        ${(clients.filter(c => c.health_score >= 60 && c.health_score < 80).reduce((sum, c) => sum + c.arr, 0) / 1000).toFixed(0)}K
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-red-500">At Risk ARR</span>
+                      <span className="text-sm font-medium text-red-500">
+                        ${(clients.filter(c => c.health_score < 60).reduce((sum, c) => sum + c.arr, 0) / 1000).toFixed(0)}K
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Average ARR per Client</span>
+                      <span className="text-sm font-bold">
+                        ${clients.length > 0 ? Math.round(stats.totalARR / clients.length / 1000) : 0}K
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Renewals Next 90 Days</span>
+                      <span className="text-sm font-bold">
+                        {clients.filter(c => {
+                          const renewalDate = new Date(c.renewal_date)
+                          const ninetyDaysFromNow = new Date()
+                          ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90)
+                          return renewalDate <= ninetyDaysFromNow && renewalDate >= new Date()
+                        }).length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Activity & Engagement */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Interaction Activity</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Communication breakdown by type
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm">Email Interactions</span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {interactions.filter(i => i.type === 'email').length}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full"
+                        style={{
+                          width: `${interactions.length > 0 ? (interactions.filter(i => i.type === 'email').length / interactions.length) * 100 : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-green-500" />
+                        <span className="text-sm">Call Interactions</span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {interactions.filter(i => i.type === 'call').length}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{
+                          width: `${interactions.length > 0 ? (interactions.filter(i => i.type === 'call').length / interactions.length) * 100 : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-purple-500" />
+                        <span className="text-sm">Meeting Interactions</span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {interactions.filter(i => i.type === 'meeting').length}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-purple-500 h-2 rounded-full"
+                        style={{
+                          width: `${interactions.length > 0 ? (interactions.filter(i => i.type === 'meeting').length / interactions.length) * 100 : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Performance</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Task completion metrics
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <CheckCircle2 className="w-6 h-6 text-green-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">{stats.completedTasks}</p>
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                      <Circle className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">{stats.totalTasks - stats.completedTasks - stats.overdueTasks}</p>
+                      <p className="text-xs text-muted-foreground">Active</p>
+                    </div>
+                    <div className="text-center p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                      <AlertCircle className="w-6 h-6 text-red-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">{stats.overdueTasks}</p>
+                      <p className="text-xs text-muted-foreground">Overdue</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">High Priority Tasks</span>
+                      <span className="text-sm font-medium">
+                        {tasks.filter(t => t.priority === 'high').length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Medium Priority Tasks</span>
+                      <span className="text-sm font-medium">
+                        {tasks.filter(t => t.priority === 'medium').length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Low Priority Tasks</span>
+                      <span className="text-sm font-medium">
+                        {tasks.filter(t => t.priority === 'low').length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* CSM Performance & Milestones */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>CSM Performance</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Team member workload and metrics
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {csmUsers.map((csm) => {
+                    const csmClients = clients.filter(c => c.csm_id === csm.id)
+                    const csmTasks = tasks.filter(t => t.assigned_to === csm.id)
+                    const avgHealthScore = csmClients.length > 0
+                      ? Math.round(csmClients.reduce((sum, c) => sum + c.health_score, 0) / csmClients.length)
+                      : 0
 
                     return (
-                    <div
-                      key={interaction.id}
-                      className="flex gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          interaction.type === "email"
-                            ? "bg-blue-500/10"
-                            : interaction.type === "call"
-                              ? "bg-green-500/10"
-                              : "bg-purple-500/10"
-                        }`}
-                      >
-                        {interaction.type === "email" && <Mail className="w-5 h-5 text-blue-500" />}
-                        {interaction.type === "call" && <Phone className="w-5 h-5 text-green-500" />}
-                        {interaction.type === "meeting" && <Users className="w-5 h-5 text-purple-500" />}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-1">
-                          <div>
-                            <h4 className="font-semibold">{interaction.subject}</h4>
-                            <p className="text-sm text-muted-foreground">{interaction.client}</p>
+                      <div key={csm.id} className="p-3 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {csm.avatar && (
+                              <img
+                                src={csm.avatar}
+                                alt={csm.name}
+                                className="w-8 h-8 rounded-full"
+                              />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">{csm.name}</p>
+                              <p className="text-xs text-muted-foreground">{csm.email}</p>
+                            </div>
                           </div>
-                          <Badge variant="outline" className="text-xs">
-                            {interaction.type}
-                          </Badge>
+                          <Badge variant="outline">{csmClients.length} clients</Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">{interaction.description}</p>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            {interaction.csm}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {timeAgo()}
-                          </span>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <p className="text-muted-foreground">Avg Health</p>
+                            <p className="font-medium">{avgHealthScore}%</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Tasks</p>
+                            <p className="font-medium">{csmTasks.length}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">ARR</p>
+                            <p className="font-medium">
+                              ${(csmClients.reduce((sum, c) => sum + c.arr, 0) / 1000).toFixed(0)}K
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Milestone Progress</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Client milestone tracking
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <CheckCircle2 className="w-6 h-6 text-green-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">
+                        {milestones.filter(m => m.status === 'completed').length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                      <Activity className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">
+                        {milestones.filter(m => m.status === 'in-progress').length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">In Progress</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-500/10 rounded-lg border border-gray-500/20">
+                      <Clock className="w-6 h-6 text-gray-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">
+                        {milestones.filter(m => m.status === 'upcoming').length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Upcoming</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium">Completion Rate</span>
+                      <span className="text-sm font-bold">
+                        {milestones.length > 0
+                          ? Math.round((milestones.filter(m => m.status === 'completed').length / milestones.length) * 100)
+                          : 0}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{
+                          width: `${milestones.length > 0 ? (milestones.filter(m => m.status === 'completed').length / milestones.length) * 100 : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <p className="text-sm">
+                        <span className="font-medium">
+                          {milestones.filter(m => {
+                            const targetDate = new Date(m.target_date)
+                            const thirtyDaysFromNow = new Date()
+                            thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+                            return targetDate <= thirtyDaysFromNow && targetDate >= new Date() && m.status !== 'completed'
+                          }).length}
+                        </span>
+                        <span className="text-muted-foreground"> milestones due in next 30 days</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Clients by ARR */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Clients by ARR</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Highest value client accounts
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {clients
+                  .sort((a, b) => b.arr - a.arr)
+                  .slice(0, 5)
+                  .map((client, index) => (
+                    <div key={client.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{client.name}</p>
+                          <p className="text-xs text-muted-foreground">{client.industry}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold">${(client.arr / 1000).toFixed(0)}K</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          {getHealthBadge(client.status)}
                         </div>
                       </div>
                     </div>
-                    )
-                  })
-                )}
+                  ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Executive Dashboard */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Executive Dashboard
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">Retention Rate</p>
-                    <p className="text-2xl font-bold text-green-500">94%</p>
-                    <p className="text-xs text-muted-foreground mt-1">+2% from last quarter</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">Expansion Revenue</p>
-                    <p className="text-2xl font-bold text-primary">$125K</p>
-                    <p className="text-xs text-muted-foreground mt-1">+18% from last quarter</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">Avg NPS</p>
-                    <p className="text-2xl font-bold">{avgNPS}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Promoter score</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">Client Satisfaction</p>
-                    <p className="text-2xl font-bold text-green-500">4.6/5</p>
-                    <p className="text-xs text-muted-foreground mt-1">Based on surveys</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* CSM Performance */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  CSM Performance
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Sarah Johnson</p>
-                      <p className="text-xs text-muted-foreground">2 clients • Avg Health: 79%</p>
-                    </div>
-                    <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Excellent</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Michael Chen</p>
-                      <p className="text-xs text-muted-foreground">2 clients • Avg Health: 52%</p>
-                    </div>
-                    <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Needs Support</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">Emily Rodriguez</p>
-                      <p className="text-xs text-muted-foreground">1 client • Avg Health: 91%</p>
-                    </div>
-                    <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Outstanding</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Churn Analysis */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="w-5 h-5" />
-                  Churn Prediction Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Low Risk (0-25%)</span>
-                      <span className="text-sm font-semibold">2 clients</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div className="bg-green-500 h-2 rounded-full" style={{ width: "40%" }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Medium Risk (25-60%)</span>
-                      <span className="text-sm font-semibold">2 clients</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div className="bg-yellow-500 h-2 rounded-full" style={{ width: "40%" }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">High Risk (60%+)</span>
-                      <span className="text-sm font-semibold">1 client</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div className="bg-red-500 h-2 rounded-full" style={{ width: "20%" }}></div>
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t">
-                    <p className="text-sm font-medium mb-2">Key Churn Indicators:</p>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• Low engagement score (&lt;50)</li>
-                      <li>• Missed milestones (2+ overdue)</li>
-                      <li>• No contact in 10+ days</li>
-                      <li>• Declining health trend</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* ROI Tracking */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5" />
-                  ROI & Revenue Impact
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg bg-green-500/5">
-                    <p className="text-sm text-muted-foreground">Prevented Churn Value</p>
-                    <p className="text-2xl font-bold text-green-500">$340K</p>
-                    <p className="text-xs text-muted-foreground mt-1">Last 12 months</p>
-                  </div>
-                  <div className="p-4 border rounded-lg bg-primary/5">
-                    <p className="text-sm text-muted-foreground">Expansion Revenue</p>
-                    <p className="text-2xl font-bold text-primary">$125K</p>
-                    <p className="text-xs text-muted-foreground mt-1">Upsells & cross-sells</p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <p className="text-sm text-muted-foreground">Platform ROI</p>
-                    <p className="text-2xl font-bold">385%</p>
-                    <p className="text-xs text-muted-foreground mt-1">Return on investment</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
       </Tabs>
 
-      {/* Client Detail Modal */}
-      <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="pb-3 border-b flex-shrink-0">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <DialogTitle className="text-xl mb-2 truncate">{selectedClient?.name}</DialogTitle>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {selectedClient && getHealthBadge(selectedClient.status)}
-                  {selectedClient && getChurnRiskBadge(selectedClient.churnRisk)}
+      {/* Global View Client Dialog - Available from any tab */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          {selectedClient && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-2xl">{selectedClient.name}</DialogTitle>
+                <DialogDescription className="text-sm">
+                  {selectedClient.industry} • Client ID: {selectedClient.id.substring(0, 8)}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-6 py-4">
+                {/* Status Overview */}
+                <div className="grid grid-cols-4 gap-3">
+                  <Card className="bg-card">
+                    <CardContent className="pt-4 pb-4 px-3">
+                      <div className="text-center space-y-2">
+                        <p className="text-xs text-muted-foreground">Health Score</p>
+                        <p className={`text-2xl font-bold ${getHealthColor(selectedClient.health_score)}`}>
+                          {selectedClient.health_score}%
+                        </p>
+                        <div className="flex justify-center">
+                          {getHealthBadge(selectedClient.status)}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-card">
+                    <CardContent className="pt-4 pb-4 px-3">
+                      <div className="text-center space-y-2">
+                        <p className="text-xs text-muted-foreground">Churn Risk</p>
+                        <p className="text-2xl font-bold">{selectedClient.churn_risk}%</p>
+                        <div className="flex justify-center">
+                          {getChurnRiskBadge(selectedClient.churn_risk)}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-card">
+                    <CardContent className="pt-4 pb-4 px-3">
+                      <div className="text-center space-y-2">
+                        <p className="text-xs text-muted-foreground">NPS Score</p>
+                        <p className="text-2xl font-bold">{selectedClient.nps_score}/10</p>
+                        <div className="flex justify-center">
+                          <Badge variant="outline" className="text-xs">
+                            {selectedClient.nps_score >= 9 ? "Promoter" : 
+                             selectedClient.nps_score >= 7 ? "Passive" : "Detractor"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-card">
+                    <CardContent className="pt-4 pb-4 px-3">
+                      <div className="text-center space-y-2">
+                        <p className="text-xs text-muted-foreground">ARR</p>
+                        <p className="text-2xl font-bold">${(selectedClient.arr / 1000).toFixed(0)}K</p>
+                        <p className="text-xs text-muted-foreground">Annual Value</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Detailed Information */}
+                <div className="grid grid-cols-2 gap-6">
+                  <Card className="bg-card">
+                    <CardContent className="pt-6 pb-6 space-y-6">
+                      <div>
+                        <h4 className="font-semibold mb-4 flex items-center gap-2 text-base">
+                          <Building className="w-4 h-4" />
+                          Company Information
+                        </h4>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground whitespace-nowrap">Industry:</span>
+                            <span className="font-medium text-right">{selectedClient.industry}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground whitespace-nowrap">Renewal Date:</span>
+                            <span className="font-medium text-right">
+                              {new Date(selectedClient.renewal_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground whitespace-nowrap">Last Contact:</span>
+                            <span className="font-medium text-right">
+                              {getTimeSince(selectedClient.last_contact_date)} ago
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-4">
+                        <h4 className="font-semibold mb-4 flex items-center gap-2 text-base">
+                          <Users className="w-4 h-4" />
+                          Account Management
+                        </h4>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between items-center gap-4">
+                            <span className="text-muted-foreground whitespace-nowrap">CSM:</span>
+                            {selectedClient.csm ? (
+                              <div className="flex items-center gap-2">
+                                {selectedClient.csm.avatar && (
+                                  <img 
+                                    src={selectedClient.csm.avatar} 
+                                    alt={selectedClient.csm.name}
+                                    className="w-5 h-5 rounded-full"
+                                  />
+                                )}
+                                <span className="font-medium">{selectedClient.csm.name}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">Unassigned</span>
+                            )}
+                          </div>
+                          {selectedClient.csm?.email && (
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground whitespace-nowrap">Email:</span>
+                              <span className="font-medium text-right break-all">{selectedClient.csm.email}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-card">
+                    <CardContent className="pt-6 pb-6">
+                      <div>
+                        <h4 className="font-semibold mb-4 flex items-center gap-2 text-base">
+                          <BarChart3 className="w-4 h-4" />
+                          Engagement Metrics
+                        </h4>
+                        <div className="space-y-4">
+                          <div>
+                            <div className="flex justify-between text-sm mb-2">
+                              <span className="text-muted-foreground">Engagement Score</span>
+                              <span className="font-semibold">{selectedClient.engagement_score}%</span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2.5">
+                              <div 
+                                className="bg-blue-500 h-2.5 rounded-full transition-all" 
+                                style={{ width: `${selectedClient.engagement_score}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div className="flex justify-between text-sm pt-2">
+                            <span className="text-muted-foreground">Portal Logins:</span>
+                            <span className="font-medium">{selectedClient.portal_logins}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Feature Usage:</span>
+                            <Badge variant="outline" className="text-xs">{selectedClient.feature_usage}</Badge>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Support Tickets:</span>
+                            <span className="font-medium">{selectedClient.support_tickets}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Quick Stats */}
+                <div>
+                  <h4 className="font-semibold mb-4 flex items-center gap-2 text-base">
+                    <Target className="w-4 h-4" />
+                    Activity Overview
+                  </h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Card className="bg-card">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Tasks</p>
+                        <p className="text-2xl font-bold">
+                          {getClientTaskCounts(selectedClient.id).completed}/
+                          {getClientTaskCounts(selectedClient.id).total}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-card">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Milestones</p>
+                        <p className="text-2xl font-bold">
+                          {getClientMilestoneCounts(selectedClient.id).completed}/
+                          {getClientMilestoneCounts(selectedClient.id).total}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-card">
+                      <CardContent className="pt-4 pb-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Interactions</p>
+                        <p className="text-2xl font-bold">
+                          {interactions.filter(i => i.client_id === selectedClient.id).length}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-2 flex-shrink-0">
-                <Button 
-                  className="mx-0 my-3.5 bg-transparent" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setIsEmailDialogOpen(true)}
-                  title="Send Email"
-                >
-                  <Mail className="w-4 h-4" />
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                  Close
                 </Button>
-                <Button 
-                  className="my-3.5 bg-transparent" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setIsPhoneDialogOpen(true)}
-                  title="Log Phone Call"
-                >
-                  <Phone className="w-4 h-4" />
+                <Button onClick={() => {
+                  setIsViewDialogOpen(false)
+                  handleEditClient(selectedClient)
+                }}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Client
                 </Button>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {selectedClient && (
-            <Tabs defaultValue="overview" className="flex-1 overflow-hidden flex flex-col">
-              <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0 flex-shrink-0">
-                <TabsTrigger
-                  value="overview"
-                  className="border-b-2 border-transparent data-[state=active]:border-primary text-sm rounded-lg"
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger
-                  value="health"
-                  className="border-b-2 border-transparent data-[state=active]:border-primary text-sm rounded-lg"
-                >
-                  Health
-                </TabsTrigger>
-                <TabsTrigger
-                  value="tasks"
-                  className="border-b-2 border-transparent data-[state=active]:border-primary text-sm rounded-lg"
-                >
-                  Tasks
-                </TabsTrigger>
-                <TabsTrigger
-                  value="activity"
-                  className="border-b-2 border-transparent data-[state=active]:border-primary text-sm rounded-lg"
-                >
-                  Activity
-                </TabsTrigger>
-              </TabsList>
-
-              <div className="flex-1 overflow-y-auto pt-4">
-                <TabsContent value="overview" className="mt-0 space-y-4">
-                  {/* Key Metrics Grid */}
-                  <div className="grid grid-cols-4 gap-3">
-                    <Card>
-                      <CardContent className="pt-4 pb-4 text-center">
-                        <div className={`text-2xl font-bold mb-1 ${getHealthColor(selectedClient.healthScore)}`}>
-                          {selectedClient.healthScore}%
-                        </div>
-                        <p className="text-xs text-muted-foreground">Health Score</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4 pb-4 text-center">
-                        <div className="text-2xl font-bold mb-1">${(selectedClient.arr / 1000).toFixed(0)}K</div>
-                        <p className="text-xs text-muted-foreground">Annual ARR</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4 pb-4 text-center">
-                        <div className="text-2xl font-bold mb-1">{selectedClient.npsScore}/10</div>
-                        <p className="text-xs text-muted-foreground">NPS Score</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4 pb-4 text-center">
-                        <div className="text-2xl font-bold mb-1">{selectedClient.engagementScore}%</div>
-                        <p className="text-xs text-muted-foreground">Engagement</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Client Details */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Client Information</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Building className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs text-muted-foreground">Industry</p>
-                            <p className="text-sm font-medium truncate">{selectedClient.industry}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs text-muted-foreground">CSM</p>
-                            <p className="text-sm font-medium truncate">{selectedClient.csm}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs text-muted-foreground">Renewal Date</p>
-                            <p className="text-sm font-medium truncate">
-                              {new Date(selectedClient.renewalDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs text-muted-foreground">Last Contact</p>
-                            <p className="text-sm font-medium truncate">{selectedClient.lastContact} ago</p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4" />
-                          Task Progress
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xl font-bold">{selectedClient.tasksCompleted}</span>
-                          <span className="text-sm text-muted-foreground">of {selectedClient.tasksTotal}</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full transition-all"
-                            style={{
-                              width: `${(selectedClient.tasksCompleted / selectedClient.tasksTotal) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Target className="w-4 h-4" />
-                          Milestone Progress
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xl font-bold">{selectedClient.milestonesCompleted}</span>
-                          <span className="text-sm text-muted-foreground">of {selectedClient.milestonesTotal}</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className="bg-green-500 h-2 rounded-full transition-all"
-                            style={{
-                              width: `${(selectedClient.milestonesCompleted / selectedClient.milestonesTotal) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="health" className="mt-0 space-y-4">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Health Score Trend</CardTitle>
-                      <p className="text-xs text-muted-foreground">Last 5 periods</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-end justify-between gap-3 h-40 px-2">
-                        {selectedClient.healthTrend.map((score: number, idx: number) => (
-                          <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                            <div className="relative w-full">
-                              <div
-                                className={`w-full rounded-t transition-all ${
-                                  score >= 80 ? "bg-green-500" : score >= 50 ? "bg-yellow-500" : "bg-red-500"
-                                }`}
-                                style={{ height: `${(score / 100) * 120}px` }}
-                              />
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs font-bold">{score}%</p>
-                              <p className="text-[10px] text-muted-foreground">P{idx + 1}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t">
-                        {selectedClient.churnTrend === "up" && (
-                          <Badge className="bg-red-500/10 text-red-500 border-red-500/20 text-xs">
-                            <ArrowUpRight className="w-3 h-3 mr-1" />
-                            Declining
-                          </Badge>
-                        )}
-                        {selectedClient.churnTrend === "down" && (
-                          <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">
-                            <ArrowDownRight className="w-3 h-3 mr-1" />
-                            Improving
-                          </Badge>
-                        )}
-                        {selectedClient.churnTrend === "stable" && (
-                          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs">
-                            <Activity className="w-3 h-3 mr-1" />
-                            Stable
-                          </Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Churn Risk Analysis</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-center mb-3">
-                          <div
-                            className={`text-3xl font-bold mb-2 ${selectedClient.churnRisk > 60 ? "text-red-500" : selectedClient.churnRisk > 25 ? "text-yellow-500" : "text-green-500"}`}
-                          >
-                            {selectedClient.churnRisk}%
-                          </div>
-                          {getChurnRiskBadge(selectedClient.churnRisk)}
-                        </div>
-                        <div className="space-y-1.5 text-xs">
-                          <p className="text-muted-foreground font-medium">Risk Factors:</p>
-                          <ul className="space-y-1">
-                            {selectedClient.churnRisk > 60 && (
-                              <>
-                                <li className="flex items-center gap-1.5">
-                                  <AlertCircle className="w-3 h-3 text-red-500 flex-shrink-0" />
-                                  <span className="truncate">Low engagement</span>
-                                </li>
-                                <li className="flex items-center gap-1.5">
-                                  <AlertCircle className="w-3 h-3 text-red-500 flex-shrink-0" />
-                                  <span className="truncate">Declining trend</span>
-                                </li>
-                              </>
-                            )}
-                            {selectedClient.lastContact.includes("12") && (
-                              <li className="flex items-center gap-1.5">
-                                <AlertCircle className="w-3 h-3 text-yellow-500 flex-shrink-0" />
-                                <span className="truncate">No recent contact</span>
-                              </li>
-                            )}
-                            {selectedClient.churnRisk < 25 && (
-                              <li className="flex items-center gap-1.5 text-green-500">
-                                <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate">All indicators healthy</span>
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Engagement Metrics</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-muted-foreground">Overall Score</span>
-                            <span className="text-sm font-bold">{selectedClient.engagementScore}%</span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div
-                              className="bg-primary h-2 rounded-full"
-                              style={{ width: `${selectedClient.engagementScore}%` }}
-                            />
-                          </div>
-                        </div>
-                        <div className="pt-2 border-t space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Portal Logins</span>
-                            <span className="font-medium">24</span>
-                          </div>
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Feature Usage</span>
-                            <span className="font-medium">High</span>
-                          </div>
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Support Tickets</span>
-                            <span className="font-medium">3</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="tasks" className="mt-0 space-y-4">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">Active Tasks</CardTitle>
-                        <Button size="sm">
-                          <Plus className="w-3 h-3 mr-1" />
-                          <span className="text-xs">Add</span>
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 p-2.5 border rounded-lg">
-                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Complete onboarding documentation</p>
-                            <p className="text-xs text-muted-foreground">Due: 2 days ago</p>
-                          </div>
-                          <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-xs flex-shrink-0">
-                            Done
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 p-2.5 border rounded-lg">
-                          <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Schedule quarterly business review</p>
-                            <p className="text-xs text-muted-foreground">Due: In 5 days</p>
-                          </div>
-                          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs flex-shrink-0">
-                            Active
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 p-2.5 border rounded-lg">
-                          <Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Review feature adoption metrics</p>
-                            <p className="text-xs text-muted-foreground">Due: In 10 days</p>
-                          </div>
-                          <Badge className="text-xs flex-shrink-0">Pending</Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Milestones</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 p-2.5 border rounded-lg">
-                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Initial Setup Complete</p>
-                            <p className="text-xs text-muted-foreground">Completed 3 months ago</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 p-2.5 border rounded-lg">
-                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Team Training Finished</p>
-                            <p className="text-xs text-muted-foreground">Completed 2 months ago</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 p-2.5 border rounded-lg">
-                          <Circle className="w-4 h-4 text-primary flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">First Value Milestone</p>
-                            <p className="text-xs text-muted-foreground">Target: Next month</p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="activity" className="mt-0 space-y-4">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Recent Activity</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex gap-2.5 pb-3 border-b last:border-0">
-                          <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                            <Mail className="w-3.5 h-3.5 text-green-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Quarterly Review Invitation</p>
-                            <p className="text-xs text-muted-foreground truncate">Sent by {selectedClient.csm}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">2 hours ago</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2.5 pb-3 border-b last:border-0">
-                          <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Documentation review completed</p>
-                            <p className="text-xs text-muted-foreground truncate">Marked complete by client</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">1 day ago</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2.5 pb-3 border-b last:border-0">
-                          <div className="w-7 h-7 rounded-full bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                            <Phone className="w-3.5 h-3.5 text-purple-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Monthly check-in call</p>
-                            <p className="text-xs text-muted-foreground truncate">Duration: 45 minutes</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">3 days ago</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2.5 pb-3 border-b last:border-0">
-                          <div className="w-7 h-7 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-                            <FileText className="w-3.5 h-3.5 text-yellow-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">Q1 Report uploaded</p>
-                            <p className="text-xs text-muted-foreground truncate">Uploaded by client</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">5 days ago</p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </div>
-            </Tabs>
+              </DialogFooter>
+            </>
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Add Client Dialog */}
-      <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Client</DialogTitle>
-            <DialogDescription>Create a new client account in the system</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="client-name">Client Name *</Label>
-              <Input 
-                id="client-name"
-                placeholder="Enter client name"
-                value={newClientName}
-                onChange={(e) => setNewClientName(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="client-industry">Industry *</Label>
-              <Select value={newClientIndustry} onValueChange={setNewClientIndustry}>
-                <SelectTrigger id="client-industry">
-                  <SelectValue placeholder="Select industry" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Technology">Technology</SelectItem>
-                  <SelectItem value="Manufacturing">Manufacturing</SelectItem>
-                  <SelectItem value="Healthcare">Healthcare</SelectItem>
-                  <SelectItem value="Finance">Finance</SelectItem>
-                  <SelectItem value="Retail">Retail</SelectItem>
-                  <SelectItem value="Education">Education</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="client-csm">Customer Success Manager *</Label>
-              <Select value={newClientCSM} onValueChange={setNewClientCSM}>
-                <SelectTrigger id="client-csm">
-                  <SelectValue placeholder="Assign CSM" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sarah Johnson">Sarah Johnson</SelectItem>
-                  <SelectItem value="Michael Chen">Michael Chen</SelectItem>
-                  <SelectItem value="Emily Rodriguez">Emily Rodriguez</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="client-arr">Annual Recurring Revenue (ARR) *</Label>
-              <Input 
-                id="client-arr"
-                type="number"
-                placeholder="Enter ARR amount"
-                value={newClientARR}
-                onChange={(e) => setNewClientARR(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="client-renewal">Renewal Date *</Label>
-              <Input 
-                id="client-renewal"
-                type="date"
-                value={newClientRenewalDate}
-                onChange={(e) => setNewClientRenewalDate(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleAddClient}>
-                Create Client
-              </Button>
-              <Button variant="outline" onClick={() => {
-                setIsAddClientOpen(false)
-                setNewClientName("")
-                setNewClientIndustry("")
-                setNewClientCSM("")
-                setNewClientARR("")
-                setNewClientRenewalDate("")
-              }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Email Dialog */}
-      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Email to {selectedClient?.name}</DialogTitle>
-            <DialogDescription>Compose and send an email to the client</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="email-to">To</Label>
-              <Input 
-                id="email-to"
-                value={`${selectedClient?.name} <contact@${selectedClient?.name.toLowerCase().replace(/\s+/g, '')}.com>`}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email-subject">Subject *</Label>
-              <Input 
-                id="email-subject"
-                placeholder="Enter email subject"
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="email-message">Message *</Label>
-              <Textarea 
-                id="email-message"
-                placeholder="Enter your message..."
-                value={emailMessage}
-                onChange={(e) => setEmailMessage(e.target.value)}
-                rows={6}
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleSendEmail}>
-                <Mail className="w-4 h-4 mr-2" />
-                Send Email
-              </Button>
-              <Button variant="outline" onClick={() => {
-                setIsEmailDialogOpen(false)
-                setEmailSubject("")
-                setEmailMessage("")
-              }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Phone Call Dialog */}
-      <Dialog open={isPhoneDialogOpen} onOpenChange={setIsPhoneDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Log Phone Call - {selectedClient?.name}</DialogTitle>
-            <DialogDescription>Record details about your phone conversation</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="phone-number">Phone Number</Label>
-              <Input 
-                id="phone-number"
-                value={`+1 (555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-            <div>
-              <Label htmlFor="call-duration">Call Duration</Label>
-              <Select defaultValue="15min">
-                <SelectTrigger id="call-duration">
-                  <SelectValue placeholder="Select duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5min">5 minutes</SelectItem>
-                  <SelectItem value="15min">15 minutes</SelectItem>
-                  <SelectItem value="30min">30 minutes</SelectItem>
-                  <SelectItem value="45min">45 minutes</SelectItem>
-                  <SelectItem value="60min">1 hour</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="call-notes">Call Notes *</Label>
-              <Textarea 
-                id="call-notes"
-                placeholder="What was discussed during the call?"
-                value={phoneNotes}
-                onChange={(e) => setPhoneNotes(e.target.value)}
-                rows={4}
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleLogCall}>
-                <Phone className="w-4 h-4 mr-2" />
-                Log Call
-              </Button>
-              <Button variant="outline" onClick={() => {
-                setIsPhoneDialogOpen(false)
-                setPhoneNotes("")
-              }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* New Task Dialog */}
-      <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
-            <DialogDescription>Add a new task for client success management</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="task-title">Task Title *</Label>
-              <Input 
-                id="task-title"
-                placeholder="Enter task description"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="task-client">Assign to Client *</Label>
-              <Select value={newTaskClient} onValueChange={setNewTaskClient}>
-                <SelectTrigger id="task-client">
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.name}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="task-priority">Priority *</Label>
-              <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
-                <SelectTrigger id="task-priority">
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="task-due-date">Due Date *</Label>
-              <Input 
-                id="task-due-date"
-                type="date"
-                value={newTaskDueDate}
-                onChange={(e) => setNewTaskDueDate(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleAddTask}>
-                Create Task
-              </Button>
-              <Button variant="outline" onClick={() => {
-                setIsNewTaskOpen(false)
-                setNewTaskTitle("")
-                setNewTaskClient("")
-                setNewTaskDueDate("")
-                setNewTaskPriority("medium")
-              }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Task Dialog */}
-      <Dialog open={isEditTaskOpen} onOpenChange={setIsEditTaskOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Task</DialogTitle>
-            <DialogDescription>Update task details and assignment</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-task-title">Task Title *</Label>
-              <Input 
-                id="edit-task-title"
-                placeholder="Enter task description"
-                value={editTaskTitle}
-                onChange={(e) => setEditTaskTitle(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-task-client">Assign to Client *</Label>
-              <Select value={editTaskClient} onValueChange={setEditTaskClient}>
-                <SelectTrigger id="edit-task-client">
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.name}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-task-priority">Priority *</Label>
-                <Select value={editTaskPriority} onValueChange={setEditTaskPriority}>
-                  <SelectTrigger id="edit-task-priority">
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="edit-task-status">Status *</Label>
-                <Select value={editTaskStatus} onValueChange={setEditTaskStatus}>
-                  <SelectTrigger id="edit-task-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="edit-task-due-date">Due Date *</Label>
-              <Input 
-                id="edit-task-due-date"
-                type="date"
-                value={editTaskDueDate}
-                onChange={(e) => setEditTaskDueDate(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleSaveTask}>
-                Save Changes
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to delete "${editTaskTitle}"?`)) {
-                    setTasks(tasks.filter(t => t.id !== editingTask.id))
-                    setIsEditTaskOpen(false)
-                    setEditingTask(null)
-                    setEditTaskTitle("")
-                    setEditTaskClient("")
-                    setEditTaskDueDate("")
-                    setEditTaskPriority("")
-                    setEditTaskStatus("")
-                  }
-                }}
-              >
-                Delete
-              </Button>
-              <Button variant="outline" onClick={() => {
-                setIsEditTaskOpen(false)
-                setEditingTask(null)
-                setEditTaskTitle("")
-                setEditTaskClient("")
-                setEditTaskDueDate("")
-                setEditTaskPriority("")
-                setEditTaskStatus("")
-              }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* New Milestone Dialog */}
-      <Dialog open={isNewMilestoneOpen} onOpenChange={setIsNewMilestoneOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Milestone</DialogTitle>
-            <DialogDescription>Add a new milestone for client success tracking</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="milestone-title">Milestone Title *</Label>
-              <Input 
-                id="milestone-title"
-                placeholder="Enter milestone name"
-                value={newMilestoneTitle}
-                onChange={(e) => setNewMilestoneTitle(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="milestone-client">Assign to Client *</Label>
-              <Select value={newMilestoneClient} onValueChange={setNewMilestoneClient}>
-                <SelectTrigger id="milestone-client">
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.name}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="milestone-description">Description</Label>
-              <Textarea 
-                id="milestone-description"
-                placeholder="Describe what this milestone represents..."
-                value={newMilestoneDescription}
-                onChange={(e) => setNewMilestoneDescription(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="milestone-target-date">Target Date *</Label>
-              <Input 
-                id="milestone-target-date"
-                type="date"
-                value={newMilestoneTargetDate}
-                onChange={(e) => setNewMilestoneTargetDate(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleAddMilestone}>
-                Create Milestone
-              </Button>
-              <Button variant="outline" onClick={() => {
-                setIsNewMilestoneOpen(false)
-                setNewMilestoneTitle("")
-                setNewMilestoneClient("")
-                setNewMilestoneTargetDate("")
-                setNewMilestoneDescription("")
-              }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Log Interaction Dialog */}
-      <Dialog open={isLogInteractionOpen} onOpenChange={setIsLogInteractionOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Log New Interaction</DialogTitle>
-            <DialogDescription>Record a communication with a client</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="interaction-type">Interaction Type *</Label>
-              <Select value={newInteractionType} onValueChange={setNewInteractionType}>
-                <SelectTrigger id="interaction-type">
-                  <SelectValue placeholder="Select interaction type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="call">Phone Call</SelectItem>
-                  <SelectItem value="meeting">Meeting</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="interaction-client">Client *</Label>
-              <Select value={newInteractionClient} onValueChange={setNewInteractionClient}>
-                <SelectTrigger id="interaction-client">
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.name}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="interaction-subject">Subject/Title *</Label>
-              <Input 
-                id="interaction-subject"
-                placeholder="Enter subject or title"
-                value={newInteractionSubject}
-                onChange={(e) => setNewInteractionSubject(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="interaction-description">Description *</Label>
-              <Textarea 
-                id="interaction-description"
-                placeholder="Describe what was discussed or communicated..."
-                value={newInteractionDescription}
-                onChange={(e) => setNewInteractionDescription(e.target.value)}
-                rows={4}
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1" onClick={handleLogInteraction}>
-                Log Interaction
-              </Button>
-              <Button variant="outline" onClick={() => {
-                setIsLogInteractionOpen(false)
-                setNewInteractionType("")
-                setNewInteractionClient("")
-                setNewInteractionSubject("")
-                setNewInteractionDescription("")
-              }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      </div>
     </div>
   )
 }

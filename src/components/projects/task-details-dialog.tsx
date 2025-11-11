@@ -29,9 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { updateTask, deleteTask, getProjectTeamMembers, type Task, type TeamMember } from "@/lib/project-data"
+import { updateTask, deleteTask, getProjectTeamMembers, type Task, type TeamMember } from "@/lib/project-data-supabase"
 import { Edit, Trash2, Calendar, User, Flag, CheckCircle } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useEffect } from "react"
 
 interface TaskDetailsDialogProps {
   projectId: string
@@ -49,7 +50,18 @@ export function TaskDetailsDialog({
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [formData, setFormData] = useState<Task | null>(task)
-  const teamMembers = getProjectTeamMembers(projectId)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+
+  // Load team members
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      const members = await getProjectTeamMembers(projectId)
+      setTeamMembers(members)
+    }
+    if (open) {
+      loadTeamMembers()
+    }
+  }, [projectId, open])
 
   // Update formData when task changes
   if (task && formData?.id !== task.id) {
@@ -59,10 +71,10 @@ export function TaskDetailsDialog({
 
   if (!task || !formData) return null
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.title.trim()) return
 
-    updateTask(projectId, task.id, {
+    await updateTask(projectId, task.id, {
       title: formData.title,
       description: formData.description,
       status: formData.status,
@@ -75,8 +87,8 @@ export function TaskDetailsDialog({
     setMode('view')
   }
 
-  const handleDelete = () => {
-    deleteTask(projectId, task.id)
+  const handleDelete = async () => {
+    await deleteTask(projectId, task.id)
     setDeleteDialogOpen(false)
     onOpenChange(false)
   }
@@ -110,7 +122,7 @@ export function TaskDetailsDialog({
   }
 
   const formatDeadline = (deadline: string) => {
-    if (!deadline) return null
+    if (!deadline) return 'No deadline set'
     const date = new Date(deadline)
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }

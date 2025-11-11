@@ -8,14 +8,18 @@ import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { useToast } from "@/hooks/use-toast"
 import type { Project, Task } from "@/lib/project-data"
-import { Plus, Play, CheckCircle2, Calendar, Users, Target, TrendingUp, Flag } from "lucide-react"
+import * as ProjectData from "@/lib/project-data-supabase"
+import { Plus, Play, CheckCircle2, Calendar, Users, Target, TrendingUp, Flag, X, Trash2 } from "lucide-react"
 
 interface SprintViewProps {
   project: Project
+  onProjectUpdate?: () => void
 }
 
 interface Sprint {
@@ -28,52 +32,52 @@ interface Sprint {
   taskIds: string[]
 }
 
-export function SprintView({ project }: SprintViewProps) {
-  const [sprints, setSprints] = useState<Sprint[]>([
-    {
-      id: "sprint-1",
-      name: "Sprint 1 - Foundation",
-      goal: "Setup project foundation and core features",
-      startDate: "2025-02-01",
-      endDate: "2025-02-14",
-      status: "active",
-      taskIds: project.tasks.slice(0, 3).map(t => t.id),
-    },
-    {
-      id: "sprint-2",
-      name: "Sprint 2 - Enhancement",
-      goal: "Add advanced features and optimizations",
-      startDate: "2025-02-15",
-      endDate: "2025-02-28",
-      status: "planned",
-      taskIds: project.tasks.slice(3, 5).map(t => t.id),
-    },
-  ])
-  
+export function SprintView({ project, onProjectUpdate }: SprintViewProps) {
+  const [sprints, setSprints] = useState<Sprint[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
+  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null)
   const [newSprint, setNewSprint] = useState({
     name: "",
     goal: "",
     startDate: "",
     endDate: "",
   })
-  const [tasks, setTasks] = useState<Task[]>(project.tasks)
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
 
-  // Update tasks when project data changes
+  // Load sprints from Supabase
+  const loadSprints = async () => {
+    setIsLoading(true)
+    try {
+      const sprintsData = await ProjectData.getProjectSprints(project.id)
+      setSprints(sprintsData)
+    } catch (error) {
+      console.error("[SprintView] Error loading sprints:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load sprints",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    setTasks(project.tasks)
-  }, [project.tasks])
+    loadSprints()
+  }, [project.id])
 
   // Listen for project data updates
   useEffect(() => {
-    const handleProjectUpdate = (event: CustomEvent) => {
-      if (event.detail.projectId === project.id) {
-        console.log("[SprintView] Project data updated, refreshing tasks")
-      }
+    const handleProjectUpdate = () => {
+      loadSprints()
     }
 
-    window.addEventListener('projectDataUpdated', handleProjectUpdate as EventListener)
-    return () => window.removeEventListener('projectDataUpdated', handleProjectUpdate as EventListener)
+    window.addEventListener('projectDataUpdated', handleProjectUpdate)
+    return () => window.removeEventListener('projectDataUpdated', handleProjectUpdate)
   }, [project.id])
 
   const activeSprint = sprints.find(s => s.status === "active")
@@ -83,7 +87,7 @@ export function SprintView({ project }: SprintViewProps) {
   const getSprintTasks = (sprintId: string) => {
     const sprint = sprints.find(s => s.id === sprintId)
     if (!sprint) return []
-    return tasks.filter(t => sprint.taskIds.includes(t.id))
+    return project.tasks.filter(t => sprint.taskIds.includes(t.id))
   }
 
   const getSprintProgress = (sprintId: string) => {
@@ -93,24 +97,189 @@ export function SprintView({ project }: SprintViewProps) {
     return Math.round((completedTasks / sprintTasks.length) * 100)
   }
 
-  const handleAddSprint = () => {
+  const handleAddSprint = async () => {
     if (newSprint.name && newSprint.startDate && newSprint.endDate) {
-      const sprint: Sprint = {
-        id: `sprint-${sprints.length + 1}`,
-        name: newSprint.name,
-        goal: newSprint.goal,
-        startDate: newSprint.startDate,
-        endDate: newSprint.endDate,
-        status: "planned",
-        taskIds: [],
+      setIsSubmitting(true)
+      try {
+        const sprintId = await ProjectData.createSprint(project.id, {
+          name: newSprint.name,
+          goal: newSprint.goal,
+          startDate: newSprint.startDate,
+          endDate: newSprint.endDate,
+          status: "planned",
+        })
+
+        if (sprintId) {
+          toast({
+            title: "Sprint created",
+            description: `${newSprint.name} has been created successfully`,
+          })
+          setNewSprint({ name: "", goal: "", startDate: "", endDate: "" })
+          setIsDialogOpen(false)
+          await loadSprints()
+          onProjectUpdate?.()
+        } else {
+          throw new Error("Failed to create sprint")
+        }
+      } catch (error) {
+        console.error("[SprintView] Error creating sprint:", error)
+        const errorMessage = error instanceof Error && error.message === 'Supabase is not configured'
+          ? "Supabase is not configured. Please set up your .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY"
+          : "Failed to create sprint. Check console for details."
+        
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      } finally {
+        setIsSubmitting(false)
       }
-      
-      setSprints([...sprints, sprint])
-      setNewSprint({ name: "", goal: "", startDate: "", endDate: "" })
-      setIsDialogOpen(false)
-      
-      console.log("[SprintView] Sprint added:", sprint.name)
     }
+  }
+
+  const handleStartSprint = async (sprintId: string) => {
+    setIsSubmitting(true)
+    try {
+      const success = await ProjectData.startSprint(sprintId)
+      
+      if (success) {
+        toast({
+          title: "Sprint started",
+          description: "The sprint is now active",
+        })
+        await loadSprints()
+        onProjectUpdate?.()
+      } else {
+        throw new Error("Failed to start sprint")
+      }
+    } catch (error) {
+      console.error("[SprintView] Error starting sprint:", error)
+      toast({
+        title: "Error",
+        description: "Failed to start sprint",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCompleteSprint = async (sprintId: string) => {
+    setIsSubmitting(true)
+    try {
+      const success = await ProjectData.completeSprint(sprintId)
+      
+      if (success) {
+        toast({
+          title: "Sprint completed",
+          description: "The sprint has been marked as completed",
+        })
+        await loadSprints()
+        onProjectUpdate?.()
+      } else {
+        throw new Error("Failed to complete sprint")
+      }
+    } catch (error) {
+      console.error("[SprintView] Error completing sprint:", error)
+      toast({
+        title: "Error",
+        description: "Failed to complete sprint",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteSprint = async (sprintId: string) => {
+    setIsSubmitting(true)
+    try {
+      const success = await ProjectData.deleteSprint(sprintId)
+      
+      if (success) {
+        toast({
+          title: "Sprint deleted",
+          description: "The sprint has been removed",
+        })
+        await loadSprints()
+        onProjectUpdate?.()
+      } else {
+        throw new Error("Failed to delete sprint")
+      }
+    } catch (error) {
+      console.error("[SprintView] Error deleting sprint:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete sprint",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleOpenTaskDialog = (sprint: Sprint) => {
+    setSelectedSprint(sprint)
+    setSelectedTasks(sprint.taskIds)
+    setIsTaskDialogOpen(true)
+  }
+
+  const handleAddTasksToSprint = async () => {
+    if (!selectedSprint) return
+
+    setIsSubmitting(true)
+    try {
+      // Find tasks to add and remove
+      const currentTaskIds = selectedSprint.taskIds
+      const tasksToAdd = selectedTasks.filter(id => !currentTaskIds.includes(id))
+      const tasksToRemove = currentTaskIds.filter(id => !selectedTasks.includes(id))
+
+      console.log('[SprintView] Current task IDs:', currentTaskIds)
+      console.log('[SprintView] Selected task IDs:', selectedTasks)
+      console.log('[SprintView] Tasks to add:', tasksToAdd)
+      console.log('[SprintView] Tasks to remove:', tasksToRemove)
+
+      // Add new tasks
+      for (const taskId of tasksToAdd) {
+        console.log('[SprintView] Adding task to sprint:', taskId)
+        const success = await ProjectData.addTaskToSprint(selectedSprint.id, taskId)
+        console.log('[SprintView] Add task result:', success)
+      }
+
+      // Remove deselected tasks
+      for (const taskId of tasksToRemove) {
+        console.log('[SprintView] Removing task from sprint:', taskId)
+        const success = await ProjectData.removeTaskFromSprint(selectedSprint.id, taskId)
+        console.log('[SprintView] Remove task result:', success)
+      }
+
+      toast({
+        title: "Tasks updated",
+        description: `Sprint tasks have been updated`,
+      })
+      
+      setIsTaskDialogOpen(false)
+      await loadSprints()
+      onProjectUpdate?.()
+    } catch (error) {
+      console.error("[SprintView] Error updating tasks:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update sprint tasks",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTasks(prev =>
+      prev.includes(taskId)
+        ? prev.filter(id => id !== taskId)
+        : [...prev, taskId]
+    )
   }
 
   const getStatusColor = (status: Task["status"]) => {
@@ -139,6 +308,12 @@ export function SprintView({ project }: SprintViewProps) {
       case "low":
         return "border-green-500 text-green-600 bg-green-500/20 dark:text-green-400"
     }
+  }
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-12">
+      <div className="text-center text-muted-foreground">Loading sprints...</div>
+    </div>
   }
 
   return (
@@ -224,7 +399,7 @@ export function SprintView({ project }: SprintViewProps) {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-3">
                       <CardTitle className="text-xl">{activeSprint.name}</CardTitle>
                       <Badge variant="default" className="bg-green-500">
@@ -241,9 +416,27 @@ export function SprintView({ project }: SprintViewProps) {
                       {activeSprint.startDate} → {activeSprint.endDate}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold">{getSprintProgress(activeSprint.id)}%</div>
-                    <div className="text-xs text-muted-foreground">Complete</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right mr-4">
+                      <div className="text-3xl font-bold">{getSprintProgress(activeSprint.id)}%</div>
+                      <div className="text-xs text-muted-foreground">Complete</div>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleOpenTaskDialog(activeSprint)}
+                    >
+                      Manage Tasks
+                    </Button>
+                    <Button 
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleCompleteSprint(activeSprint.id)}
+                      disabled={isSubmitting}
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Complete Sprint
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -289,6 +482,14 @@ export function SprintView({ project }: SprintViewProps) {
                     <div className="text-center py-8 text-muted-foreground">
                       <Target className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p>No tasks in this sprint yet</p>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="mt-4"
+                        onClick={() => handleOpenTaskDialog(activeSprint)}
+                      >
+                        Add Tasks
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -315,7 +516,7 @@ export function SprintView({ project }: SprintViewProps) {
             <Card key={sprint.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-3">
                       <CardTitle className="text-lg">{sprint.name}</CardTitle>
                       <Badge variant="outline" className="border-blue-500 text-blue-600 bg-blue-500/20">
@@ -331,10 +532,32 @@ export function SprintView({ project }: SprintViewProps) {
                       {sprint.startDate} → {sprint.endDate}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline">
-                    <Play className="w-4 h-4 mr-2" />
-                    Start Sprint
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleOpenTaskDialog(sprint)}
+                    >
+                      Manage Tasks
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      onClick={() => handleStartSprint(sprint.id)}
+                      disabled={isSubmitting}
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Start Sprint
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteSprint(sprint.id)}
+                      disabled={isSubmitting}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -362,7 +585,7 @@ export function SprintView({ project }: SprintViewProps) {
             <Card key={sprint.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-3">
                       <CardTitle className="text-lg">{sprint.name}</CardTitle>
                       <Badge variant="outline" className="border-green-500 text-green-600 bg-green-500/20">
@@ -379,9 +602,19 @@ export function SprintView({ project }: SprintViewProps) {
                       {sprint.startDate} → {sprint.endDate}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-green-600">100%</div>
-                    <div className="text-xs text-muted-foreground">Complete</div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-green-600">{getSprintProgress(sprint.id)}%</div>
+                      <div className="text-xs text-muted-foreground">Complete</div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteSprint(sprint.id)}
+                      disabled={isSubmitting}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -460,10 +693,81 @@ export function SprintView({ project }: SprintViewProps) {
             </Button>
             <Button 
               onClick={handleAddSprint}
-              disabled={!newSprint.name || !newSprint.startDate || !newSprint.endDate}
+              disabled={!newSprint.name || !newSprint.startDate || !newSprint.endDate || isSubmitting}
             >
               Create Sprint
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Tasks Dialog */}
+      <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Manage Sprint Tasks</DialogTitle>
+            <DialogDescription>
+              Select tasks to include in {selectedSprint?.name} (completed tasks excluded)
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-2">
+              {project.tasks.filter(task => task.status !== 'done').length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Target className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No available tasks</p>
+                  <p className="text-xs mt-2">All tasks are completed</p>
+                </div>
+              ) : (
+                project.tasks
+                  .filter(task => task.status !== 'done')
+                  .map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border/40 hover:bg-muted/20 transition-all"
+                  >
+                    <Checkbox
+                      checked={selectedTasks.includes(task.id)}
+                      onCheckedChange={() => toggleTaskSelection(task.id)}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium text-sm">{task.title}</p>
+                        <Badge variant="outline" className={`text-xs ${getPriorityColor(task.priority)}`}>
+                          {task.priority}
+                        </Badge>
+                        <Badge variant="outline" className={`text-xs ${getStatusColor(task.status)}`}>
+                          {task.status}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {task.assignee.name} • Due {task.deadline}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter>
+            <div className="flex items-center justify-between w-full">
+              <p className="text-sm text-muted-foreground">
+                {selectedTasks.length} tasks selected
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleAddTasksToSprint}
+                  disabled={isSubmitting}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

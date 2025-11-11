@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Project, Task } from "@/lib/project-data"
 import { Plus, Search, Filter, MoreVertical, Trash2 } from "lucide-react"
 import { TaskDetailsDialog } from "./task-details-dialog"
-import { getProjectTeamMembers, updateTaskStatus, deleteTask, addTask } from "@/lib/project-data"
+import { getProjectTeamMembers, updateTaskStatus, deleteTask, addTask } from "@/lib/project-data-supabase"
 
 interface TableViewProps {
   project: Project
@@ -21,7 +21,7 @@ export function TableView({ project }: TableViewProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [taskDetailsOpen, setTaskDetailsOpen] = useState(false)
   const [selectedTasks, setSelectedTasks] = useState<string[]>([])
-  const teamMembers = getProjectTeamMembers(project.id)
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [newTask, setNewTask] = useState({
     title: "",
     assigneeName: "",
@@ -29,6 +29,15 @@ export function TableView({ project }: TableViewProps) {
     status: "todo" as Task["status"],
     deadline: "",
   })
+
+  // Load team members
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      const members = await getProjectTeamMembers(project.id)
+      setTeamMembers(members)
+    }
+    loadTeamMembers()
+  }, [project.id])
 
   const filteredTasks = tasks.filter((task) => task.title.toLowerCase().includes(searchQuery.toLowerCase()))
 
@@ -61,7 +70,7 @@ export function TableView({ project }: TableViewProps) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (newTask.title && newTask.assigneeName) {
       const taskData: Omit<Task, 'id'> = {
         title: newTask.title,
@@ -76,7 +85,7 @@ export function TableView({ project }: TableViewProps) {
       }
       
       // Add task to global data store
-      const newTaskWithId = addTask(project.id, taskData)
+      const newTaskWithId = await addTask(project.id, taskData)
       
       if (!newTaskWithId) {
         console.error("[TableView] Failed to add task")
@@ -93,12 +102,12 @@ export function TableView({ project }: TableViewProps) {
     }
   }
 
-  const handleStatusChange = (taskId: string, newStatus: Task["status"]) => {
+  const handleStatusChange = async (taskId: string, newStatus: Task["status"]) => {
     // Update local state immediately for responsive UI
     setTasks(tasks.map((task) => (task.id === taskId ? { ...task, status: newStatus } : task)))
     
     // Update the underlying data and trigger refresh across all views
-    updateTaskStatus(project.id, taskId, newStatus)
+    await updateTaskStatus(project.id, taskId, newStatus)
   }
 
   const getPriorityColor = (priority: Task["priority"]) => {

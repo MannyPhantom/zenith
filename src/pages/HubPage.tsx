@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +27,8 @@ import {
   Search,
   Settings,
 } from 'lucide-react'
+import * as ProjectData from '@/lib/project-data-supabase'
+import type { Project } from '@/lib/project-data'
 
 export default function HubPage() {
   const [timeRange, setTimeRange] = useState('7d')
@@ -36,11 +38,72 @@ export default function HubPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [createType, setCreateType] = useState('')
   const [createTitle, setCreateTitle] = useState('')
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Load projects from Supabase
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        setLoading(true)
+        const data = await ProjectData.getAllProjects()
+        setProjects(data)
+      } catch (err) {
+        console.error('Error loading projects:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProjects()
+
+    // Listen for project updates
+    const handleProjectUpdate = () => {
+      loadProjects()
+    }
+    window.addEventListener('projectDataUpdated', handleProjectUpdate)
+    return () => window.removeEventListener('projectDataUpdated', handleProjectUpdate)
+  }, [])
+
+  // Calculate real project metrics
+  const projectMetrics = useMemo(() => {
+    if (projects.length === 0) {
+      return {
+        completionRate: 0,
+        overdueTasks: 0,
+        totalTasks: 0,
+        completedTasks: 0,
+      }
+    }
+
+    const totalTasks = projects.reduce((sum, p) => sum + p.totalTasks, 0)
+    const completedTasks = projects.reduce((sum, p) => sum + p.completedTasks, 0)
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+    // Calculate overdue tasks
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const overdueTasks = projects.reduce((count, project) => {
+      return count + project.tasks.filter(task => {
+        if (!task.deadline || task.status === 'done') return false
+        const taskDeadline = new Date(task.deadline)
+        taskDeadline.setHours(0, 0, 0, 0)
+        return taskDeadline < today
+      }).length
+    }, 0)
+
+    return {
+      completionRate,
+      overdueTasks,
+      totalTasks,
+      completedTasks,
+    }
+  }, [projects])
 
   const kpis = [
     {
       title: 'Active Projects',
-      value: '24',
+      value: projects.filter(p => p.status === 'active').length.toString(),
       trend: '+12%',
       trendUp: true,
       icon: FolderKanban,
@@ -48,7 +111,7 @@ export default function HubPage() {
     },
     {
       title: 'Open Tasks',
-      value: '156',
+      value: (projectMetrics.totalTasks - projectMetrics.completedTasks).toString(),
       trend: '-8%',
       trendUp: false,
       icon: CheckCircle2,
@@ -103,9 +166,9 @@ export default function HubPage() {
       icon: FolderKanban,
       color: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
       metrics: [
-        { label: 'Completion', value: '78%', progress: 78 },
-        { label: 'Overdue Tasks', value: '12', status: 'warning' },
-        { label: 'Team Velocity', value: '42 pts/week', status: 'success' },
+        { label: 'Completion', value: `${projectMetrics.completionRate}%`, progress: projectMetrics.completionRate },
+        { label: 'Overdue Tasks', value: projectMetrics.overdueTasks.toString(), status: projectMetrics.overdueTasks > 0 ? 'warning' : 'success' },
+        { label: 'Total Tasks', value: projectMetrics.totalTasks.toString(), status: 'info' },
       ],
       href: '/projects',
     },

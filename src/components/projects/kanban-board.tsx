@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Project, Task } from "@/lib/project-data"
-import { updateTaskStatus, reorderTasks } from "@/lib/project-data"
+import { updateTaskStatus, reorderTasks } from "@/lib/project-data-supabase"
 import { GripVertical, Plus } from "lucide-react"
 
 interface KanbanBoardProps {

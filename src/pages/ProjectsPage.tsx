@@ -5,8 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { CheckCircle2, Clock, AlertCircle, TrendingUp, Calendar, Users, Plus, Trash2 } from 'lucide-react'
-import { mockProjects, updateTaskStatus, type Task } from '@/lib/project-data'
+import { CheckCircle2, Clock, AlertCircle, TrendingUp, Calendar, Users, Plus, Trash2, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import * as ProjectData from '@/lib/project-data-supabase'
+import type { Task, Project } from '@/lib/project-data'
+import { AddProjectDialog } from '@/components/projects/add-project-dialog'
 
 interface WorkItem {
   id: string
@@ -20,16 +22,37 @@ interface WorkItem {
   completed: boolean
 }
 
-// Generate work items from projects
-function generateWorkItemsFromProjects(): WorkItem[] {
+// Generate work items from projects - sort by most recent activity
+function generateWorkItemsFromProjects(projectsList: Project[]): WorkItem[] {
   const workItems: WorkItem[] = []
   
-  mockProjects.forEach(project => {
+  projectsList.forEach(project => {
     project.tasks.forEach(task => {
+      // Get relative time from task deadline or status
+      let timeDisplay = 'No deadline'
+      if (task.deadline) {
+        const deadlineDate = new Date(task.deadline)
+        const today = new Date()
+        const diffTime = deadlineDate.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        
+        if (diffDays < 0) {
+          timeDisplay = `${Math.abs(diffDays)} days ago`
+        } else if (diffDays === 0) {
+          timeDisplay = 'Today'
+        } else if (diffDays === 1) {
+          timeDisplay = 'Tomorrow'
+        } else if (diffDays <= 7) {
+          timeDisplay = `In ${diffDays} days`
+        } else {
+          timeDisplay = task.deadline
+        }
+      }
+      
       workItems.push({
         id: `${project.id}-${task.id}`,
         title: task.title,
-        time: 'Today',
+        time: timeDisplay,
         status: task.status,
         priority: task.priority,
         projectId: project.id,
@@ -40,19 +63,44 @@ function generateWorkItemsFromProjects(): WorkItem[] {
     })
   })
   
-  return workItems.slice(0, 5)
+  return workItems
 }
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState(mockProjects)
-  const [workItems, setWorkItems] = useState<WorkItem[]>(generateWorkItemsFromProjects())
+  const [projects, setProjects] = useState<Project[]>([])
+  const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [selectedProjects, setSelectedProjects] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [addProjectDialogOpen, setAddProjectDialogOpen] = useState(false)
+  const [showAllActivities, setShowAllActivities] = useState(false)
+
+  // Load projects from Supabase
+  const loadProjects = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await ProjectData.getAllProjects()
+      setProjects(data)
+      setWorkItems(generateWorkItemsFromProjects(data))
+    } catch (err) {
+      console.error('Error loading projects:', err)
+      setError('Failed to load projects')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Initial load
+  useEffect(() => {
+    loadProjects()
+  }, [])
 
   // Listen for project data updates
   useEffect(() => {
     const handleProjectUpdate = () => {
       console.log('[ProjectsPage] Project data updated, refreshing...')
-      setWorkItems(generateWorkItemsFromProjects())
+      loadProjects()
     }
 
     window.addEventListener('projectDataUpdated', handleProjectUpdate)
@@ -60,8 +108,7 @@ export default function ProjectsPage() {
   }, [])
 
   const refreshProjects = () => {
-    setProjects([...mockProjects])
-    setWorkItems(generateWorkItemsFromProjects())
+    loadProjects()
   }
 
   const toggleProjectSelection = (projectId: string) => {
@@ -80,29 +127,56 @@ export default function ProjectsPage() {
     )
   }
 
-  const deleteSelectedProjects = () => {
+  const deleteSelectedProjects = async () => {
     if (window.confirm(`Are you sure you want to delete ${selectedProjects.length} project(s)?`)) {
-      // Filter out selected projects
-      const updatedProjects = projects.filter(p => !selectedProjects.includes(p.id))
-      setProjects(updatedProjects)
-      setSelectedProjects([])
-      // TODO: Update mockProjects to persist changes
-      console.log('Deleted projects:', selectedProjects)
+      try {
+        // Delete projects from Supabase
+        for (const projectId of selectedProjects) {
+          await ProjectData.deleteProject(projectId)
+        }
+        
+        // Clear selection
+        setSelectedProjects([])
+        
+        // Refresh projects list
+        await loadProjects()
+        
+        console.log('Deleted projects:', selectedProjects)
+      } catch (err) {
+        console.error('Error deleting projects:', err)
+        setError('Failed to delete projects')
+      }
     }
   }
 
-  const metrics = useMemo(() => ({
-    totalProjects: projects.length,
-    activeProjects: projects.filter(p => p.status === 'active').length,
-    completedTasks: projects.reduce((acc, p) => acc + p.completedTasks, 0),
-    totalTasks: projects.reduce((acc, p) => acc + p.totalTasks, 0),
-    teamMembers: new Set(projects.flatMap(p => p.team.map(t => t.id))).size,
-  }), [projects])
+  const metrics = useMemo(() => {
+    // Calculate upcoming deadlines (next 7 days)
+    const today = new Date()
+    const nextWeek = new Date(today)
+    nextWeek.setDate(today.getDate() + 7)
+    
+    const upcomingDeadlines = projects.reduce((count, project) => {
+      const projectDeadline = project.deadline ? new Date(project.deadline) : null
+      if (projectDeadline && projectDeadline >= today && projectDeadline <= nextWeek) {
+        count++
+      }
+      return count
+    }, 0)
+    
+    return {
+      totalProjects: projects.length,
+      activeProjects: projects.filter(p => p.status === 'active').length,
+      completedTasks: projects.reduce((acc, p) => acc + p.completedTasks, 0),
+      totalTasks: projects.reduce((acc, p) => acc + p.totalTasks, 0),
+      teamMembers: new Set(projects.flatMap(p => p.team.map(t => t.id))).size,
+      upcomingDeadlines,
+    }
+  }, [projects])
 
-  const toggleItemComplete = (projectId: string, taskId: string) => {
+  const toggleItemComplete = async (projectId: string, taskId: string) => {
     console.log('[ProjectsPage] Toggle task:', projectId, taskId)
     
-    const project = mockProjects.find(p => p.id === projectId)
+    const project = projects.find(p => p.id === projectId)
     if (!project) return
     
     const task = project.tasks.find(t => t.id === taskId)
@@ -110,10 +184,88 @@ export default function ProjectsPage() {
     
     // Toggle between done and todo
     const newStatus: Task['status'] = task.status === 'done' ? 'todo' : 'done'
-    updateTaskStatus(projectId, taskId, newStatus)
+    await ProjectData.updateTaskStatus(projectId, taskId, newStatus)
     
-    // Refresh the work items
-    setWorkItems(generateWorkItemsFromProjects())
+    // Refresh will happen via event listener
+  }
+
+  const handleAddProject = async (projectData: {
+    name: string
+    status: "active" | "completed" | "on-hold"
+    deadline: string
+  }) => {
+    console.log('[ProjectsPage] Adding project:', projectData)
+    
+    try {
+      if (!ProjectData.isUsingSupabase()) {
+        // For mock data, create project and update state
+        const newProject: Project = {
+          id: `proj-${Date.now()}`,
+          name: projectData.name,
+          status: projectData.status,
+          progress: 0,
+          deadline: projectData.deadline,
+          totalTasks: 0,
+          completedTasks: 0,
+          starred: false,
+          tasks: [],
+          team: [],
+          files: [],
+          activities: [],
+          milestones: [],
+        }
+        
+        const { mockProjects } = await import('@/lib/project-data')
+        mockProjects.push(newProject)
+        setProjects(prevProjects => [...prevProjects, newProject])
+        
+        console.log('[ProjectsPage] Project added to mock data:', newProject.name)
+      } else {
+        // For Supabase, use the API
+        console.log('[ProjectsPage] Creating project in Supabase...')
+        const projectId = await ProjectData.createProject(projectData)
+        
+        if (projectId) {
+          console.log('[ProjectsPage] Project created successfully with ID:', projectId)
+          // Refresh the projects list
+          await loadProjects()
+        } else {
+          console.error('[ProjectsPage] Failed to create project')
+          setError('Failed to create project')
+        }
+      }
+    } catch (err) {
+      console.error('[ProjectsPage] Error adding project:', err)
+      setError('Failed to create project: ' + String(err))
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 my-16">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading projects...</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {ProjectData.isUsingSupabase() ? 'Connecting to Supabase...' : 'Loading mock data...'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 my-16">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
+          <p className="text-destructive font-semibold">{error}</p>
+          <Button onClick={loadProjects} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -122,18 +274,18 @@ export default function ProjectsPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Project Management</h2>
           <p className="text-sm text-muted-foreground">
-            AI-Powered Project Execution Engine
+            AI-Powered Project Execution Engine {ProjectData.isUsingSupabase() && '• Connected to Supabase'}
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button size="sm">
+          <Button size="sm" onClick={() => setAddProjectDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Project
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
@@ -148,27 +300,13 @@ export default function ProjectsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Task Completion</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {Math.round((metrics.completedTasks / metrics.totalTasks) * 100)}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {metrics.completedTasks} of {metrics.totalTasks} tasks
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming Deadlines</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{metrics.upcomingDeadlines}</div>
             <p className="text-xs text-muted-foreground">
-              This week
+              Next 7 days
             </p>
           </CardContent>
         </Card>
@@ -203,7 +341,6 @@ export default function ProjectsPage() {
                         {project.status}
                       </Badge>
                     </div>
-                    <CardDescription>Due {project.deadline}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -312,7 +449,7 @@ export default function ProjectsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {workItems.map((item) => (
+            {(showAllActivities ? workItems : workItems.slice(0, 5)).map((item) => (
               <div key={item.id} className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div
@@ -350,8 +487,36 @@ export default function ProjectsPage() {
               </div>
             ))}
           </div>
+          {workItems.length > 5 && (
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllActivities(!showAllActivities)}
+                className="text-sm"
+              >
+                {showAllActivities ? (
+                  <>
+                    <ChevronUp className="h-4 w-4 mr-2" />
+                    Show Less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More ({workItems.length - 5} more)
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <AddProjectDialog
+        open={addProjectDialogOpen}
+        onOpenChange={setAddProjectDialogOpen}
+        onAddProject={handleAddProject}
+      />
     </div>
   )
 }

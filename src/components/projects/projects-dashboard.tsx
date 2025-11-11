@@ -1,10 +1,12 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { mockProjects, getOverdueTasks, getUpcomingDeadlines } from "@/lib/project-data"
+import { getAllProjects, getOverdueTasks, getUpcomingDeadlines } from "@/lib/project-data-supabase"
+import type { Project } from "@/lib/project-data"
 import {
   LayoutDashboard,
   AlertCircle,
@@ -14,13 +16,37 @@ import {
   CheckCircle2,
   ArrowRight,
   FolderKanban,
+  Loader2,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
 export function ProjectsDashboard() {
-  const activeProjects = mockProjects.filter((p) => p.status === "active").length
-  const overdueTasks = getOverdueTasks()
-  const upcomingDeadlines = getUpcomingDeadlines()
+  const [projects, setProjects] = useState<Project[]>([])
+  const [overdueTasks, setOverdueTasks] = useState(0)
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [projectsData, overdue, upcoming] = await Promise.all([
+          getAllProjects(),
+          getOverdueTasks(),
+          getUpcomingDeadlines(),
+        ])
+        setProjects(projectsData)
+        setOverdueTasks(overdue)
+        setUpcomingDeadlines(upcoming)
+      } catch (err) {
+        console.error('Error loading dashboard data:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
+
+  const activeProjects = projects.filter((p) => p.status === "active").length
 
   const statusCounts = {
     backlog: 8,
@@ -29,6 +55,17 @@ export function ProjectsDashboard() {
     review: 6,
     blocked: 3,
     done: 42,
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background my-28 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -121,7 +158,7 @@ export function ProjectsDashboard() {
                 </Button>
               </div>
               <div className="space-y-3">
-                {mockProjects.slice(0, 5).map((project) => (
+                {projects.slice(0, 5).map((project) => (
                   <div
                     key={project.id}
                     className="flex items-center gap-4 p-4 rounded-lg border border-border/40 hover:border-primary/40 hover:bg-muted/20 transition-all group"
@@ -196,35 +233,8 @@ export function ProjectsDashboard() {
             {/* My Tasks */}
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-4 text-foreground">My Tasks</h2>
-              <div className="space-y-3">
-                {[
-                  { title: "Review design mockups", priority: "high", time: "Today" },
-                  { title: "Update project timeline", priority: "medium", time: "Today" },
-                  { title: "Team standup meeting", priority: "low", time: "2:00 PM" },
-                  { title: "Code review for PR #234", priority: "high", time: "Tomorrow" },
-                ].map((task, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{task.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${
-                            task.priority === "high"
-                              ? "border-destructive/50 text-destructive"
-                              : task.priority === "medium"
-                                ? "border-yellow-500 text-yellow-600 bg-yellow-500/20 dark:text-yellow-400"
-                                : "border-green-500 text-green-600 bg-green-500/20 dark:text-green-400"
-                          }`}
-                        >
-                          {task.priority}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">{task.time}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-center py-12">
+                <p className="text-muted-foreground text-sm">No tasks to display</p>
               </div>
             </Card>
           </div>
@@ -233,64 +243,8 @@ export function ProjectsDashboard() {
         {/* Activity Feed */}
         <Card className="p-6 mt-6">
           <h2 className="text-xl font-semibold mb-4 text-foreground">Recent Activity</h2>
-          <div className="space-y-4">
-            {[
-              {
-                type: "completed",
-                user: "Sarah Chen",
-                action: "completed task",
-                target: "Design homepage mockup",
-                time: "2 hours ago",
-              },
-              {
-                type: "comment",
-                user: "Mike Johnson",
-                action: "commented on",
-                target: "Website Redesign",
-                time: "5 hours ago",
-              },
-              {
-                type: "created",
-                user: "Emily Davis",
-                action: "created new task",
-                target: "Mobile responsive testing",
-                time: "1 day ago",
-              },
-              {
-                type: "updated",
-                user: "Alex Kim",
-                action: "updated status of",
-                target: "API Integration",
-                time: "2 days ago",
-              },
-            ].map((activity, i) => (
-              <div key={i} className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/20 transition-colors">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    activity.type === "completed"
-                      ? "bg-green-500/10"
-                      : activity.type === "comment"
-                        ? "bg-blue-500/10"
-                        : "bg-primary/10"
-                  }`}
-                >
-                  {activity.type === "completed" ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  ) : activity.type === "comment" ? (
-                    <LayoutDashboard className="w-5 h-5 text-blue-500" />
-                  ) : (
-                    <Clock className="w-5 h-5 text-primary" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-foreground">
-                    <span className="font-semibold">{activity.user}</span> {activity.action}{" "}
-                    <span className="font-medium">{activity.target}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center justify-center py-12">
+            <p className="text-muted-foreground text-sm">No recent activity</p>
           </div>
         </Card>
       </div>

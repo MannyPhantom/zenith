@@ -195,7 +195,7 @@ export default function CustomerSuccessPage() {
   )
   const totalARR = clients.reduce((sum, c) => sum + c.arr, 0)
   const avgNPS = Math.round(clients.reduce((sum, c) => sum + c.npsScore, 0) / clients.length)
-  const highChurnRiskCount = clients.filter((c) => c.churnRisk > 60).length
+  const highChurnRiskCount = clients.filter((c) => c.healthScore < 60).length
 
   return (
     <div className="min-h-screen bg-background p-6 my-24">

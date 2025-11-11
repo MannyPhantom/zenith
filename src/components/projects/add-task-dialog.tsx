@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { addTask, getProjectTeamMembers, type Task, type TeamMember } from "@/lib/project-data"
+import { addTask, getProjectTeamMembers, type Task, type TeamMember } from "@/lib/project-data-supabase"
 
 interface AddTaskDialogProps {
   projectId: string
@@ -34,7 +34,7 @@ export function AddTaskDialog({
 }: AddTaskDialogProps) {
   console.log("[AddTaskDialog] Rendering, open:", open, "projectId:", projectId)
   
-  const teamMembers = getProjectTeamMembers(projectId)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   
   console.log("[AddTaskDialog] Team members:", teamMembers.length)
   
@@ -49,7 +49,18 @@ export function AddTaskDialog({
     progress: 0,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Load team members
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      const members = await getProjectTeamMembers(projectId)
+      setTeamMembers(members)
+    }
+    if (open) {
+      loadTeamMembers()
+    }
+  }, [projectId, open])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     console.log("[AddTaskDialog] Form submitted", formData)
@@ -61,7 +72,7 @@ export function AddTaskDialog({
 
     console.log("[AddTaskDialog] Adding task to project:", projectId)
     
-    const newTask = addTask(projectId, {
+    const newTask = await addTask(projectId, {
       title: formData.title,
       description: formData.description,
       status: formData.status,
@@ -70,7 +81,7 @@ export function AddTaskDialog({
         name: formData.assigneeName || "Unassigned",
         avatar: formData.assigneeAvatar || "/placeholder.svg?height=32&width=32"
       },
-      deadline: formData.deadline,
+      deadline: formData.deadline || "", // Empty string if no deadline
       progress: formData.progress,
     })
 

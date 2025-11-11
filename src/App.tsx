@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage'
 import HubPage from './pages/HubPage'
 import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
+import MigratePage from './pages/MigratePage'
 import InventoryPage from './pages/InventoryPage'
 import InventoryCheckOutPage from './pages/InventoryCheckOutPage'
 import InventoryScanInPage from './pages/InventoryScanInPage'
@@ -15,6 +16,7 @@ import InventoryTransactionsPage from './pages/InventoryTransactionsPage'
 import InventoryItemDetailPage from './pages/InventoryItemDetailPage'
 import InventoryPurchaseOrderDetailPage from './pages/InventoryPurchaseOrderDetailPage'
 import CustomerSuccessPage from './pages/CustomerSuccessPage'
+import MigrateCustomerSuccessPage from './pages/MigrateCustomerSuccessPage'
 import WorkforcePage from './pages/WorkforcePage'
 import HRPage from './pages/HRPage'
 import ManufacturingPage from './pages/ManufacturingPage'
@@ -53,6 +55,10 @@ function App() {
           {/* Projects Routes */}
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          
+          {/* Database Migration */}
+          <Route path="/migrate" element={<MigratePage />} />
+          <Route path="/migrate-customer-success" element={<MigrateCustomerSuccessPage />} />
           
           {/* Inventory Routes */}
           <Route path="/inventory" element={<InventoryPage />} />
