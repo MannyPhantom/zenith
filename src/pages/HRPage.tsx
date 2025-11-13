@@ -2137,7 +2137,7 @@ export default function HRPage() {
                   <DialogTitle className="text-2xl mb-2 truncate">{selectedEmployee?.name}</DialogTitle>
                   <div className="flex items-center gap-2 flex-wrap">
                     {selectedEmployee && <Badge variant={getStatusVariant(selectedEmployee.status)}>{selectedEmployee.status}</Badge>}
-                    {selectedEmployee && selectedEmployee.performanceScore && selectedEmployee.performanceScore >= 4.5 && (
+                    {selectedEmployee && selectedEmployee.performance_score && selectedEmployee.performance_score >= 4.5 && (
                       <Badge variant="outline" className="border-yellow-500 text-yellow-500 bg-yellow-500/10">
                         <Star className="h-4 w-4 fill-yellow-500 mr-1" />
                         Top Performer
@@ -2196,7 +2196,7 @@ export default function HRPage() {
                       <Card className="min-w-0">
                         <CardContent className="pt-5 pb-5 text-center px-3">
                           <div className="text-2xl font-bold mb-1">
-                            {selectedEmployee.performanceScore ? `${selectedEmployee.performanceScore}/5.0` : 'N/A'}
+                            {selectedEmployee.performance_score ? `${selectedEmployee.performance_score}/5.0` : 'N/A'}
                           </div>
                           <p className="text-sm text-muted-foreground whitespace-nowrap">Performance</p>
                         </CardContent>
@@ -2900,8 +2900,8 @@ export default function HRPage() {
                               </p>
                             </div>
                             <div className="text-right">
-                              <div className={`text-2xl font-bold ${getRatingColor(Number(review.overall_rating))}`}>
-                                {review.overall_rating?.toFixed(1)}
+                              <div className={`text-2xl font-bold ${getRatingColor((review.collaboration + review.accountability + review.trustworthy + review.leadership) / 4)}`}>
+                                {((review.collaboration + review.accountability + review.trustworthy + review.leadership) / 4).toFixed(1)}
                               </div>
                               <p className="text-xs text-muted-foreground">Overall</p>
                             </div>
@@ -3086,14 +3086,16 @@ export default function HRPage() {
             )}
             <DialogFooter className="gap-3">
               <Button variant="outline" size="lg" onClick={() => setIsGoalDetailsOpen(false)}>Close</Button>
-              <Button size="lg" onClick={() => {
-                setIsGoalDetailsOpen(false)
-                setEditingGoal(selectedGoal.id)
-                setGoalProgress(selectedGoal.progress)
-              }}>
-                <Target className="mr-2 h-5 w-5" />
-                Update Progress
-              </Button>
+              {selectedGoal && (
+                <Button size="lg" onClick={() => {
+                  setIsGoalDetailsOpen(false)
+                  setEditingGoal(selectedGoal.id)
+                  setGoalProgress(selectedGoal.progress)
+                }}>
+                  <Target className="mr-2 h-5 w-5" />
+                  Update Progress
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -3114,7 +3116,7 @@ export default function HRPage() {
                   <CardContent className="pt-4">
                     <h4 className="font-medium mb-1">{selectedGoal.goal}</h4>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{selectedGoal.employeeName}</span>
+                      <span>{selectedGoal.employee?.name}</span>
                       <span>•</span>
                       <Badge className={getGoalStatusColor(selectedGoal.status)} variant="outline">
                         {selectedGoal.status}

@@ -3,6 +3,9 @@
 
 import { createJob } from '../lib/recruitment-db'
 
+// Declare process for Node.js environment
+declare const process: { exit: (code: number) => never }
+
 const automotiveJobs = [
   {
     title: "Master Auto Detailer",

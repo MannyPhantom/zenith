@@ -93,15 +93,15 @@ export function RecruitmentDashboard() {
   const filteredApplications = applications.filter(app => {
     const matchesStatus = filterStatus === "all" || app.status === filterStatus
     const matchesSearch = 
-      app.anonymousId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.department.toLowerCase().includes(searchQuery.toLowerCase())
+      app.anonymousId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.jobTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.department?.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesStatus && matchesSearch
   })
 
   const handleRevealInfo = (app: Application) => {
     const recruiterName = "HR Manager" // In real app, get from auth context
-    const result = revealApplicantInfo(app.id, recruiterName)
+    const result = revealApplicantInfo(app.id || '', recruiterName)
     
     if (!result) {
       alert("Cannot reveal identity. Candidate must be in 'interviewed' status or later to view personal information.")
@@ -127,7 +127,7 @@ export function RecruitmentDashboard() {
   const handleConfirmDelete = async () => {
     if (!applicationToDelete) return
 
-    const success = await deleteApplication(applicationToDelete.id)
+    const success = await deleteApplication(applicationToDelete.id || '')
     if (success) {
       setIsDeleteDialogOpen(false)
       setApplicationToDelete(null)
@@ -142,6 +142,7 @@ export function RecruitmentDashboard() {
   }
 
   const handleStatusChange = async (appId: string, status: Application['status']) => {
+    if (!status) return
     const app = applications.find(a => a.id === appId)
     const wasRevealed = app?.isRevealed
     const canReveal = status === 'interviewed' || status === 'offer'
@@ -159,7 +160,7 @@ export function RecruitmentDashboard() {
   }
 
   const handleRating = async (appId: string, rating: number) => {
-    await rateApplication(appId, rating)
+    await rateApp(appId, rating)
     await loadApplications()
     window.dispatchEvent(new CustomEvent('applicationUpdated'))
   }
@@ -326,7 +327,7 @@ export function RecruitmentDashboard() {
                     </CardTitle>
                     <Badge variant="outline" className={getStatusColor(app.status)}>
                       {getStatusIcon(app.status)}
-                      <span className="ml-1">{app.status.replace('-', ' ')}</span>
+                      <span className="ml-1">{app.status?.replace('-', ' ')}</span>
                     </Badge>
                     {app.rating && (
                       <div className="flex items-center gap-1">
@@ -451,7 +452,7 @@ export function RecruitmentDashboard() {
                 )}
                 <Select
                   value={app.status}
-                  onValueChange={(value) => handleStatusChange(app.id, value as Application['status'])}
+                  onValueChange={(value) => handleStatusChange(app.id || '', value as Application['status'])}
                 >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue />
@@ -631,7 +632,7 @@ export function RecruitmentDashboard() {
                             key={rating}
                             variant="outline"
                             size="icon"
-                            onClick={() => handleRating(selectedApplication.id, rating)}
+                            onClick={() => handleRating(selectedApplication.id || '', rating)}
                           >
                             <Star
                               className={`w-5 h-5 ${
@@ -654,7 +655,7 @@ export function RecruitmentDashboard() {
                       <Textarea
                         placeholder="Add notes about this candidate..."
                         value={selectedApplication.notes || ''}
-                        onChange={(e) => addApplicationNotes(selectedApplication.id, e.target.value)}
+                        onChange={(e) => addApplicationNotes(selectedApplication.id || '', e.target.value)}
                         rows={6}
                       />
                     </CardContent>
@@ -670,7 +671,7 @@ export function RecruitmentDashboard() {
                         <Input
                           type="date"
                           value={selectedApplication.interviewDate || ''}
-                          onChange={(e) => handleScheduleInterview(selectedApplication.id, e.target.value)}
+                          onChange={(e) => handleScheduleInterview(selectedApplication.id || '', e.target.value)}
                         />
                       </div>
                       {selectedApplication.interviewDate && (
