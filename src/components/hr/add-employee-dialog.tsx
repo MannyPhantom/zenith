@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import * as hrApi from '@/lib/hr-api'
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -31,20 +32,46 @@ export function AddEmployeeDialog() {
     notes: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("[v0] Adding employee:", formData)
-    // In a real app, this would save to database
-    setOpen(false)
-    setFormData({
-      name: "",
-      email: "",
-      position: "",
-      department: "",
-      supervisor: "",
-      startDate: "",
-      notes: "",
-    })
+    
+    try {
+      const employeeData = {
+        name: formData.name,
+        email: formData.email,
+        position: formData.position,
+        department: formData.department,
+        status: 'Onboarding' as const,
+        phone: '', // Add phone field later if needed
+        hire_date: formData.startDate,
+      }
+      
+      const newEmployee = await hrApi.createEmployee(employeeData)
+      
+      if (newEmployee) {
+        console.log("Employee created successfully:", newEmployee)
+        
+        // Dispatch custom event to refresh employee list
+        window.dispatchEvent(new CustomEvent('employeeAdded', { 
+          detail: newEmployee 
+        }))
+        
+        setOpen(false)
+        setFormData({
+          name: "",
+          email: "",
+          position: "",
+          department: "",
+          supervisor: "",
+          startDate: "",
+          notes: "",
+        })
+      } else {
+        console.error("Failed to create employee")
+      }
+    } catch (error) {
+      console.error("Error creating employee:", error)
+    }
   }
 
   return (

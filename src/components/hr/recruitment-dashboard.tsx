@@ -25,26 +25,38 @@ import {
   Clock,
   AlertCircle,
   Download,
-  UserX
+  UserX,
+  Trash2
 } from "lucide-react"
 import {
   getAllApplications,
-  getApplicationStats,
-  revealApplicantInfo,
   updateApplicationStatus,
-  addApplicationNotes,
-  rateApplication,
-  scheduleInterview,
-  type Application
-} from "@/lib/recruitment-data"
+  updateApplicationNotes,
+  rateApplication as rateApp,
+  revealApplicantInfo,
+  deleteApplication,
+  type JobApplication
+} from "@/lib/recruitment-db"
+import { supabase } from "@/lib/supabase"
+
+type Application = JobApplication
 
 export function RecruitmentDashboard() {
   const [applications, setApplications] = useState<Application[]>([])
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [applicationToDelete, setApplicationToDelete] = useState<Application | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
-  const [stats, setStats] = useState(getApplicationStats())
+  const [stats, setStats] = useState({
+    total: 0,
+    new: 0,
+    reviewing: 0,
+    interviewScheduled: 0,
+    interviewed: 0,
+    offers: 0,
+  })
 
   useEffect(() => {
     loadApplications()
@@ -62,10 +74,20 @@ export function RecruitmentDashboard() {
     }
   }, [])
 
-  const loadApplications = () => {
-    const allApps = getAllApplications()
+  const loadApplications = async () => {
+    const allApps = await getAllApplications()
     setApplications(allApps)
-    setStats(getApplicationStats())
+    
+    // Calculate stats
+    const calculatedStats = {
+      total: allApps.length,
+      new: allApps.filter(app => app.status === 'new').length,
+      reviewing: allApps.filter(app => app.status === 'reviewing').length,
+      interviewScheduled: allApps.filter(app => app.status === 'interview-scheduled').length,
+      interviewed: allApps.filter(app => app.status === 'interviewed').length,
+      offers: allApps.filter(app => app.status === 'offer').length,
+    }
+    setStats(calculatedStats)
   }
 
   const filteredApplications = applications.filter(app => {
@@ -97,37 +119,71 @@ export function RecruitmentDashboard() {
     return app.status === 'interviewed' || app.status === 'offer'
   }
 
-  const handleStatusChange = (appId: string, status: Application['status']) => {
+  const handleDeleteClick = (app: Application) => {
+    setApplicationToDelete(app)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!applicationToDelete) return
+
+    const success = await deleteApplication(applicationToDelete.id)
+    if (success) {
+      setIsDeleteDialogOpen(false)
+      setApplicationToDelete(null)
+      loadApplications()
+      
+      // Close details dialog if the deleted app was being viewed
+      if (selectedApplication?.id === applicationToDelete.id) {
+        setIsDetailsOpen(false)
+        setSelectedApplication(null)
+      }
+    }
+  }
+
+  const handleStatusChange = async (appId: string, status: Application['status']) => {
     const app = applications.find(a => a.id === appId)
     const wasRevealed = app?.isRevealed
     const canReveal = status === 'interviewed' || status === 'offer'
     
-    updateApplicationStatus(appId, status)
+    await updateApplicationStatus(appId, status)
     
     // Show notification if identity was revealed but status changed to non-revealing
     if (wasRevealed && !canReveal) {
       alert("Status changed to '" + status + "'. Identity has been automatically hidden again for privacy protection.")
     }
     
-    loadApplications()
+    await loadApplications()
     
-    // Update selected application if it's the one being changed
-    if (selectedApplication?.id === appId) {
-      const updated = applications.find(a => a.id === appId)
-      if (updated) {
-        setSelectedApplication(updated)
-      }
+    window.dispatchEvent(new CustomEvent('applicationUpdated'))
+  }
+
+  const handleRating = async (appId: string, rating: number) => {
+    await rateApplication(appId, rating)
+    await loadApplications()
+    window.dispatchEvent(new CustomEvent('applicationUpdated'))
+  }
+
+  const handleScheduleInterview = async (appId: string, date: string) => {
+    // Update the application's interview_date field
+    const { error } = await supabase
+      .from('job_applications')
+      .update({ 
+        interview_date: date,
+        status: 'interview-scheduled'
+      })
+      .eq('id', appId)
+    
+    if (!error) {
+      await loadApplications()
+      window.dispatchEvent(new CustomEvent('applicationUpdated'))
     }
   }
 
-  const handleRating = (appId: string, rating: number) => {
-    rateApplication(appId, rating)
-    loadApplications()
-  }
-
-  const handleScheduleInterview = (appId: string, date: string) => {
-    scheduleInterview(appId, date)
-    loadApplications()
+  const addApplicationNotes = async (appId: string, notes: string) => {
+    await updateApplicationNotes(appId, notes)
+    await loadApplications()
+    window.dispatchEvent(new CustomEvent('applicationUpdated'))
   }
 
   const getStatusColor = (status: Application['status']) => {
@@ -259,7 +315,7 @@ export function RecruitmentDashboard() {
                       {app.isRevealed ? (
                         <span className="flex items-center gap-2">
                           <Eye className="w-5 h-5 text-green-500" />
-                          {app.personalInfo.firstName} {app.personalInfo.lastName}
+                          {app.firstName} {app.lastName}
                         </span>
                       ) : (
                         <span className="flex items-center gap-2">
@@ -324,17 +380,17 @@ export function RecruitmentDashboard() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span>{app.personalInfo.email}</span>
+                      <span>{app.email}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span>{app.personalInfo.phone}</span>
+                      <span>{app.phone}</span>
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <span>{app.personalInfo.location}</span>
+                      <span>{app.location}</span>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Revealed by {app.revealedBy} on {app.revealedAt ? new Date(app.revealedAt).toLocaleDateString() : 'N/A'}
@@ -346,23 +402,23 @@ export function RecruitmentDashboard() {
               {/* Professional info (always visible) */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm flex-wrap">
-                  {app.professionalInfo.resumeFileName && (
+                  {app.resumeFileName && (
                     <Badge variant="outline" className="flex items-center gap-1">
                       <FileText className="w-3 h-3" />
-                      {app.professionalInfo.resumeFileName}
+                      {app.resumeFileName}
                     </Badge>
                   )}
-                  {app.professionalInfo.linkedin && (
+                  {app.linkedin && (
                     <Button variant="ghost" size="sm" asChild>
-                      <a href={app.professionalInfo.linkedin} target="_blank" rel="noopener noreferrer">
+                      <a href={app.linkedin} target="_blank" rel="noopener noreferrer">
                         <Linkedin className="w-4 h-4 mr-1" />
                         LinkedIn
                       </a>
                     </Button>
                   )}
-                  {app.professionalInfo.portfolio && (
+                  {app.portfolio && (
                     <Button variant="ghost" size="sm" asChild>
-                      <a href={app.professionalInfo.portfolio} target="_blank" rel="noopener noreferrer">
+                      <a href={app.portfolio} target="_blank" rel="noopener noreferrer">
                         <Globe className="w-4 h-4 mr-1" />
                         Portfolio
                       </a>
@@ -409,6 +465,14 @@ export function RecruitmentDashboard() {
                     <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => handleDeleteClick(app)}
+                  title="Delete application"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -434,7 +498,7 @@ export function RecruitmentDashboard() {
                   {selectedApplication.isRevealed ? (
                     <>
                       <Eye className="w-6 h-6 text-green-500" />
-                      {selectedApplication.personalInfo.firstName} {selectedApplication.personalInfo.lastName}
+                      {selectedApplication.firstName} {selectedApplication.lastName}
                     </>
                   ) : (
                     <>
@@ -487,24 +551,24 @@ export function RecruitmentDashboard() {
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <Label className="text-xs text-muted-foreground">First Name</Label>
-                              <p className="font-medium">{selectedApplication.personalInfo.firstName}</p>
+                              <p className="font-medium">{selectedApplication.firstName}</p>
                             </div>
                             <div>
                               <Label className="text-xs text-muted-foreground">Last Name</Label>
-                              <p className="font-medium">{selectedApplication.personalInfo.lastName}</p>
+                              <p className="font-medium">{selectedApplication.lastName}</p>
                             </div>
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Email</Label>
-                            <p className="font-medium">{selectedApplication.personalInfo.email}</p>
+                            <p className="font-medium">{selectedApplication.email}</p>
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Phone</Label>
-                            <p className="font-medium">{selectedApplication.personalInfo.phone}</p>
+                            <p className="font-medium">{selectedApplication.phone}</p>
                           </div>
                           <div>
                             <Label className="text-xs text-muted-foreground">Location</Label>
-                            <p className="font-medium">{selectedApplication.personalInfo.location}</p>
+                            <p className="font-medium">{selectedApplication.location}</p>
                           </div>
                         </CardContent>
                       </Card>
@@ -516,26 +580,26 @@ export function RecruitmentDashboard() {
                       <CardTitle className="text-lg">Professional Links</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      {selectedApplication.professionalInfo.linkedin && (
+                      {selectedApplication.linkedin && (
                         <Button variant="outline" className="w-full justify-start" asChild>
-                          <a href={selectedApplication.professionalInfo.linkedin} target="_blank" rel="noopener noreferrer">
+                          <a href={selectedApplication.linkedin} target="_blank" rel="noopener noreferrer">
                             <Linkedin className="w-4 h-4 mr-2" />
                             LinkedIn Profile
                           </a>
                         </Button>
                       )}
-                      {selectedApplication.professionalInfo.portfolio && (
+                      {selectedApplication.portfolio && (
                         <Button variant="outline" className="w-full justify-start" asChild>
-                          <a href={selectedApplication.professionalInfo.portfolio} target="_blank" rel="noopener noreferrer">
+                          <a href={selectedApplication.portfolio} target="_blank" rel="noopener noreferrer">
                             <Globe className="w-4 h-4 mr-2" />
                             Portfolio Website
                           </a>
                         </Button>
                       )}
-                      {selectedApplication.professionalInfo.resumeFileName && (
+                      {selectedApplication.resumeFileName && (
                         <Button variant="outline" className="w-full justify-start">
                           <Download className="w-4 h-4 mr-2" />
-                          {selectedApplication.professionalInfo.resumeFileName}
+                          {selectedApplication.resumeFileName}
                         </Button>
                       )}
                     </CardContent>
@@ -549,7 +613,7 @@ export function RecruitmentDashboard() {
                     </CardHeader>
                     <CardContent>
                       <p className="whitespace-pre-wrap text-sm">
-                        {selectedApplication.professionalInfo.coverLetter}
+                        {selectedApplication.coverLetter}
                       </p>
                     </CardContent>
                   </Card>
@@ -622,6 +686,53 @@ export function RecruitmentDashboard() {
               </Tabs>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="w-5 h-5" />
+              Delete Application?
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this application? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {applicationToDelete && (
+            <div className="my-4 p-4 rounded-lg bg-muted">
+              <p className="font-medium">
+                {applicationToDelete.isRevealed 
+                  ? `${applicationToDelete.firstName} ${applicationToDelete.lastName}`
+                  : applicationToDelete.anonymousId}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {applicationToDelete.jobTitle} • {applicationToDelete.department}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Applied: {applicationToDelete.appliedDate}
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Application
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

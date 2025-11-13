@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import * as hrApi from '@/lib/hr-api'
+import type { Employee, PerformanceReview, Goal, Feedback360, Mentorship, Recognition, LearningPath, CareerPath } from '@/lib/hr-api'
+import { getAllCSMUsers, type CSMUser } from '@/lib/customer-success-api'
 import {
   Users,
   Star,
@@ -53,458 +56,27 @@ import {
   Phone,
   Building,
   User,
+  Activity,
+  Eye,
+  Trash2,
 } from "lucide-react"
 import { AddEmployeeDialog } from "@/components/hr/add-employee-dialog"
 import { AddReviewDialog } from "@/components/hr/add-review-dialog"
 import { AddGoalDialog } from "@/components/hr/add-goal-dialog"
 import { AddCandidateDialog } from "@/components/hr/add-candidate-dialog"
 import { RecruitmentDashboard } from "@/components/hr/recruitment-dashboard"
-
-// Mock data for employees
-const mockEmployees = [
-  {
-    id: 1,
-    name: "Diane Young",
-    position: "Software Engineer",
-    department: "Engineering",
-    status: "Active",
-    nextReview: "2025-02-15",
-    lastReview: "2024-12-15",
-    performanceScore: 4.5,
-  },
-  {
-    id: 2,
-    name: "Kathryn Washington",
-    position: "Project Manager",
-    department: "Marketing",
-    status: "Active",
-    nextReview: "2025-01-20",
-    lastReview: "2024-11-20",
-    performanceScore: 4.2,
-  },
-  {
-    id: 3,
-    name: "Guy Hawkins",
-    position: "Sales Representative",
-    department: "Sales",
-    status: "Active",
-    nextReview: "2025-03-10",
-    lastReview: "2024-12-10",
-    performanceScore: 4.8,
-  },
-  {
-    id: 4,
-    name: "Annette Black",
-    position: "Marketing Coordinator",
-    department: "Marketing",
-    status: "Onboarding",
-    nextReview: "2025-06-01",
-    lastReview: null,
-    performanceScore: null,
-  },
-  {
-    id: 5,
-    name: "Michael Chen",
-    position: "Senior Developer",
-    department: "Engineering",
-    status: "Active",
-    nextReview: "2025-02-28",
-    lastReview: "2024-12-28",
-    performanceScore: 4.6,
-  },
-  {
-    id: 6,
-    name: "Sarah Johnson",
-    position: "HR Manager",
-    department: "Human Resources",
-    status: "Active",
-    nextReview: "2025-03-15",
-    lastReview: "2024-12-15",
-    performanceScore: 4.4,
-  },
-]
-
-// Mock activity data
-const recentActivity = [
-  { id: 1, text: "Performance review completed for Michael Chen", time: "2 hours ago" },
-  { id: 2, text: "New goal added for Sarah Johnson", time: "5 hours ago" },
-  { id: 3, text: "Resume submitted by John Doe", time: "1 day ago" },
-  { id: 4, text: "Employee onboarding started for Annette Black", time: "2 days ago" },
-]
-
-// Mock data for recruitment candidates - FULLY ANONYMOUS
-const mockCandidates = [
-  {
-    id: 1,
-    candidateId: "CAND-M2K8L-4A7C",
-    position: "Senior Developer",
-    stage: "Applied",
-    daysInStage: 2,
-    assignedTo: "Recruiter A",
-    appliedDate: "2025-01-08",
-    skills: "React, Node.js, TypeScript, JavaScript",
-    experience: "5-10 years",
-    education: "Bachelor's Degree",
-    certifications: "AWS Certified Developer",
-  },
-  {
-    id: 2,
-    candidateId: "CAND-N3J9M-5B8D",
-    position: "Product Manager",
-    stage: "Reviewed",
-    daysInStage: 5,
-    assignedTo: "Recruiter B",
-    appliedDate: "2025-01-03",
-    skills: "Agile, Product Strategy, Roadmapping, Stakeholder Management",
-    experience: "5-10 years",
-    education: "Master's Degree",
-    certifications: "CSPO, Product Management",
-  },
-  {
-    id: 3,
-    candidateId: "CAND-P4K1N-6C9E",
-    position: "UX Designer",
-    stage: "Interviewed",
-    daysInStage: 3,
-    assignedTo: "Recruiter A",
-    appliedDate: "2024-12-28",
-    skills: "Figma, User Research, Prototyping, Wireframing",
-    experience: "2-5 years",
-    education: "Bachelor's Degree",
-    certifications: "UX Certification",
-  },
-  {
-    id: 4,
-    candidateId: "CAND-Q5L2O-7D1F",
-    position: "Senior Developer",
-    stage: "Offered",
-    daysInStage: 1,
-    assignedTo: "Recruiter B",
-    appliedDate: "2024-12-20",
-    skills: "Python, AWS, Kubernetes, Docker, CI/CD",
-    experience: "10+ years",
-    education: "Master's Degree",
-    certifications: "AWS Certified Solutions Architect, Kubernetes Certified",
-  },
-  {
-    id: 5,
-    candidateId: "CAND-R6M3P-8E2G",
-    position: "Marketing Manager",
-    stage: "Applied",
-    daysInStage: 1,
-    assignedTo: "Recruiter A",
-    appliedDate: "2025-01-09",
-    skills: "SEO, Content Strategy, Analytics, Google Analytics",
-    experience: "5-10 years",
-    education: "Bachelor's Degree",
-    certifications: "Google Analytics, HubSpot",
-  },
-  {
-    id: 6,
-    candidateId: "CAND-S7N4Q-9F3H",
-    position: "Sales Representative",
-    stage: "Reviewed",
-    daysInStage: 4,
-    assignedTo: "Recruiter B",
-    appliedDate: "2025-01-04",
-    skills: "B2B Sales, CRM, Negotiation, Salesforce",
-    experience: "2-5 years",
-    education: "Bachelor's Degree",
-    certifications: "Salesforce Certified",
-  },
-]
-
-// Mock data for performance reviews
-const mockPerformanceReviews = [
-  {
-    id: 1,
-    employeeId: 1,
-    employeeName: "Diane Young",
-    department: "Engineering",
-    latestReview: "2024-12-15",
-    nextReview: "2025-02-15",
-    collaboration: 5,
-    accountability: 4,
-    trustworthy: 5,
-    leadership: 4,
-    trend: "up",
-    status: "on-time",
-  },
-  {
-    id: 2,
-    employeeId: 2,
-    employeeName: "Kathryn Washington",
-    department: "Marketing",
-    latestReview: "2024-11-20",
-    nextReview: "2025-01-20",
-    collaboration: 4,
-    accountability: 4,
-    trustworthy: 4,
-    leadership: 5,
-    trend: "stable",
-    status: "upcoming",
-  },
-  {
-    id: 3,
-    employeeId: 3,
-    employeeName: "Guy Hawkins",
-    department: "Sales",
-    latestReview: "2024-12-10",
-    nextReview: "2025-03-10",
-    collaboration: 5,
-    accountability: 5,
-    trustworthy: 5,
-    leadership: 4,
-    trend: "up",
-    status: "on-time",
-  },
-  {
-    id: 4,
-    employeeId: 5,
-    employeeName: "Michael Chen",
-    department: "Engineering",
-    latestReview: "2024-12-28",
-    nextReview: "2025-02-28",
-    collaboration: 4,
-    accountability: 5,
-    trustworthy: 5,
-    leadership: 5,
-    trend: "up",
-    status: "on-time",
-  },
-  {
-    id: 5,
-    employeeId: 6,
-    employeeName: "Sarah Johnson",
-    department: "Human Resources",
-    latestReview: "2024-12-15",
-    nextReview: "2025-03-15",
-    collaboration: 5,
-    accountability: 4,
-    trustworthy: 4,
-    leadership: 4,
-    trend: "stable",
-    status: "on-time",
-  },
-]
-
-// Mock data for goals
-const mockGoals = [
-  {
-    id: 1,
-    employeeId: 1,
-    employeeName: "Diane Young",
-    department: "Engineering",
-    goal: "Complete React certification",
-    category: "Professional Development",
-    progress: 75,
-    status: "On Track",
-    dueDate: "2025-03-31",
-    createdDate: "2025-01-01",
-  },
-  {
-    id: 2,
-    employeeId: 1,
-    employeeName: "Diane Young",
-    department: "Engineering",
-    goal: "Lead 2 major projects",
-    category: "Leadership",
-    progress: 50,
-    status: "On Track",
-    dueDate: "2025-06-30",
-    createdDate: "2025-01-01",
-  },
-  {
-    id: 3,
-    employeeId: 2,
-    employeeName: "Kathryn Washington",
-    department: "Marketing",
-    goal: "Increase campaign ROI by 20%",
-    category: "Performance",
-    progress: 30,
-    status: "Behind",
-    dueDate: "2025-04-30",
-    createdDate: "2025-01-01",
-  },
-  {
-    id: 4,
-    employeeId: 3,
-    employeeName: "Guy Hawkins",
-    department: "Sales",
-    goal: "Close 50 deals this quarter",
-    category: "Sales Target",
-    progress: 90,
-    status: "On Track",
-    dueDate: "2025-03-31",
-    createdDate: "2025-01-01",
-  },
-  {
-    id: 5,
-    employeeId: 5,
-    employeeName: "Michael Chen",
-    department: "Engineering",
-    goal: "Mentor 3 junior developers",
-    category: "Mentorship",
-    progress: 100,
-    status: "Complete",
-    dueDate: "2025-02-28",
-    createdDate: "2024-11-01",
-  },
-  {
-    id: 6,
-    employeeId: 6,
-    employeeName: "Sarah Johnson",
-    department: "Human Resources",
-    goal: "Implement new onboarding process",
-    category: "Process Improvement",
-    progress: 60,
-    status: "On Track",
-    dueDate: "2025-05-31",
-    createdDate: "2025-01-01",
-  },
-]
-
-const mockAIInsights = [
-  {
-    id: 1,
-    type: "retention-risk",
-    employee: "Diane Young",
-    risk: "medium",
-    factors: ["Low engagement score", "No promotion in 2 years"],
-    recommendation: "Schedule 1-on-1 to discuss career growth",
-  },
-  {
-    id: 2,
-    type: "high-performer",
-    employee: "Guy Hawkins",
-    score: 4.8,
-    recommendation: "Consider for leadership development program",
-  },
-  {
-    id: 3,
-    type: "skill-gap",
-    department: "Engineering",
-    gap: "Cloud Architecture",
-    recommendation: "Recommend AWS certification training",
-  },
-]
-
-const mock360Feedback = [
-  {
-    id: 1,
-    employeeId: 1,
-    employeeName: "Diane Young",
-    selfRating: 4.2,
-    managerRating: 4.5,
-    peerRating: 4.3,
-    directReportRating: 4.4,
-    overallScore: 4.35,
-    feedbackCount: 8,
-    status: "complete",
-  },
-  {
-    id: 2,
-    employeeId: 3,
-    employeeName: "Guy Hawkins",
-    selfRating: 4.5,
-    managerRating: 4.8,
-    peerRating: 4.7,
-    directReportRating: null,
-    overallScore: 4.67,
-    feedbackCount: 6,
-    status: "complete",
-  },
-]
-
-const mockMentorships = [
-  {
-    id: 1,
-    mentor: "Michael Chen",
-    mentee: "Annette Black",
-    focus: "Technical Leadership",
-    matchScore: 92,
-    startDate: "2025-01-01",
-    status: "active",
-  },
-  {
-    id: 2,
-    mentor: "Sarah Johnson",
-    mentee: "Diane Young",
-    focus: "Career Development",
-    matchScore: 88,
-    startDate: "2024-12-15",
-    status: "active",
-  },
-]
-
-const mockCareerPaths = [
-  {
-    id: 1,
-    employee: "Diane Young",
-    currentRole: "Software Engineer",
-    nextRole: "Senior Software Engineer",
-    timeToPromotion: "6-12 months",
-    readiness: 75,
-    requiredSkills: ["System Design", "Mentoring", "Project Leadership"],
-  },
-  {
-    id: 2,
-    employee: "Annette Black",
-    currentRole: "Marketing Coordinator",
-    nextRole: "Marketing Manager",
-    timeToPromotion: "12-18 months",
-    readiness: 45,
-    requiredSkills: ["Team Management", "Budget Planning", "Strategy"],
-  },
-]
-
-const mockDiversityMetrics = {
-  gender: { male: 55, female: 42, nonBinary: 3 },
-  ethnicity: { asian: 25, black: 15, hispanic: 20, white: 35, other: 5 },
-  ageGroups: { "18-25": 15, "26-35": 45, "36-45": 25, "46-55": 10, "55+": 5 },
-  hiringDiversity: 68, // percentage
-  leadershipDiversity: 42, // percentage
-}
-
-const mockRecognitions = [
-  {
-    id: 1,
-    from: "Michael Chen",
-    to: "Diane Young",
-    type: "Peer Recognition",
-    category: "Innovation",
-    message: "Outstanding work on the new architecture design!",
-    date: "2025-01-08",
-  },
-  {
-    id: 2,
-    from: "Sarah Johnson",
-    to: "Guy Hawkins",
-    type: "Manager Recognition",
-    category: "Excellence",
-    message: "Exceeded sales targets for Q4 2024",
-    date: "2025-01-05",
-  },
-]
-
-const mockLearningPaths = [
-  {
-    id: 1,
-    employee: "Diane Young",
-    course: "AWS Solutions Architect",
-    progress: 65,
-    dueDate: "2025-03-31",
-    status: "in-progress",
-  },
-  {
-    id: 2,
-    employee: "Michael Chen",
-    course: "Leadership Essentials",
-    progress: 100,
-    dueDate: "2025-01-15",
-    status: "completed",
-  },
-]
+import { getAllApplications, scheduleInterview, getAllJobs } from "@/lib/recruitment-db"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function HRPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -512,25 +84,59 @@ export default function HRPage() {
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [riskFilter, setRiskFilter] = useState("all")
-  const [showTopCandidates, setShowTopCandidates] = useState(true)
   const [candidateStageFilter, setCandidateStageFilter] = useState("All")
-  const [editingGoal, setEditingGoal] = useState<number | null>(null)
+  const [editingGoal, setEditingGoal] = useState<string | null>(null)
   const [goalProgress, setGoalProgress] = useState<number>(0)
   
+  // Data state
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [performanceReviews, setPerformanceReviews] = useState<PerformanceReview[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [feedback360, setFeedback360] = useState<Feedback360[]>([])
+  const [mentorships, setMentorships] = useState<Mentorship[]>([])
+  const [recognitions, setRecognitions] = useState<Recognition[]>([])
+  const [learningPaths, setLearningPaths] = useState<LearningPath[]>([])
+  const [careerPaths, setCareerPaths] = useState<CareerPath[]>([])
+  const [csmUsers, setCSMUsers] = useState<CSMUser[]>([])
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    activeEmployees: 0,
+    onboardingEmployees: 0,
+    avgPerformanceScore: 0,
+    totalGoals: 0,
+    onTrackGoals: 0,
+    behindGoals: 0,
+    completeGoals: 0,
+    upcomingReviews: 0,
+    overdueReviews: 0,
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  
+  // Recruitment data
+  const [applications, setApplications] = useState<any[]>([])
+  const [openPositions, setOpenPositions] = useState<number>(0)
+  const [applicationStats, setApplicationStats] = useState({
+    total: 0,
+    new: 0,
+    reviewing: 0,
+    interviewed: 0,
+    offers: 0
+  })
+  
   // Employee management state
-  const [selectedEmployee, setSelectedEmployee] = useState<typeof mockEmployees[0] | null>(null)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false)
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false)
   const [isGoalsDialogOpen, setIsGoalsDialogOpen] = useState(false)
   
   // Performance review dialogs state
-  const [selectedReview, setSelectedReview] = useState<any | null>(null)
+  const [selectedReview, setSelectedReview] = useState<PerformanceReview | null>(null)
   const [isReviewDetailsOpen, setIsReviewDetailsOpen] = useState(false)
   const [isAddReviewDialogOpen, setIsAddReviewDialogOpen] = useState(false)
   const [isReviewHistoryOpen, setIsReviewHistoryOpen] = useState(false)
   
   // Goal dialogs state
-  const [selectedGoal, setSelectedGoal] = useState<any | null>(null)
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
   const [isGoalDetailsOpen, setIsGoalDetailsOpen] = useState(false)
   const [isAddCommentOpen, setIsAddCommentOpen] = useState(false)
   const [goalComment, setGoalComment] = useState('')
@@ -544,9 +150,125 @@ export default function HRPage() {
   const [isSend360FeedbackOpen, setIsSend360FeedbackOpen] = useState(false)
   const [isApproveTimeOffOpen, setIsApproveTimeOffOpen] = useState(false)
   const [isAssignTrainingOpen, setIsAssignTrainingOpen] = useState(false)
+  
+  // Employee selection and deletion state
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([])
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  
+  // Interview scheduling state
+  const [interviewCandidate, setInterviewCandidate] = useState<string>('')
+  const [interviewDate, setInterviewDate] = useState<string>('')
+  const [interviewTime, setInterviewTime] = useState<string>('')
+  const [interviewType, setInterviewType] = useState<string>('')
+  const [interviewNotes, setInterviewNotes] = useState<string>('')
+  
+  // Candidate details state
+  const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
+  const [isCandidateDetailsOpen, setIsCandidateDetailsOpen] = useState(false)
+
+  // Load all data from Supabase
+  useEffect(() => {
+    loadData()
+    
+    // Listen for employee added events
+    const handleEmployeeAdded = () => {
+      loadData()
+    }
+    
+    const handleApplicationUpdated = async () => {
+      // Refresh recruitment data when applications change
+      const recruitmentApps = await getAllApplications()
+      setApplications(recruitmentApps)
+      
+      // Calculate application stats
+      const recruitmentStats = {
+        total: recruitmentApps.length,
+        new: recruitmentApps.filter(app => app.status === 'new').length,
+        reviewing: recruitmentApps.filter(app => app.status === 'reviewing').length,
+        interviewed: recruitmentApps.filter(app => app.status === 'interviewed' || app.status === 'interview-scheduled').length,
+        offers: recruitmentApps.filter(app => app.status === 'offer').length,
+      }
+      setApplicationStats(recruitmentStats)
+    }
+    
+    window.addEventListener('employeeAdded', handleEmployeeAdded)
+    window.addEventListener('applicationSubmitted', handleApplicationUpdated)
+    window.addEventListener('applicationUpdated', handleApplicationUpdated)
+    
+    return () => {
+      window.removeEventListener('employeeAdded', handleEmployeeAdded)
+      window.removeEventListener('applicationSubmitted', handleApplicationUpdated)
+      window.removeEventListener('applicationUpdated', handleApplicationUpdated)
+    }
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Fetch all data in parallel
+      const [
+        employeesData,
+        reviewsData,
+        goalsData,
+        feedback360Data,
+        mentorshipsData,
+        recognitionsData,
+        learningPathsData,
+        careerPathsData,
+        statsData,
+        csmUsersData,
+      ] = await Promise.all([
+        hrApi.getAllEmployees(),
+        hrApi.getAllPerformanceReviews(),
+        hrApi.getAllGoals(),
+        hrApi.getAll360Feedback(),
+        hrApi.getAllMentorships(),
+        hrApi.getAllRecognitions(),
+        hrApi.getAllLearningPaths(),
+        hrApi.getAllCareerPaths(),
+        hrApi.getHRStats(),
+        getAllCSMUsers(),
+      ])
+
+      setEmployees(employeesData)
+      setPerformanceReviews(reviewsData)
+      setGoals(goalsData)
+      setFeedback360(feedback360Data)
+      setMentorships(mentorshipsData)
+      setRecognitions(recognitionsData)
+      setLearningPaths(learningPathsData)
+      setCareerPaths(careerPathsData)
+      setStats(statsData)
+      setCSMUsers(csmUsersData)
+      
+      // Load recruitment data from database
+      const recruitmentApps = await getAllApplications()
+      setApplications(recruitmentApps)
+      
+      // Load open positions
+      const jobPostings = await getAllJobs()
+      setOpenPositions(jobPostings.length)
+      
+      // Calculate application stats
+      const recruitmentStats = {
+        total: recruitmentApps.length,
+        new: recruitmentApps.filter(app => app.status === 'new').length,
+        reviewing: recruitmentApps.filter(app => app.status === 'reviewing').length,
+        interviewed: recruitmentApps.filter(app => app.status === 'interviewed' || app.status === 'interview-scheduled').length,
+        offers: recruitmentApps.filter(app => app.status === 'offer').length,
+      }
+      setApplicationStats(recruitmentStats)
+    } catch (error) {
+      console.error('Error loading HR data:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Calculate days until/since review
-  const getDaysUntilReview = (reviewDate: string) => {
+  const getDaysUntilReview = (reviewDate: string | null | undefined) => {
+    if (!reviewDate) return "Not scheduled"
     const today = new Date()
     const review = new Date(reviewDate)
     const diffTime = review.getTime() - today.getTime()
@@ -608,15 +330,50 @@ export default function HRPage() {
   }
 
   // Filter employees based on search
-  const filteredEmployees = mockEmployees.filter(
+  const filteredEmployees = employees.filter(
     (emp) =>
       emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       emp.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
       emp.department.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
+  // Handler for selecting/deselecting individual employees
+  const handleToggleEmployee = (employeeId: string) => {
+    setSelectedEmployees((prev) =>
+      prev.includes(employeeId)
+        ? prev.filter((id) => id !== employeeId)
+        : [...prev, employeeId]
+    )
+  }
+
+  // Handler for select all/deselect all
+  const handleToggleAll = () => {
+    if (selectedEmployees.length === filteredEmployees.length) {
+      setSelectedEmployees([])
+    } else {
+      setSelectedEmployees(filteredEmployees.map((emp) => emp.id))
+    }
+  }
+
+  // Handler for deleting selected employees
+  const handleDeleteSelected = async () => {
+    try {
+      // Delete employees from database
+      for (const employeeId of selectedEmployees) {
+        await hrApi.deleteEmployee(employeeId)
+      }
+      // Refresh data
+      await loadData()
+      setSelectedEmployees([])
+      setShowDeleteDialog(false)
+    } catch (error) {
+      console.error('Error deleting employees:', error)
+      alert('Failed to delete employees. Please try again.')
+    }
+  }
+
   // Helper function to calculate overall rating
-  const calculateOverallRating = (review: (typeof mockPerformanceReviews)[0]) => {
+  const calculateOverallRating = (review: PerformanceReview) => {
     return ((review.collaboration + review.accountability + review.trustworthy + review.leadership) / 4).toFixed(1)
   }
 
@@ -698,10 +455,10 @@ export default function HRPage() {
   }
 
   // Goal statistics calculations
-  const totalGoals = mockGoals.length
-  const onTrackGoals = mockGoals.filter((g) => g.status === "On Track").length
-  const behindGoals = mockGoals.filter((g) => g.status === "Behind").length
-  const completeGoals = mockGoals.filter((g) => g.status === "Complete").length
+  const totalGoals = stats.totalGoals
+  const onTrackGoals = stats.onTrackGoals
+  const behindGoals = stats.behindGoals
+  const completeGoals = stats.completeGoals
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -757,10 +514,10 @@ export default function HRPage() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">45</div>
+                  <div className="text-2xl font-bold">{stats.activeEmployees}</div>
                   <p className="text-xs text-muted-foreground">
                     <TrendingUp className="inline h-3 w-3 mr-1 text-green-500" />
-                    +5% from last quarter
+                    {stats.onboardingEmployees} onboarding
                   </p>
                 </CardContent>
               </Card>
@@ -771,8 +528,8 @@ export default function HRPage() {
                   <AlertTriangle className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-500">3</div>
-                  <p className="text-xs text-muted-foreground">Employees need attention</p>
+                  <div className="text-2xl font-bold text-yellow-500">{stats.overdueReviews}</div>
+                  <p className="text-xs text-muted-foreground">Reviews overdue</p>
                 </CardContent>
               </Card>
 
@@ -782,10 +539,10 @@ export default function HRPage() {
                   <Star className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">4.35/5</div>
+                  <div className="text-2xl font-bold">{stats.avgPerformanceScore.toFixed(2)}/5</div>
                   <p className="text-xs text-muted-foreground">
                     <TrendingUp className="inline h-3 w-3 mr-1 text-green-500" />
-                    +0.2 from last period
+                    Across {stats.totalEmployees} employees
                   </p>
                 </CardContent>
               </Card>
@@ -796,106 +553,21 @@ export default function HRPage() {
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">8</div>
-                  <p className="text-xs text-muted-foreground">Across 5 departments</p>
+                  <div className="text-2xl font-bold">{openPositions}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {applicationStats.total > 0 ? `${applicationStats.total} applications` : 'Actively hiring'}
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
-                      <CardTitle>Zenith-Powered Insights</CardTitle>
-                    </div>
-                    <Badge variant="secondary" className="gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      Smart Recommendations
-                    </Badge>
-                  </div>
-                  <CardDescription>Predictive analytics and actionable recommendations</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {mockAIInsights.map((insight) => (
-                      <div key={insight.id} className="p-4 border rounded-lg bg-accent/30">
-                        {insight.type === "retention-risk" && (
-                          <>
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                                <h4 className="font-semibold">Retention Risk Alert</h4>
-                              </div>
-                              <Badge variant="outline" className="text-yellow-500 border-yellow-500">
-                                {insight.risk} risk
-                              </Badge>
-                            </div>
-                            <p className="text-sm mb-2">
-                              <strong>{insight.employee}</strong> shows signs of disengagement
-                            </p>
-                            <div className="text-xs text-muted-foreground mb-2">
-                              <strong>Risk Factors:</strong> {insight.factors?.join(", ") || "N/A"}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Lightbulb className="h-4 w-4 text-primary" />
-                              <span className="text-primary font-medium">{insight.recommendation}</span>
-                            </div>
-                          </>
-                        )}
-                        {insight.type === "high-performer" && (
-                          <>
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <Rocket className="h-4 w-4 text-green-500" />
-                                <h4 className="font-semibold">High Performer Identified</h4>
-                              </div>
-                              <Badge variant="outline" className="text-green-500 border-green-500">
-                                {insight.score}/5.0
-                              </Badge>
-                            </div>
-                            <p className="text-sm mb-2">
-                              <strong>{insight.employee}</strong> consistently exceeds expectations
-                            </p>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Lightbulb className="h-4 w-4 text-primary" />
-                              <span className="text-primary font-medium">{insight.recommendation}</span>
-                            </div>
-                          </>
-                        )}
-                        {insight.type === "skill-gap" && (
-                          <>
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <GraduationCap className="h-4 w-4 text-blue-500" />
-                                <h4 className="font-semibold">Skill Gap Detected</h4>
-                              </div>
-                              <Badge variant="outline" className="text-blue-500 border-blue-500">
-                                {insight.department}
-                              </Badge>
-                            </div>
-                            <p className="text-sm mb-2">
-                              Team needs development in <strong>{insight.gap}</strong>
-                            </p>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Lightbulb className="h-4 w-4 text-primary" />
-                              <span className="text-primary font-medium">{insight.recommendation}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
+            <div className="mb-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Quick Actions</CardTitle>
                   <CardDescription>Common HR tasks</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
                   <Button className="w-full justify-start bg-transparent" variant="outline" onClick={() => setIsScheduleInterviewOpen(true)}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Schedule Interview
@@ -956,7 +628,7 @@ export default function HRPage() {
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               <Calendar className="inline h-3 w-3 mr-1" />
-                              Next Review: {getDaysUntilReview(employee.nextReview)}
+                              Next Review: {getDaysUntilReview(employee.next_review_date)}
                             </p>
                           </div>
                         </div>
@@ -975,15 +647,14 @@ export default function HRPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {recentActivity.map((activity) => (
-                        <div key={activity.id} className="flex gap-3">
-                          <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                          <div className="flex-1">
-                            <p className="text-sm">{activity.text}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                          </div>
+                      {isLoading ? (
+                        <div className="text-center py-4 text-muted-foreground">Loading activity...</div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No recent activity</p>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1039,42 +710,22 @@ export default function HRPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
                       <FileText className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">142</div>
+                      <div className="text-2xl font-bold">{applicationStats.total}</div>
                       <p className="text-xs text-muted-foreground">
-                        <TrendingUp className="inline h-3 w-3 mr-1 text-green-500" />
-                        +18% this month
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Zenith-Matched</CardTitle>
-                      <Sparkles className="h-4 w-4 text-primary" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">38</div>
-                      <p className="text-xs text-muted-foreground">High-fit candidates</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Avg Time to Fill</CardTitle>
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">22</div>
-                      <p className="text-xs text-muted-foreground">
-                        <TrendingDown className="inline h-3 w-3 mr-1 text-green-500" />
-                        -6 days improvement
+                        {applicationStats.new > 0 && (
+                          <>
+                            <TrendingUp className="inline h-3 w-3 mr-1 text-green-500" />
+                            {applicationStats.new} new
+                          </>
+                        )}
+                        {applicationStats.new === 0 && 'No new applications'}
                       </p>
                     </CardContent>
                   </Card>
@@ -1085,132 +736,13 @@ export default function HRPage() {
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">12</div>
-                      <p className="text-xs text-muted-foreground">This week</p>
+                      <div className="text-2xl font-bold">{applicationStats.interviewed}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {applicationStats.interviewed > 0 ? 'Candidates interviewed' : 'No interviews yet'}
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
-
-                {/* Top Candidates Section - Collapsible */}
-                <Card className="mb-6">
-                  <CardHeader 
-                    className="cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => setShowTopCandidates(!showTopCandidates)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Sparkles className="h-5 w-5 text-primary" />
-                        <div>
-                          <CardTitle className="flex items-center gap-2">
-                            Top Matching Candidates
-                            <Badge variant="secondary" className="ml-2">3 candidates</Badge>
-                          </CardTitle>
-                          <CardDescription>Best fits based on skills, experience, and qualifications</CardDescription>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        {showTopCandidates ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  {showTopCandidates && (
-                    <CardContent>
-                      <div className="space-y-3">
-                        {mockCandidates.slice(0, 3).map((candidate) => {
-                        // Get job requirements for this position
-                        const jobReqs = defaultJobRequirements[candidate.position] || defaultJobRequirements["Senior Developer"]
-                        // Calculate real Zenith match score
-                        const zenithScore = calculateZenithMatchScore(candidate, jobReqs)
-                        const scoreColor = zenithScore >= 90 ? "text-green-600" : zenithScore >= 75 ? "text-blue-600" : zenithScore >= 60 ? "text-yellow-600" : "text-gray-600"
-                        const scoreBg = zenithScore >= 90 ? "bg-green-50 dark:bg-green-950" : zenithScore >= 75 ? "bg-blue-50 dark:bg-blue-950" : zenithScore >= 60 ? "bg-yellow-50 dark:bg-yellow-950" : "bg-gray-50 dark:bg-gray-950"
-                        
-                        return (
-                          <div
-                            key={candidate.id}
-                            className="group flex items-start gap-4 p-4 border-2 rounded-lg transition-all duration-200 cursor-pointer bg-background hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:border-blue-500 hover:shadow-2xl hover:scale-[1.02]"
-                          >
-                            {/* Match Score - Visual Indicator */}
-                            <div className={`flex flex-col items-center justify-center p-3 rounded-lg ${scoreBg} min-w-[80px]`}>
-                              <div className={`text-3xl font-bold ${scoreColor}`}>{zenithScore}</div>
-                              <div className="text-xs text-muted-foreground mt-1">Match</div>
-                              <div className="flex items-center gap-1 mt-1">
-                                <Sparkles className={`h-3 w-3 ${scoreColor}`} />
-                              </div>
-                            </div>
-
-                            {/* Candidate Info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-semibold text-lg">{candidate.candidateId}</h3>
-                                <Badge variant={getStageVariant(candidate.stage)} className={`${getStageColor(candidate.stage)} font-medium`}>
-                                  {candidate.stage}
-                                </Badge>
-                              </div>
-                              
-                              <p className="text-sm font-medium text-foreground mb-3">{candidate.position}</p>
-                              
-                              <div className="grid grid-cols-2 gap-2 mb-3">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <div className="w-2 h-2 rounded-full bg-primary" />
-                                  <span className="text-muted-foreground">Experience:</span>
-                                  <span className="font-medium">{candidate.experience}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <div className="w-2 h-2 rounded-full bg-primary" />
-                                  <span className="text-muted-foreground">Education:</span>
-                                  <span className="font-medium">{candidate.education}</span>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-wrap gap-1.5 mb-3">
-                                {candidate.skills.split(',').slice(0, 4).map((skill, idx) => (
-                                  <Badge key={idx} variant="secondary" className="text-xs">
-                                    {skill.trim()}
-                                  </Badge>
-                                ))}
-                                {candidate.skills.split(',').length > 4 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{candidate.skills.split(',').length - 4} more
-                                  </Badge>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  Applied {new Date(candidate.appliedDate).toLocaleDateString()}
-                                </span>
-                                <span>•</span>
-                                <span>{candidate.assignedTo}</span>
-                              </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex flex-col gap-2">
-                              <Button size="sm" className="w-full">
-                                <Calendar className="mr-2 h-4 w-4" />
-                                Interview
-                              </Button>
-                              <Button variant="outline" size="sm" className="w-full">
-                                <FileText className="mr-2 h-4 w-4" />
-                                View Resume
-                              </Button>
-                              <Button variant="outline" size="sm" className="w-full">
-                                <ArrowRight className="mr-2 h-4 w-4" />
-                                Next Stage
-                              </Button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    </CardContent>
-                  )}
-                </Card>
 
                 {/* All Candidates - Organized by Stage */}
                 <Card>
@@ -1232,7 +764,7 @@ export default function HRPage() {
                         onClick={() => setCandidateStageFilter("All")}
                       >
                         All Candidates
-                        <Badge variant="secondary" className="ml-1">{mockCandidates.length}</Badge>
+                        <Badge variant="secondary" className="ml-1">{applicationStats.total}</Badge>
                       </Button>
                       <Button 
                         variant={candidateStageFilter === "Applied" ? "default" : "outline"} 
@@ -1241,7 +773,7 @@ export default function HRPage() {
                         onClick={() => setCandidateStageFilter("Applied")}
                       >
                         Applied
-                        <Badge variant="secondary" className="ml-1">{mockCandidates.filter(c => c.stage === "Applied").length}</Badge>
+                        <Badge variant="secondary" className="ml-1">{applicationStats.new}</Badge>
                       </Button>
                       <Button 
                         variant={candidateStageFilter === "Reviewed" ? "default" : "outline"} 
@@ -1250,7 +782,7 @@ export default function HRPage() {
                         onClick={() => setCandidateStageFilter("Reviewed")}
                       >
                         Reviewed
-                        <Badge variant="secondary" className="ml-1">{mockCandidates.filter(c => c.stage === "Reviewed").length}</Badge>
+                        <Badge variant="secondary" className="ml-1">{applicationStats.reviewing}</Badge>
                       </Button>
                       <Button 
                         variant={candidateStageFilter === "Interviewed" ? "default" : "outline"} 
@@ -1259,7 +791,7 @@ export default function HRPage() {
                         onClick={() => setCandidateStageFilter("Interviewed")}
                       >
                         Interviewed
-                        <Badge variant="secondary" className="ml-1">{mockCandidates.filter(c => c.stage === "Interviewed").length}</Badge>
+                        <Badge variant="secondary" className="ml-1">{applicationStats.interviewed}</Badge>
                       </Button>
                       <Button 
                         variant={candidateStageFilter === "Offered" ? "default" : "outline"} 
@@ -1268,78 +800,90 @@ export default function HRPage() {
                         onClick={() => setCandidateStageFilter("Offered")}
                       >
                         Offered
-                        <Badge variant="secondary" className="ml-1">{mockCandidates.filter(c => c.stage === "Offered").length}</Badge>
+                        <Badge variant="secondary" className="ml-1">{applicationStats.offers}</Badge>
                       </Button>
                     </div>
 
                     {/* Candidate List */}
                     <div className="space-y-3">
-                      {mockCandidates.filter(candidate => candidateStageFilter === "All" || candidate.stage === candidateStageFilter).length === 0 ? (
+                      {applications
+                        .filter(app => candidateStageFilter === "All" || 
+                          (candidateStageFilter === "Applied" && app.status === 'new') ||
+                          (candidateStageFilter === "Reviewed" && app.status === 'reviewing') ||
+                          (candidateStageFilter === "Interviewed" && (app.status === 'interviewed' || app.status === 'interview-scheduled')) ||
+                          (candidateStageFilter === "Offered" && app.status === 'offer')
+                        ).length === 0 ? (
                         <div className="text-center py-12 text-muted-foreground">
                           <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
                           <p className="text-lg font-medium mb-1">No candidates in this stage</p>
-                          <p className="text-sm">Try selecting a different stage filter</p>
+                          <p className="text-sm">
+                            {applications.length === 0 
+                              ? 'Candidates will appear here once applications are received'
+                              : 'Try selecting a different stage filter'}
+                          </p>
                         </div>
                       ) : (
-                        mockCandidates
-                          .filter(candidate => candidateStageFilter === "All" || candidate.stage === candidateStageFilter)
-                          .map((candidate) => {
-                        const jobReqs = defaultJobRequirements[candidate.position] || defaultJobRequirements["Senior Developer"]
-                        const zenithScore = calculateZenithMatchScore(candidate, jobReqs)
-                        
-                        return (
-                          <div
-                            key={candidate.id}
-                            className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                          >
-                            {/* Compact Score */}
-                            <div className="flex flex-col items-center min-w-[60px]">
-                              <div className={`text-2xl font-bold ${zenithScore >= 90 ? 'text-green-600' : zenithScore >= 75 ? 'text-blue-600' : 'text-gray-600'}`}>
-                                {zenithScore}
+                        applications
+                          .filter(app => candidateStageFilter === "All" || 
+                            (candidateStageFilter === "Applied" && app.status === 'new') ||
+                            (candidateStageFilter === "Reviewed" && app.status === 'reviewing') ||
+                            (candidateStageFilter === "Interviewed" && (app.status === 'interviewed' || app.status === 'interview-scheduled')) ||
+                            (candidateStageFilter === "Offered" && app.status === 'offer')
+                          )
+                          .map((app) => (
+                            <div key={app.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <h3 className="font-semibold">{app.anonymousId}</h3>
+                                    <Badge variant={
+                                      app.status === 'new' ? 'secondary' :
+                                      app.status === 'reviewing' ? 'default' :
+                                      app.status === 'interviewed' ? 'outline' :
+                                      app.status === 'offer' ? 'default' :
+                                      'secondary'
+                                    }>
+                                      {app.status.replace('-', ' ')}
+                                    </Badge>
+                                    {app.rating && (
+                                      <div className="flex items-center gap-1">
+                                        {Array.from({ length: app.rating }).map((_, i) => (
+                                          <Star key={i} className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {app.jobTitle} • {app.department}
+                                  </p>
+                                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                    <span>
+                                      <Calendar className="inline h-3 w-3 mr-1" />
+                                      Applied: {new Date(app.appliedDate).toLocaleDateString()}
+                                    </span>
+                                    {app.isRevealed && (
+                                      <Badge variant="outline" className="text-xs">
+                                        <Eye className="w-3 h-3 mr-1" />
+                                        Revealed
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedCandidate(app)
+                                      setIsCandidateDetailsOpen(true)
+                                    }}
+                                  >
+                                    View Details
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="text-xs text-muted-foreground">match</div>
                             </div>
-
-                            {/* Candidate Info - Compact */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold">{candidate.candidateId}</h3>
-                                <Badge variant={getStageVariant(candidate.stage)} className={getStageColor(candidate.stage)}>
-                                  {candidate.stage}
-                                </Badge>
-                                <span className="text-sm text-muted-foreground">•</span>
-                                <span className="text-sm font-medium">{candidate.position}</span>
-                              </div>
-                              
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                <span>{candidate.experience}</span>
-                                <span>•</span>
-                                <span>{candidate.education}</span>
-                                <span>•</span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {candidate.daysInStage}d in stage
-                                </span>
-                                <span>•</span>
-                                <span>{candidate.assignedTo}</span>
-                              </div>
-                            </div>
-
-                            {/* Quick Actions */}
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="sm">
-                                <FileText className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm">
-                                <Calendar className="h-4 w-4" />
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                <ArrowRight className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )
-                      })
+                          ))
                       )}
                     </div>
                   </CardContent>
@@ -1384,8 +928,8 @@ export default function HRPage() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">45</div>
-                  <p className="text-xs text-muted-foreground">Across 8 departments</p>
+                  <div className="text-2xl font-bold">{stats.totalEmployees}</div>
+                  <p className="text-xs text-muted-foreground">Across {new Set(employees.map(e => e.department)).size} departments</p>
                 </CardContent>
               </Card>
 
@@ -1395,7 +939,7 @@ export default function HRPage() {
                   <UserPlus className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">3</div>
+                  <div className="text-2xl font-bold">{stats.onboardingEmployees}</div>
                   <p className="text-xs text-muted-foreground">New hires this month</p>
                 </CardContent>
               </Card>
@@ -1406,7 +950,15 @@ export default function HRPage() {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">3.2 yrs</div>
+                  <div className="text-2xl font-bold">
+                    {employees.length > 0 
+                      ? `${(employees.reduce((acc, emp) => {
+                          const years = new Date().getFullYear() - new Date(emp.hire_date).getFullYear();
+                          return acc + years;
+                        }, 0) / employees.length).toFixed(1)} yrs`
+                      : '0 yrs'
+                    }
+                  </div>
                   <p className="text-xs text-muted-foreground">Company average</p>
                 </CardContent>
               </Card>
@@ -1417,29 +969,65 @@ export default function HRPage() {
                   <Heart className="h-4 w-4 text-red-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">8.5/10</div>
-                  <p className="text-xs text-muted-foreground">Latest pulse survey</p>
+                  <div className="text-2xl font-bold">
+                    {employees.length > 0 && stats.avgPerformanceScore > 0 
+                      ? `${stats.avgPerformanceScore.toFixed(1)}/5`
+                      : 'N/A'
+                    }
+                  </div>
+                  <p className="text-xs text-muted-foreground">Avg performance score</p>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Employee Directory</CardTitle>
-                <CardDescription>Comprehensive employee information and management</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Employee Directory</CardTitle>
+                    <CardDescription>Comprehensive employee information and management</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {filteredEmployees.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={selectedEmployees.length === filteredEmployees.length && filteredEmployees.length > 0}
+                          onCheckedChange={handleToggleAll}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          Select All ({selectedEmployees.length} selected)
+                        </span>
+                      </div>
+                    )}
+                    {selectedEmployees.length > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Selected ({selectedEmployees.length})
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {filteredEmployees.map((employee) => (
                     <div
                       key={employee.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                     >
+                      <Checkbox
+                        checked={selectedEmployees.includes(employee.id)}
+                        onCheckedChange={() => handleToggleEmployee(employee.id)}
+                      />
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-semibold">{employee.name}</h3>
                           <Badge variant={getStatusVariant(employee.status)}>{employee.status}</Badge>
-                          {employee.performanceScore && employee.performanceScore >= 4.5 && (
+                          {employee.performance_score && employee.performance_score >= 4.5 && (
                             <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500">
                               <Star className="h-3 w-3 fill-yellow-500" />
                               Top Performer
@@ -1452,12 +1040,12 @@ export default function HRPage() {
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                           <span>
                             <Calendar className="inline h-3 w-3 mr-1" />
-                            Next Review: {getDaysUntilReview(employee.nextReview)}
+                            Next Review: {getDaysUntilReview(employee.next_review_date)}
                           </span>
-                          {employee.performanceScore && (
+                          {employee.performance_score && (
                             <span>
                               <Star className="inline h-3 w-3 mr-1" />
-                              Score: {employee.performanceScore}/5.0
+                              Score: {employee.performance_score.toFixed(1)}/5.0
                             </span>
                           )}
                         </div>
@@ -1512,7 +1100,7 @@ export default function HRPage() {
                   <Star className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">4.2/5</div>
+                  <div className="text-2xl font-bold">{stats.avgPerformanceScore.toFixed(1)}/5</div>
                   <p className="text-xs text-muted-foreground">Across all employees</p>
                 </CardContent>
               </Card>
@@ -1523,7 +1111,7 @@ export default function HRPage() {
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">8</div>
+                  <div className="text-2xl font-bold">{performanceReviews.length}</div>
                   <p className="text-xs text-muted-foreground">This period</p>
                 </CardContent>
               </Card>
@@ -1534,7 +1122,7 @@ export default function HRPage() {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">12%</div>
+                  <div className="text-2xl font-bold">{stats.overdueReviews}</div>
                   <p className="text-xs text-muted-foreground">Need attention</p>
                 </CardContent>
               </Card>
@@ -1545,7 +1133,7 @@ export default function HRPage() {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">3</div>
+                  <div className="text-2xl font-bold">{stats.upcomingReviews}</div>
                   <p className="text-xs text-muted-foreground">Next 30 days</p>
                 </CardContent>
               </Card>
@@ -1567,18 +1155,18 @@ export default function HRPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockPerformanceReviews.map((review) => {
+                  {performanceReviews.map((review) => {
                     const overallRating = calculateOverallRating(review)
                     return (
                       <div key={review.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-semibold">{review.employeeName}</h3>
+                              <h3 className="font-semibold">{review.employee?.name || 'Unknown Employee'}</h3>
                               {getReviewStatusBadge(review.status)}
                               {getTrendIcon(review.trend)}
                             </div>
-                            <p className="text-sm text-muted-foreground">{review.department}</p>
+                            <p className="text-sm text-muted-foreground">{review.employee?.department || 'N/A'}</p>
                           </div>
                           <div className="text-right">
                             <div className={`text-2xl font-bold ${getRatingColor(Number(overallRating))}`}>
@@ -1628,8 +1216,8 @@ export default function HRPage() {
                         </div>
 
                         <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                          <span>Latest Review: {new Date(review.latestReview).toLocaleDateString()}</span>
-                          <span>Next Review: {new Date(review.nextReview).toLocaleDateString()}</span>
+                          <span>Review Date: {new Date(review.review_date).toLocaleDateString()}</span>
+                          <span>Period: {review.review_period}</span>
                         </div>
 
                         <div className="flex gap-2">
@@ -1739,7 +1327,7 @@ export default function HRPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockGoals.map((goal) => (
+                  {goals.map((goal) => (
                     <div key={goal.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
@@ -1751,9 +1339,9 @@ export default function HRPage() {
                             </Badge>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                            <span className="font-medium">{goal.employeeName}</span>
+                            <span className="font-medium">{goal.employee?.name || 'Unknown'}</span>
                             <span>•</span>
-                            <span>{goal.department}</span>
+                            <span>{goal.employee?.department || 'N/A'}</span>
                             <span>•</span>
                             <span className="text-xs bg-accent px-2 py-1 rounded">{goal.category}</span>
                           </div>
@@ -1771,9 +1359,9 @@ export default function HRPage() {
                       <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                         <span>
                           <Calendar className="inline h-3 w-3 mr-1" />
-                          Due: {new Date(goal.dueDate).toLocaleDateString()} ({getDaysUntilDue(goal.dueDate)})
+                          Due: {new Date(goal.due_date).toLocaleDateString()} ({getDaysUntilDue(goal.due_date)})
                         </span>
-                        <span>Created: {new Date(goal.createdDate).toLocaleDateString()}</span>
+                        <span>Created: {new Date(goal.created_date).toLocaleDateString()}</span>
                       </div>
 
                       <div className="flex gap-2">
@@ -1811,7 +1399,7 @@ export default function HRPage() {
                 <DialogHeader>
                   <DialogTitle>Update Goal Progress</DialogTitle>
                   <DialogDescription>
-                    {editingGoal && mockGoals.find(g => g.id === editingGoal)?.goal}
+                    {editingGoal && goals.find(g => g.id === editingGoal)?.goal}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-4">
@@ -1871,10 +1459,12 @@ export default function HRPage() {
                     Cancel
                   </Button>
                   <Button onClick={() => {
-                    console.log(`[v0] Updated goal ${editingGoal} progress to ${goalProgress}%`)
-                    // In a real app, this would update the backend
-                    // For now, just close the dialog
-                    setEditingGoal(null)
+                    if (editingGoal) {
+                      hrApi.updateGoal(editingGoal, { progress: goalProgress }).then(() => {
+                        loadData()
+                        setEditingGoal(null)
+                      })
+                    }
                   }}>
                     Save Progress
                   </Button>
@@ -1893,10 +1483,10 @@ export default function HRPage() {
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">45</div>
+                    <div className="text-2xl font-bold">{stats.totalEmployees}</div>
                     <p className="text-xs text-muted-foreground">
                       <TrendingUp className="inline h-3 w-3 mr-1 text-green-500" />
-                      +5% from last quarter
+                      {stats.onboardingEmployees > 0 ? `+${stats.onboardingEmployees} onboarding` : 'Stable headcount'}
                     </p>
                   </CardContent>
                 </Card>
@@ -1907,10 +1497,15 @@ export default function HRPage() {
                     <TrendingDown className="h-4 w-4 text-green-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">8.5%</div>
+                    <div className="text-2xl font-bold">
+                      {employees.filter(e => e.status === 'Inactive').length > 0 
+                        ? `${((employees.filter(e => e.status === 'Inactive').length / stats.totalEmployees) * 100).toFixed(1)}%`
+                        : '0%'
+                      }
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       <TrendingDown className="inline h-3 w-3 mr-1 text-green-500" />
-                      -2% from last quarter
+                      Low turnover rate
                     </p>
                   </CardContent>
                 </Card>
@@ -1921,7 +1516,15 @@ export default function HRPage() {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">3.2 yrs</div>
+                    <div className="text-2xl font-bold">
+                      {employees.length > 0 
+                        ? `${(employees.reduce((acc, emp) => {
+                            const years = new Date().getFullYear() - new Date(emp.hire_date).getFullYear();
+                            return acc + years;
+                          }, 0) / employees.length).toFixed(1)} yrs`
+                        : '0 yrs'
+                      }
+                    </div>
                     <p className="text-xs text-muted-foreground">Average employee tenure</p>
                   </CardContent>
                 </Card>
@@ -1932,7 +1535,12 @@ export default function HRPage() {
                     <Target className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">82%</div>
+                    <div className="text-2xl font-bold">
+                      {stats.totalGoals > 0 
+                        ? `${Math.round((stats.completeGoals / stats.totalGoals) * 100)}%`
+                        : '0%'
+                      }
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       <TrendingUp className="inline h-3 w-3 mr-1 text-green-500" />
                       +7% from last quarter
@@ -1957,23 +1565,23 @@ export default function HRPage() {
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm">Male</span>
-                            <span className="text-sm font-medium">{mockDiversityMetrics.gender.male}%</span>
+                            <span className="text-sm font-medium">-</span>
                           </div>
-                          <Progress value={mockDiversityMetrics.gender.male} className="h-2" />
+                          <Progress value={0} className="h-2" />
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm">Female</span>
-                            <span className="text-sm font-medium">{mockDiversityMetrics.gender.female}%</span>
+                            <span className="text-sm font-medium">-</span>
                           </div>
-                          <Progress value={mockDiversityMetrics.gender.female} className="h-2" />
+                          <Progress value={0} className="h-2" />
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm">Non-Binary</span>
-                            <span className="text-sm font-medium">{mockDiversityMetrics.gender.nonBinary}%</span>
+                            <span className="text-sm font-medium">-</span>
                           </div>
-                          <Progress value={mockDiversityMetrics.gender.nonBinary} className="h-2" />
+                          <Progress value={0} className="h-2" />
                         </div>
                       </div>
                     </div>
@@ -1984,20 +1592,16 @@ export default function HRPage() {
                         <div className="p-3 border rounded-lg">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm">Hiring Diversity</span>
-                            <span className="text-lg font-bold text-green-500">
-                              {mockDiversityMetrics.hiringDiversity}%
-                            </span>
+                            <span className="text-lg font-bold text-muted-foreground">-</span>
                           </div>
-                          <Progress value={mockDiversityMetrics.hiringDiversity} className="h-2" />
+                          <Progress value={0} className="h-2" />
                         </div>
                         <div className="p-3 border rounded-lg">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm">Leadership Diversity</span>
-                            <span className="text-lg font-bold text-yellow-500">
-                              {mockDiversityMetrics.leadershipDiversity}%
-                            </span>
+                            <span className="text-lg font-bold text-muted-foreground">-</span>
                           </div>
-                          <Progress value={mockDiversityMetrics.leadershipDiversity} className="h-2" />
+                          <Progress value={0} className="h-2" />
                         </div>
                       </div>
                     </div>
@@ -2017,33 +1621,10 @@ export default function HRPage() {
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Application Sources</h3>
                       <div className="space-y-3">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">LinkedIn</span>
-                            <span className="text-sm font-medium">45%</span>
-                          </div>
-                          <Progress value={45} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Indeed</span>
-                            <span className="text-sm font-medium">30%</span>
-                          </div>
-                          <Progress value={30} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Company Website</span>
-                            <span className="text-sm font-medium">15%</span>
-                          </div>
-                          <Progress value={15} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Referrals</span>
-                            <span className="text-sm font-medium">10%</span>
-                          </div>
-                          <Progress value={10} className="h-2" />
+                        <div className="text-center py-8 text-muted-foreground">
+                          <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No application source data available</p>
+                          <p className="text-xs mt-1">Data will appear here as applications are received</p>
                         </div>
                       </div>
                     </div>
@@ -2051,36 +1632,21 @@ export default function HRPage() {
                     {/* Time to Hire by Department */}
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Average Time to Hire (Days)</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Engineering</p>
-                          <p className="text-2xl font-bold">32</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Sales</p>
-                          <p className="text-2xl font-bold">24</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Marketing</p>
-                          <p className="text-2xl font-bold">28</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">HR</p>
-                          <p className="text-2xl font-bold">26</p>
-                        </div>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No hiring data available</p>
+                        <p className="text-xs mt-1">Time to hire metrics will appear here as positions are filled</p>
                       </div>
                     </div>
 
                     {/* Offer Acceptance Rate */}
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Offer Acceptance Rate</h3>
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <Progress value={85} className="h-3" />
-                        </div>
-                        <div className="text-2xl font-bold text-green-500">85%</div>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No offer data available</p>
+                        <p className="text-xs mt-1">Acceptance rate will appear here as offers are made</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">17 out of 20 offers accepted this quarter</p>
                     </div>
                   </div>
                 </CardContent>
@@ -2097,82 +1663,30 @@ export default function HRPage() {
                     {/* Department Performance */}
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Average Performance Score by Department</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Engineering</span>
-                            <span className="text-sm font-medium text-green-500">4.5/5</span>
-                          </div>
-                          <Progress value={90} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Sales</span>
-                            <span className="text-sm font-medium text-green-500">4.6/5</span>
-                          </div>
-                          <Progress value={92} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Marketing</span>
-                            <span className="text-sm font-medium text-green-500">4.3/5</span>
-                          </div>
-                          <Progress value={86} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Human Resources</span>
-                            <span className="text-sm font-medium text-green-500">4.4/5</span>
-                          </div>
-                          <Progress value={88} className="h-2" />
-                        </div>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Star className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No performance data available</p>
+                        <p className="text-xs mt-1">Department performance will appear here as reviews are completed</p>
                       </div>
                     </div>
 
                     {/* Review Completion Rate */}
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Review Completion Rate</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Completed</p>
-                          <p className="text-2xl font-bold text-green-500">88%</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Overdue</p>
-                          <p className="text-2xl font-bold text-red-500">12%</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Upcoming</p>
-                          <p className="text-2xl font-bold text-blue-500">15</p>
-                        </div>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No review completion data available</p>
+                        <p className="text-xs mt-1">Review completion rates will appear here as reviews are conducted</p>
                       </div>
                     </div>
 
                     {/* Performance Trends */}
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Performance Trends</h3>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="p-3 border rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <TrendingUp className="h-4 w-4 text-green-500" />
-                            <p className="text-xs text-muted-foreground">Improving</p>
-                          </div>
-                          <p className="text-2xl font-bold">65%</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Minus className="h-4 w-4 text-gray-500" />
-                            <p className="text-xs text-muted-foreground">Stable</p>
-                          </div>
-                          <p className="text-2xl font-bold">30%</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <TrendingDown className="h-4 w-4 text-red-500" />
-                            <p className="text-xs text-muted-foreground">Declining</p>
-                          </div>
-                          <p className="text-2xl font-bold">5%</p>
-                        </div>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No performance trend data available</p>
+                        <p className="text-xs mt-1">Performance trends will appear here as review data accumulates</p>
                       </div>
                     </div>
                   </div>
@@ -2191,61 +1705,35 @@ export default function HRPage() {
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Headcount by Department</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Engineering</p>
-                          <p className="text-2xl font-bold">18</p>
-                          <p className="text-xs text-muted-foreground">40%</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Sales</p>
-                          <p className="text-2xl font-bold">12</p>
-                          <p className="text-xs text-muted-foreground">27%</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Marketing</p>
-                          <p className="text-2xl font-bold">8</p>
-                          <p className="text-xs text-muted-foreground">18%</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Other</p>
-                          <p className="text-2xl font-bold">7</p>
-                          <p className="text-xs text-muted-foreground">15%</p>
-                        </div>
+                        {new Set(employees.map(e => e.department)).size > 0 ? (
+                          Array.from(new Set(employees.map(e => e.department))).map(dept => {
+                            const deptCount = employees.filter(e => e.department === dept).length;
+                            const percentage = ((deptCount / employees.length) * 100).toFixed(0);
+                            return (
+                              <div key={dept} className="p-3 border rounded-lg">
+                                <p className="text-xs text-muted-foreground mb-1">{dept}</p>
+                                <p className="text-2xl font-bold">{deptCount}</p>
+                                <p className="text-xs text-muted-foreground">{percentage}%</p>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="col-span-full text-center py-8 text-muted-foreground">
+                            <Building className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No department data available</p>
+                            <p className="text-xs mt-1">Department breakdown will appear here as employees are added</p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Tenure Distribution */}
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Tenure Distribution</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">0-1 years</span>
-                            <span className="text-sm font-medium">35%</span>
-                          </div>
-                          <Progress value={35} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">1-3 years</span>
-                            <span className="text-sm font-medium">40%</span>
-                          </div>
-                          <Progress value={40} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">3-5 years</span>
-                            <span className="text-sm font-medium">15%</span>
-                          </div>
-                          <Progress value={15} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">5+ years</span>
-                            <span className="text-sm font-medium">10%</span>
-                          </div>
-                          <Progress value={10} className="h-2" />
-                        </div>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No tenure data available</p>
+                        <p className="text-xs mt-1">Tenure distribution will appear here as employees are added</p>
                       </div>
                     </div>
 
@@ -2255,15 +1743,19 @@ export default function HRPage() {
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="p-3 border rounded-lg">
                           <p className="text-xs text-muted-foreground mb-1">Goal Completion</p>
-                          <p className="text-2xl font-bold text-green-500">82%</p>
+                          <p className="text-2xl font-bold text-green-500">
+                            {stats.totalGoals > 0 ? `${Math.round((stats.completeGoals / stats.totalGoals) * 100)}%` : '0%'}
+                          </p>
                         </div>
                         <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Avg NPS Score</p>
-                          <p className="text-2xl font-bold text-green-500">8.5</p>
+                          <p className="text-xs text-muted-foreground mb-1">Avg Performance</p>
+                          <p className="text-2xl font-bold text-green-500">
+                            {stats.avgPerformanceScore > 0 ? stats.avgPerformanceScore.toFixed(1) : 'N/A'}
+                          </p>
                         </div>
                         <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Training Hours</p>
-                          <p className="text-2xl font-bold">24</p>
+                          <p className="text-xs text-muted-foreground mb-1">Learning Paths</p>
+                          <p className="text-2xl font-bold">{learningPaths.length}</p>
                         </div>
                       </div>
                     </div>
@@ -2298,18 +1790,18 @@ export default function HRPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockCareerPaths.map((path) => (
+                    {careerPaths.map((path) => (
                       <div key={path.id} className="p-4 border rounded-lg">
                         <div className="flex items-start justify-between mb-4">
                           <div>
-                            <h3 className="font-semibold mb-1">{path.employee}</h3>
+                            <h3 className="font-semibold mb-1">{path.employee?.name || 'Unknown'}</h3>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span>{path.currentRole}</span>
+                              <span>{path.current_role_name}</span>
                               <ArrowRight className="h-4 w-4" />
-                              <span className="font-medium text-foreground">{path.nextRole}</span>
+                              <span className="font-medium text-foreground">{path.next_role}</span>
                             </div>
                           </div>
-                          <Badge variant="outline">{path.timeToPromotion}</Badge>
+                          <Badge variant="outline">{path.time_to_promotion}</Badge>
                         </div>
 
                         <div className="mb-3">
@@ -2323,7 +1815,7 @@ export default function HRPage() {
                         <div>
                           <p className="text-xs text-muted-foreground mb-2">Required Skills:</p>
                           <div className="flex flex-wrap gap-2">
-                            {path.requiredSkills.map((skill, idx) => (
+                            {path.required_skills.map((skill, idx) => (
                               <Badge key={idx} variant="secondary">
                                 {skill}
                               </Badge>
@@ -2353,26 +1845,26 @@ export default function HRPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockMentorships.map((match) => (
+                    {mentorships.map((match) => (
                       <div key={match.id} className="p-4 border rounded-lg">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-semibold">{match.mentor}</h4>
+                              <h4 className="font-semibold">{match.mentor?.name || 'Unknown'}</h4>
                               <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                              <h4 className="font-semibold">{match.mentee}</h4>
+                              <h4 className="font-semibold">{match.mentee?.name || 'Unknown'}</h4>
                             </div>
                             <p className="text-sm text-muted-foreground">Focus: {match.focus}</p>
                           </div>
                           <div className="text-right">
                             <Badge variant="outline" className="gap-1">
                               <Sparkles className="h-3 w-3" />
-                              {match.matchScore}% match
+                              {match.match_score}% match
                             </Badge>
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Started: {new Date(match.startDate).toLocaleDateString()}</span>
+                          <span>Started: {new Date(match.start_date).toLocaleDateString()}</span>
                           <Badge variant="secondary">{match.status}</Badge>
                         </div>
                       </div>
@@ -2392,11 +1884,11 @@ export default function HRPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockLearningPaths.map((learning) => (
+                    {learningPaths.map((learning) => (
                       <div key={learning.id} className="p-4 border rounded-lg">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h4 className="font-semibold mb-1">{learning.employee}</h4>
+                            <h4 className="font-semibold mb-1">{learning.employee?.name || 'Unknown'}</h4>
                             <p className="text-sm text-muted-foreground">{learning.course}</p>
                           </div>
                           <Badge variant={learning.status === "completed" ? "secondary" : "default"}>
@@ -2418,7 +1910,7 @@ export default function HRPage() {
                           <Progress value={learning.progress} className="h-2" />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Due: {new Date(learning.dueDate).toLocaleDateString()}
+                          Due: {new Date(learning.due_date).toLocaleDateString()}
                         </p>
                       </div>
                     ))}
@@ -2443,7 +1935,7 @@ export default function HRPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockRecognitions.map((recognition) => (
+                    {recognitions.map((recognition) => (
                       <div key={recognition.id} className="p-4 border rounded-lg bg-accent/30">
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -2451,14 +1943,14 @@ export default function HRPage() {
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold">{recognition.from}</span>
+                              <span className="font-semibold">{recognition.from_name}</span>
                               <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold">{recognition.to}</span>
+                              <span className="font-semibold">{recognition.to_name}</span>
                               <Badge variant="outline">{recognition.category}</Badge>
                             </div>
                             <p className="text-sm mb-2">{recognition.message}</p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(recognition.date).toLocaleDateString()} • {recognition.type}
+                              {new Date(recognition.recognition_date).toLocaleDateString()} • {recognition.type}
                             </p>
                           </div>
                         </div>
@@ -2488,7 +1980,9 @@ export default function HRPage() {
                         <AlertTriangle className="h-5 w-5 text-yellow-500" />
                         <h3 className="font-semibold">Retention Risks</h3>
                       </div>
-                      <div className="text-3xl font-bold text-yellow-500 mb-1">3</div>
+                      <div className="text-3xl font-bold text-yellow-500 mb-1">
+                        {employees.filter(e => e.performance_score && e.performance_score < 3).length}
+                      </div>
                       <p className="text-xs text-muted-foreground">Employees at risk</p>
                     </div>
 
@@ -2497,7 +1991,9 @@ export default function HRPage() {
                         <Rocket className="h-5 w-5 text-green-500" />
                         <h3 className="font-semibold">High Performers</h3>
                       </div>
-                      <div className="text-3xl font-bold text-green-500 mb-1">8</div>
+                      <div className="text-3xl font-bold text-green-500 mb-1">
+                        {employees.filter(e => e.performance_score && e.performance_score >= 4.5).length}
+                      </div>
                       <p className="text-xs text-muted-foreground">Ready for promotion</p>
                     </div>
 
@@ -2506,105 +2002,24 @@ export default function HRPage() {
                         <GraduationCap className="h-5 w-5 text-blue-500" />
                         <h3 className="font-semibold">Skill Gaps</h3>
                       </div>
-                      <div className="text-3xl font-bold text-blue-500 mb-1">5</div>
-                      <p className="text-xs text-muted-foreground">Areas need training</p>
+                      <div className="text-3xl font-bold text-blue-500 mb-1">
+                        {learningPaths.length}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Active learning paths</p>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     <h3 className="font-semibold">Detailed Insights</h3>
-                    {mockAIInsights.map((insight) => (
-                      <div key={insight.id} className="p-4 border rounded-lg bg-accent/30">
-                        {insight.type === "retention-risk" && (
-                          <>
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                                <div>
-                                  <h4 className="font-semibold">Retention Risk: {insight.employee}</h4>
-                                  <p className="text-sm text-muted-foreground">Predicted churn probability: 65%</p>
-                                </div>
-                              </div>
-                              <Badge variant="outline" className="text-yellow-500 border-yellow-500">
-                                {insight.risk} risk
-                              </Badge>
-                            </div>
-                            <div className="mb-3">
-                              <p className="text-sm font-medium mb-2">Contributing Factors:</p>
-                              <ul className="space-y-1">
-                                {insight.factors?.map((factor, idx) => (
-                                  <li key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-                                    {factor}
-                                  </li>
-                                )) || <li className="text-sm text-muted-foreground">No factors available</li>}
-                              </ul>
-                            </div>
-                            <div className="p-3 bg-primary/5 rounded-lg">
-                              <div className="flex items-start gap-2">
-                                <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <p className="text-sm font-medium text-primary mb-1">Recommended Actions:</p>
-                                  <p className="text-sm">{insight.recommendation}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                        {insight.type === "high-performer" && (
-                          <>
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <Rocket className="h-5 w-5 text-green-500" />
-                                <div>
-                                  <h4 className="font-semibold">High Performer: {insight.employee}</h4>
-                                  <p className="text-sm text-muted-foreground">
-                                    Performance score: {insight.score}/5.0
-                                  </p>
-                                </div>
-                              </div>
-                              <Badge variant="outline" className="text-green-500 border-green-500">
-                                Top 10%
-                              </Badge>
-                            </div>
-                            <div className="p-3 bg-primary/5 rounded-lg">
-                              <div className="flex items-start gap-2">
-                                <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <p className="text-sm font-medium text-primary mb-1">Recommended Actions:</p>
-                                  <p className="text-sm">{insight.recommendation}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                        {insight.type === "skill-gap" && (
-                          <>
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <GraduationCap className="h-5 w-5 text-blue-500" />
-                                <div>
-                                  <h4 className="font-semibold">Skill Gap: {insight.gap}</h4>
-                                  <p className="text-sm text-muted-foreground">Department: {insight.department}</p>
-                                </div>
-                              </div>
-                              <Badge variant="outline" className="text-blue-500 border-blue-500">
-                                Critical
-                              </Badge>
-                            </div>
-                            <div className="p-3 bg-primary/5 rounded-lg">
-                              <div className="flex items-start gap-2">
-                                <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <p className="text-sm font-medium text-primary mb-1">Recommended Actions:</p>
-                                  <p className="text-sm">{insight.recommendation}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        )}
+                    {isLoading ? (
+                      <div className="text-center py-8 text-muted-foreground">Loading insights...</div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p className="text-lg font-medium mb-1">No insights available</p>
+                        <p className="text-sm">Insights will appear here as data is analyzed</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -2620,50 +2035,60 @@ export default function HRPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mock360Feedback.map((feedback) => (
-                      <div key={feedback.id} className="p-4 border rounded-lg">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="font-semibold mb-1">{feedback.employeeName}</h3>
-                            <p className="text-sm text-muted-foreground">{feedback.feedbackCount} feedback responses</p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-green-500">{feedback.overallScore}</div>
-                            <p className="text-xs text-muted-foreground">Overall Score</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="p-3 border rounded-lg">
-                            <p className="text-xs text-muted-foreground mb-1">Self Rating</p>
-                            <p className="text-lg font-bold">{feedback.selfRating}</p>
-                          </div>
-                          <div className="p-3 border rounded-lg">
-                            <p className="text-xs text-muted-foreground mb-1">Manager</p>
-                            <p className="text-lg font-bold">{feedback.managerRating}</p>
-                          </div>
-                          <div className="p-3 border rounded-lg">
-                            <p className="text-xs text-muted-foreground mb-1">Peers</p>
-                            <p className="text-lg font-bold">{feedback.peerRating}</p>
-                          </div>
-                          <div className="p-3 border rounded-lg">
-                            <p className="text-xs text-muted-foreground mb-1">Direct Reports</p>
-                            <p className="text-lg font-bold">{feedback.directReportRating || "N/A"}</p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <FileText className="mr-2 h-4 w-4" />
-                            View Details
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            Request Feedback
-                          </Button>
-                        </div>
+                    {isLoading ? (
+                      <div className="text-center py-8 text-muted-foreground">Loading feedback...</div>
+                    ) : feedback360.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p className="text-lg font-medium mb-1">No 360° feedback available</p>
+                        <p className="text-sm">Feedback will appear here once collected</p>
                       </div>
-                    ))}
+                    ) : (
+                      feedback360.map((feedback) => (
+                        <div key={feedback.id} className="p-4 border rounded-lg">
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h3 className="font-semibold mb-1">{feedback.employee?.name || 'Unknown Employee'}</h3>
+                              <p className="text-sm text-muted-foreground">{feedback.feedback_count} feedback responses</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-green-500">{feedback.overall_score?.toFixed(2) || 'N/A'}</div>
+                              <p className="text-xs text-muted-foreground">Overall Score</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="p-3 border rounded-lg">
+                              <p className="text-xs text-muted-foreground mb-1">Self Rating</p>
+                              <p className="text-lg font-bold">{feedback.self_rating?.toFixed(1) || 'N/A'}</p>
+                            </div>
+                            <div className="p-3 border rounded-lg">
+                              <p className="text-xs text-muted-foreground mb-1">Manager</p>
+                              <p className="text-lg font-bold">{feedback.manager_rating?.toFixed(1) || 'N/A'}</p>
+                            </div>
+                            <div className="p-3 border rounded-lg">
+                              <p className="text-xs text-muted-foreground mb-1">Peers</p>
+                              <p className="text-lg font-bold">{feedback.peer_rating?.toFixed(1) || 'N/A'}</p>
+                            </div>
+                            <div className="p-3 border rounded-lg">
+                              <p className="text-xs text-muted-foreground mb-1">Direct Reports</p>
+                              <p className="text-lg font-bold">{feedback.direct_report_rating?.toFixed(1) || 'N/A'}</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex gap-2">
+                            <Button variant="outline" size="sm">
+                              <FileText className="mr-2 h-4 w-4" />
+                              View Details
+                            </Button>
+                            <Button variant="outline" size="sm">
+                              <MessageSquare className="mr-2 h-4 w-4" />
+                              Request Feedback
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -2681,50 +2106,19 @@ export default function HRPage() {
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Hiring Forecast (Next 6 Months)</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Engineering</p>
-                          <p className="text-2xl font-bold">+5</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Sales</p>
-                          <p className="text-2xl font-bold">+3</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Marketing</p>
-                          <p className="text-2xl font-bold">+2</p>
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Operations</p>
-                          <p className="text-2xl font-bold">+2</p>
-                        </div>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No hiring forecast available</p>
+                        <p className="text-xs mt-1">Hiring forecasts will appear here as workforce planning data is available</p>
                       </div>
                     </div>
 
                     <div>
                       <h3 className="text-sm font-semibold mb-3">Predicted Attrition Risk</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Low Risk</span>
-                            <span className="text-sm font-medium text-green-500">75%</span>
-                          </div>
-                          <Progress value={75} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">Medium Risk</span>
-                            <span className="text-sm font-medium text-yellow-500">18%</span>
-                          </div>
-                          <Progress value={18} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm">High Risk</span>
-                            <span className="text-sm font-medium text-red-500">7%</span>
-                          </div>
-                          <Progress value={7} className="h-2" />
-                        </div>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No attrition risk data available</p>
+                        <p className="text-xs mt-1">Attrition predictions will appear here as employee data accumulates</p>
                       </div>
                     </div>
                   </div>
@@ -2810,21 +2204,21 @@ export default function HRPage() {
                       <Card className="min-w-0">
                         <CardContent className="pt-5 pb-5 text-center px-3">
                           <div className="text-2xl font-bold mb-1">
-                            {mockGoals.filter(g => g.employeeId === selectedEmployee.id && g.status === 'completed').length}/
-                            {mockGoals.filter(g => g.employeeId === selectedEmployee.id).length}
+                            {goals.filter(g => g.employee_id === selectedEmployee.id && g.status === 'Complete').length}/
+                            {goals.filter(g => g.employee_id === selectedEmployee.id).length}
                           </div>
                           <p className="text-sm text-muted-foreground whitespace-nowrap">Goals</p>
                         </CardContent>
                       </Card>
                       <Card className="min-w-0">
                         <CardContent className="pt-5 pb-5 text-center px-3">
-                          <div className="text-2xl font-bold mb-1 whitespace-nowrap">2.5 yrs</div>
+                          <div className="text-2xl font-bold mb-1 whitespace-nowrap">-</div>
                           <p className="text-sm text-muted-foreground whitespace-nowrap">Tenure</p>
                         </CardContent>
                       </Card>
                       <Card className="min-w-0">
                         <CardContent className="pt-5 pb-5 text-center px-3">
-                          <div className="text-xl font-bold mb-1">{getDaysUntilReview(selectedEmployee.nextReview)}</div>
+                          <div className="text-xl font-bold mb-1">{getDaysUntilReview(selectedEmployee.next_review_date)}</div>
                           <p className="text-sm text-muted-foreground whitespace-nowrap">Next Review</p>
                         </CardContent>
                       </Card>
@@ -2869,14 +2263,14 @@ export default function HRPage() {
                             <User className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-muted-foreground mb-1">Manager</p>
-                              <p className="text-base font-medium break-words">Sarah Williams</p>
+                              <p className="text-base font-medium break-words">{selectedEmployee.manager?.name || 'N/A'}</p>
                             </div>
                           </div>
                           <div className="flex items-start gap-3 min-w-0">
                             <Building className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-muted-foreground mb-1">Location</p>
-                              <p className="text-base font-medium break-words">San Francisco, CA</p>
+                              <p className="text-base font-medium break-words">-</p>
                             </div>
                           </div>
                         </div>
@@ -2894,14 +2288,14 @@ export default function HRPage() {
                             <Mail className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-muted-foreground mb-1">Email</p>
-                              <p className="text-base font-medium break-all">{selectedEmployee.name.toLowerCase().replace(' ', '.')}@company.com</p>
+                              <p className="text-base font-medium break-all">{selectedEmployee.email || 'N/A'}</p>
                             </div>
                           </div>
                           <div className="flex items-start gap-3 min-w-0">
                             <Phone className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-muted-foreground mb-1">Phone</p>
-                              <p className="text-base font-medium">+1 (555) 123-4567</p>
+                              <p className="text-base font-medium">{selectedEmployee.phone || 'N/A'}</p>
                             </div>
                           </div>
                         </div>
@@ -2916,103 +2310,115 @@ export default function HRPage() {
                         <p className="text-sm text-muted-foreground">Historical performance data</p>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {mockPerformanceReviews
-                          .filter(review => review.employeeId === selectedEmployee.id)
-                          .map((review) => (
-                            <div key={review.id} className="p-4 border rounded-lg">
-                              <div className="flex items-center justify-between mb-4">
-                                <div>
-                                  <p className="text-base font-medium">Latest Review</p>
-                                  <p className="text-sm text-muted-foreground">{review.latestReview}</p>
+                        {performanceReviews
+                          .filter(review => review.employee_id === selectedEmployee.id)
+                          .length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No performance reviews yet</p>
+                          </div>
+                        ) : (
+                          performanceReviews
+                            .filter(review => review.employee_id === selectedEmployee.id)
+                            .map((review) => (
+                              <div key={review.id} className="p-4 border rounded-lg">
+                                <div className="flex items-center justify-between mb-4">
+                                  <div>
+                                    <p className="text-base font-medium">Review Period: {review.review_period}</p>
+                                    <p className="text-sm text-muted-foreground">{new Date(review.review_date).toLocaleDateString()}</p>
+                                  </div>
+                                  <Badge variant={review.status === 'on-time' ? 'default' : 'secondary'} className="text-sm flex-shrink-0">
+                                    {review.status}
+                                  </Badge>
                                 </div>
-                                <Badge variant={review.status === 'on-time' ? 'default' : 'secondary'} className="text-sm flex-shrink-0">
-                                  {review.status}
-                                </Badge>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                  <div>
+                                    <p className="text-sm text-muted-foreground mb-2">Collaboration</p>
+                                    <div className="flex items-center gap-1">
+                                      {Array.from({ length: review.collaboration }).map((_, i) => (
+                                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-muted-foreground mb-2">Accountability</p>
+                                    <div className="flex items-center gap-1">
+                                      {Array.from({ length: review.accountability }).map((_, i) => (
+                                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-muted-foreground mb-2">Leadership</p>
+                                    <div className="flex items-center gap-1">
+                                      {Array.from({ length: review.leadership }).map((_, i) => (
+                                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-muted-foreground mb-2">Trustworthy</p>
+                                    <div className="flex items-center gap-1">
+                                      {Array.from({ length: review.trustworthy }).map((_, i) => (
+                                        <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <div>
-                                  <p className="text-sm text-muted-foreground mb-2">Collaboration</p>
-                                  <div className="flex items-center gap-1">
-                                    {Array.from({ length: review.collaboration }).map((_, i) => (
-                                      <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                                    ))}
-                                  </div>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground mb-2">Accountability</p>
-                                  <div className="flex items-center gap-1">
-                                    {Array.from({ length: review.accountability }).map((_, i) => (
-                                      <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                                    ))}
-                                  </div>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground mb-2">Leadership</p>
-                                  <div className="flex items-center gap-1">
-                                    {Array.from({ length: review.leadership }).map((_, i) => (
-                                      <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                                    ))}
-                                  </div>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground mb-2">Trustworthy</p>
-                                  <div className="flex items-center gap-1">
-                                    {Array.from({ length: review.trustworthy }).map((_, i) => (
-                                      <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                            ))
+                        )}
                       </CardContent>
                     </Card>
                   </TabsContent>
 
                   <TabsContent value="goals" className="mt-0 space-y-4">
-                    {mockGoals
-                      .filter(goal => goal.employeeId === selectedEmployee.id)
-                      .map((goal) => (
-                        <Card key={goal.id}>
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <CardTitle className="text-base truncate">{goal.goal}</CardTitle>
-                                <p className="text-sm text-muted-foreground mt-1 truncate">{goal.category}</p>
-                              </div>
-                              <Badge 
-                                variant="outline"
-                                className={`flex-shrink-0 text-sm ${
-                                  goal.status === 'active' ? 'border-blue-500 text-blue-600 bg-blue-500/10' :
-                                  goal.status === 'completed' ? 'border-green-500 text-green-600 bg-green-500/10' :
-                                  goal.status === 'at-risk' ? 'border-red-500 text-red-600 bg-red-500/10' :
-                                  ''
-                                }`}
-                              >
-                                {goal.status}
-                              </Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between text-sm mb-2">
-                                <span className="text-muted-foreground">Progress</span>
-                                <span className="font-medium text-base">{goal.progress}%</span>
-                              </div>
-                              <Progress value={goal.progress} className="h-2" />
-                              <div className="flex items-center justify-between text-sm text-muted-foreground pt-1">
-                                <span className="truncate">Due: {goal.dueDate}</span>
-                                <span className="truncate">Created: {goal.createdDate}</span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    {mockGoals.filter(goal => goal.employeeId === selectedEmployee.id).length === 0 && (
+                    {goals
+                      .filter(goal => goal.employee_id === selectedEmployee.id)
+                      .length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground">
                         <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p className="text-sm">No goals assigned yet</p>
                       </div>
+                    ) : (
+                      goals
+                        .filter(goal => goal.employee_id === selectedEmployee.id)
+                        .map((goal) => (
+                          <Card key={goal.id}>
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <CardTitle className="text-base truncate">{goal.goal}</CardTitle>
+                                  <p className="text-sm text-muted-foreground mt-1 truncate">{goal.category}</p>
+                                </div>
+                                <Badge 
+                                  variant="outline"
+                                  className={`flex-shrink-0 text-sm ${
+                                    goal.status === 'On Track' ? 'border-green-500 text-green-600 bg-green-500/10' :
+                                    goal.status === 'Complete' ? 'border-blue-500 text-blue-600 bg-blue-500/10' :
+                                    goal.status === 'Behind' ? 'border-red-500 text-red-600 bg-red-500/10' :
+                                    ''
+                                  }`}
+                                >
+                                  {goal.status}
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between text-sm mb-2">
+                                  <span className="text-muted-foreground">Progress</span>
+                                  <span className="font-medium text-base">{goal.progress}%</span>
+                                </div>
+                                <Progress value={goal.progress} className="h-2" />
+                                <div className="flex items-center justify-between text-sm text-muted-foreground pt-1">
+                                  <span className="truncate">Due: {new Date(goal.due_date).toLocaleDateString()}</span>
+                                  <span className="truncate">Created: {new Date(goal.created_date).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
                     )}
                   </TabsContent>
 
@@ -3024,11 +2430,11 @@ export default function HRPage() {
                       <CardContent className="space-y-4">
                         <div className="flex items-center justify-between text-base">
                           <span className="text-muted-foreground">Last Review</span>
-                          <span className="font-medium">{selectedEmployee.lastReview || 'N/A'}</span>
+                          <span className="font-medium">{selectedEmployee.last_review_date ? new Date(selectedEmployee.last_review_date).toLocaleDateString() : 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between text-base">
                           <span className="text-muted-foreground">Next Review</span>
-                          <span className="font-medium">{selectedEmployee.nextReview}</span>
+                          <span className="font-medium">{selectedEmployee.next_review_date ? new Date(selectedEmployee.next_review_date).toLocaleDateString() : 'Not scheduled'}</span>
                         </div>
                         <div className="flex items-center justify-between text-base">
                           <span className="text-muted-foreground">Review Cycle</span>
@@ -3113,52 +2519,55 @@ export default function HRPage() {
             </DialogHeader>
             {selectedEmployee && (
               <div className="space-y-4">
-                {mockGoals
-                  .filter(goal => goal.employeeId === selectedEmployee.id)
-                  .map((goal) => (
-                    <Card key={goal.id}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-base">{goal.goal}</CardTitle>
-                            <CardDescription className="mt-1">{goal.department} • {goal.category}</CardDescription>
-                          </div>
-                          <Badge 
-                            variant="outline" 
-                            className={
-                              goal.status === 'active' ? 'border-blue-500 text-blue-600 bg-blue-500/10' :
-                              goal.status === 'completed' ? 'border-green-500 text-green-600 bg-green-500/10' :
-                              goal.status === 'at-risk' ? 'border-red-500 text-red-600 bg-red-500/10' :
-                              ''
-                            }
-                          >
-                            {goal.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Progress</span>
-                            <span className="font-medium">{goal.progress}%</span>
-                          </div>
-                          <Progress value={goal.progress} className="h-2" />
-                          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
-                            <span>
-                              <Calendar className="inline h-3 w-3 mr-1" />
-                              Due: {goal.dueDate}
-                            </span>
-                            <span className="capitalize">{goal.category}</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                {mockGoals.filter(goal => goal.employeeId === selectedEmployee.id).length === 0 && (
+                {goals
+                  .filter(goal => goal.employee_id === selectedEmployee.id)
+                  .length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Target className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p>No goals assigned yet</p>
                   </div>
+                ) : (
+                  goals
+                    .filter(goal => goal.employee_id === selectedEmployee.id)
+                    .map((goal) => (
+                      <Card key={goal.id}>
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-base">{goal.goal}</CardTitle>
+                              <CardDescription className="mt-1">{goal.employee?.department || 'N/A'} • {goal.category}</CardDescription>
+                            </div>
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                goal.status === 'On Track' ? 'border-green-500 text-green-600 bg-green-500/10' :
+                                goal.status === 'Complete' ? 'border-blue-500 text-blue-600 bg-blue-500/10' :
+                                goal.status === 'Behind' ? 'border-red-500 text-red-600 bg-red-500/10' :
+                                ''
+                              }
+                            >
+                              {goal.status}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Progress</span>
+                              <span className="font-medium">{goal.progress}%</span>
+                            </div>
+                            <Progress value={goal.progress} className="h-2" />
+                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
+                              <span>
+                                <Calendar className="inline h-3 w-3 mr-1" />
+                                Due: {new Date(goal.due_date).toLocaleDateString()}
+                              </span>
+                              <span className="capitalize">{goal.category}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
                 )}
                 <DialogFooter className="pt-4">
                   <Button variant="outline" onClick={() => setIsGoalsDialogOpen(false)}>Close</Button>
@@ -3178,7 +2587,7 @@ export default function HRPage() {
             <DialogHeader>
               <DialogTitle>Performance Review Details</DialogTitle>
               <DialogDescription>
-                Detailed performance review for {selectedReview?.employeeName}
+                Detailed performance review for {selectedReview?.employee?.name || 'Unknown Employee'}
               </DialogDescription>
             </DialogHeader>
             {selectedReview && (
@@ -3188,8 +2597,8 @@ export default function HRPage() {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold">{selectedReview.employeeName}</h3>
-                        <p className="text-sm text-muted-foreground">{selectedReview.department}</p>
+                        <h3 className="text-lg font-semibold">{selectedReview.employee?.name || 'Unknown Employee'}</h3>
+                        <p className="text-sm text-muted-foreground">{selectedReview.employee?.department || 'N/A'}</p>
                       </div>
                       <div className="text-right">
                         <div className={`text-3xl font-bold ${getRatingColor(Number(calculateOverallRating(selectedReview)))}`}>
@@ -3272,11 +2681,11 @@ export default function HRPage() {
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Latest Review</span>
-                      <span className="text-sm font-medium">{new Date(selectedReview.latestReview).toLocaleDateString()}</span>
+                      <span className="text-sm font-medium">{new Date(selectedReview.review_date).toLocaleDateString()}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Next Review</span>
-                      <span className="text-sm font-medium">{new Date(selectedReview.nextReview).toLocaleDateString()}</span>
+                      <span className="text-sm text-muted-foreground">Review Period</span>
+                      <span className="text-sm font-medium">{selectedReview.review_period}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Status</span>
@@ -3312,7 +2721,7 @@ export default function HRPage() {
             <DialogHeader>
               <DialogTitle>Add Performance Review</DialogTitle>
               <DialogDescription>
-                Create a new performance review for {selectedReview?.employeeName}
+                Create a new performance review for {selectedReview?.employee?.name || selectedEmployee?.name || 'Employee'}
               </DialogDescription>
             </DialogHeader>
             {selectedReview && (
@@ -3464,102 +2873,82 @@ export default function HRPage() {
             <DialogHeader>
               <DialogTitle>Review History</DialogTitle>
               <DialogDescription>
-                Complete performance review history for {selectedReview?.employeeName}
+                Complete performance review history for {selectedReview?.employee?.name || 'Employee'}
               </DialogDescription>
             </DialogHeader>
             {selectedReview && (
               <div className="space-y-4">
-                {/* Mock historical reviews */}
-                {[
-                  {
-                    period: "Q4 2024",
-                    date: "2024-12-15",
-                    overall: 4.3,
-                    collaboration: 4,
-                    accountability: 5,
-                    trustworthy: 4,
-                    leadership: 4,
-                    reviewer: "Sarah Williams",
-                  },
-                  {
-                    period: "Q3 2024",
-                    date: "2024-09-15",
-                    overall: 4.0,
-                    collaboration: 4,
-                    accountability: 4,
-                    trustworthy: 4,
-                    leadership: 4,
-                    reviewer: "Sarah Williams",
-                  },
-                  {
-                    period: "Q2 2024",
-                    date: "2024-06-15",
-                    overall: 3.8,
-                    collaboration: 4,
-                    accountability: 4,
-                    trustworthy: 3,
-                    leadership: 4,
-                    reviewer: "Sarah Williams",
-                  },
-                ].map((review, idx) => (
-                  <Card key={idx}>
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="font-semibold">{review.period}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(review.date).toLocaleDateString()} • Reviewed by {review.reviewer}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className={`text-2xl font-bold ${getRatingColor(review.overall)}`}>
-                            {review.overall}
+                {/* Historical reviews */}
+                {performanceReviews
+                  .filter(review => review.employee_id === selectedReview.employee_id)
+                  .length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No historical reviews available</p>
+                  </div>
+                ) : (
+                  performanceReviews
+                    .filter(review => review.employee_id === selectedReview.employee_id)
+                    .map((review) => (
+                      <Card key={review.id}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h3 className="font-semibold">{review.review_period}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(review.review_date).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className={`text-2xl font-bold ${getRatingColor(Number(review.overall_rating))}`}>
+                                {review.overall_rating?.toFixed(1)}
+                              </div>
+                              <p className="text-xs text-muted-foreground">Overall</p>
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground">Overall</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-4 gap-4">
-                        <div className="text-center p-3 border rounded-lg">
-                          <div className={`text-xl font-bold ${getRatingColor(review.collaboration)}`}>
-                            {review.collaboration}
+                          <div className="grid grid-cols-4 gap-4">
+                            <div className="text-center p-3 border rounded-lg">
+                              <div className={`text-xl font-bold ${getRatingColor(review.collaboration)}`}>
+                                {review.collaboration}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">Collaboration</p>
+                            </div>
+                            <div className="text-center p-3 border rounded-lg">
+                              <div className={`text-xl font-bold ${getRatingColor(review.accountability)}`}>
+                                {review.accountability}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">Accountability</p>
+                            </div>
+                            <div className="text-center p-3 border rounded-lg">
+                              <div className={`text-xl font-bold ${getRatingColor(review.trustworthy)}`}>
+                                {review.trustworthy}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">Trustworthy</p>
+                            </div>
+                            <div className="text-center p-3 border rounded-lg">
+                              <div className={`text-xl font-bold ${getRatingColor(review.leadership)}`}>
+                                {review.leadership}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">Leadership</p>
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">Collaboration</p>
-                        </div>
-                        <div className="text-center p-3 border rounded-lg">
-                          <div className={`text-xl font-bold ${getRatingColor(review.accountability)}`}>
-                            {review.accountability}
+                          <div className="mt-4 flex justify-end">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setIsReviewHistoryOpen(false)
+                                setIsReviewDetailsOpen(true)
+                              }}
+                            >
+                              <FileText className="mr-2 h-4 w-4" />
+                              View Full Review
+                            </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">Accountability</p>
-                        </div>
-                        <div className="text-center p-3 border rounded-lg">
-                          <div className={`text-xl font-bold ${getRatingColor(review.trustworthy)}`}>
-                            {review.trustworthy}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">Trustworthy</p>
-                        </div>
-                        <div className="text-center p-3 border rounded-lg">
-                          <div className={`text-xl font-bold ${getRatingColor(review.leadership)}`}>
-                            {review.leadership}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">Leadership</p>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex justify-end">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setIsReviewHistoryOpen(false)
-                            setIsReviewDetailsOpen(true)
-                          }}
-                        >
-                          <FileText className="mr-2 h-4 w-4" />
-                          View Full Review
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        </CardContent>
+                      </Card>
+                    ))
+                )}
               </div>
             )}
             <DialogFooter>
@@ -3593,9 +2982,9 @@ export default function HRPage() {
                       <div className="flex-1 min-w-0">
                         <h3 className="text-2xl font-bold mb-3 break-words">{selectedGoal.goal}</h3>
                         <div className="flex items-center gap-4 text-base text-muted-foreground flex-wrap">
-                          <span className="font-medium">{selectedGoal.employeeName}</span>
+                          <span className="font-medium">{selectedGoal.employee?.name || 'Unknown Employee'}</span>
                           <span>•</span>
-                          <span>{selectedGoal.department}</span>
+                          <span>{selectedGoal.employee?.department || 'N/A'}</span>
                           <span>•</span>
                           <Badge variant="secondary" className="text-sm">{selectedGoal.category}</Badge>
                         </div>
@@ -3625,12 +3014,12 @@ export default function HRPage() {
                         <div className="grid grid-cols-2 gap-4 pt-3 min-w-0">
                           <div className="p-4 border rounded-lg min-w-0">
                             <p className="text-sm text-muted-foreground mb-2">Created</p>
-                            <p className="text-base font-medium break-words">{new Date(selectedGoal.createdDate).toLocaleDateString()}</p>
+                            <p className="text-base font-medium break-words">{new Date(selectedGoal.created_date).toLocaleDateString()}</p>
                           </div>
                           <div className="p-4 border rounded-lg min-w-0">
                             <p className="text-sm text-muted-foreground mb-2">Due Date</p>
-                            <p className="text-base font-medium break-words">{new Date(selectedGoal.dueDate).toLocaleDateString()}</p>
-                            <p className="text-sm text-muted-foreground mt-1 break-words">{getDaysUntilDue(selectedGoal.dueDate)}</p>
+                            <p className="text-base font-medium break-words">{new Date(selectedGoal.due_date).toLocaleDateString()}</p>
+                            <p className="text-sm text-muted-foreground mt-1 break-words">{getDaysUntilDue(selectedGoal.due_date)}</p>
                           </div>
                         </div>
                       </CardContent>
@@ -3643,25 +3032,19 @@ export default function HRPage() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-5">
-                          {/* Mock timeline data */}
-                          {[
-                            { date: selectedGoal.createdDate, event: "Goal Created", progress: 0 },
-                            { date: "2024-12-01", event: "First Review", progress: 25 },
-                            { date: "2025-01-01", event: "Progress Update", progress: selectedGoal.progress },
-                          ].map((item, idx) => (
-                            <div key={idx} className="flex items-start gap-4 min-w-0">
-                              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <CheckCircle2 className="h-6 w-6 text-primary" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-base break-words">{item.event}</h4>
-                                <p className="text-base text-muted-foreground break-words">{new Date(item.date).toLocaleDateString()}</p>
-                                {item.progress > 0 && (
-                                  <p className="text-base mt-1">Progress: {item.progress}%</p>
-                                )}
-                              </div>
+                          {/* Timeline */}
+                          <div className="flex items-start gap-4 min-w-0">
+                            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <CheckCircle2 className="h-6 w-6 text-primary" />
                             </div>
-                          ))}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-base break-words">Goal Created</h4>
+                              <p className="text-base text-muted-foreground break-words">{new Date(selectedGoal.created_date).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="text-center py-4 text-muted-foreground text-sm">
+                            Timeline milestones will appear here as progress is tracked
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -3676,19 +3059,12 @@ export default function HRPage() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
-                          {/* Mock comments */}
-                          {[
-                            { author: "Sarah Williams", date: "2024-12-15", comment: "Great progress so far! Keep up the excellent work." },
-                            { author: selectedGoal.employeeName, date: "2024-12-20", comment: "Working on the final deliverables. Expect to complete by end of month." },
-                          ].map((comment, idx) => (
-                            <div key={idx} className="p-4 border rounded-lg bg-accent/30 min-w-0">
-                              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                                <span className="font-semibold text-base break-words">{comment.author}</span>
-                                <span className="text-sm text-muted-foreground whitespace-nowrap">{new Date(comment.date).toLocaleDateString()}</span>
-                              </div>
-                              <p className="text-base break-words">{comment.comment}</p>
-                            </div>
-                          ))}
+                          {/* Comments */}
+                          <div className="text-center py-8 text-muted-foreground">
+                            <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No comments yet</p>
+                            <p className="text-xs mt-1">Comments will appear here as progress is tracked</p>
+                          </div>
                           <Button 
                             variant="outline" 
                             size="default" 
@@ -3824,9 +3200,15 @@ export default function HRPage() {
                     <SelectValue placeholder="Choose mentor..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mentor1">Michael Chen - Engineering Lead</SelectItem>
-                    <SelectItem value="mentor2">Sarah Johnson - Product Manager</SelectItem>
-                    <SelectItem value="mentor3">Diane Young - Senior Designer</SelectItem>
+                    {employees.length === 0 ? (
+                      <SelectItem value="none" disabled>No employees available</SelectItem>
+                    ) : (
+                      employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name} - {emp.position}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -3837,9 +3219,15 @@ export default function HRPage() {
                     <SelectValue placeholder="Choose mentee..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mentee1">Guy Hawkins - Junior Developer</SelectItem>
-                    <SelectItem value="mentee2">Jane Cooper - Associate Designer</SelectItem>
-                    <SelectItem value="mentee3">Robert Fox - Sales Associate</SelectItem>
+                    {employees.length === 0 ? (
+                      <SelectItem value="none" disabled>No employees available</SelectItem>
+                    ) : (
+                      employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name} - {emp.position}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -3902,9 +3290,15 @@ export default function HRPage() {
                     <SelectValue placeholder="Select your name..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user1">You (Manager)</SelectItem>
-                    <SelectItem value="user2">Michael Chen</SelectItem>
-                    <SelectItem value="user3">Sarah Johnson</SelectItem>
+                    {csmUsers.length === 0 ? (
+                      <SelectItem value="none" disabled>No users available</SelectItem>
+                    ) : (
+                      csmUsers.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -3915,11 +3309,15 @@ export default function HRPage() {
                     <SelectValue placeholder="Select recipient..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="emp1">Diane Young</SelectItem>
-                    <SelectItem value="emp2">Guy Hawkins</SelectItem>
-                    <SelectItem value="emp3">Robert Fox</SelectItem>
-                    <SelectItem value="emp4">Jane Cooper</SelectItem>
-                    <SelectItem value="emp5">Michael Chen</SelectItem>
+                    {employees.length === 0 ? (
+                      <SelectItem value="none" disabled>No employees available</SelectItem>
+                    ) : (
+                      employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -3984,7 +3382,17 @@ export default function HRPage() {
         </Dialog>
 
         {/* Schedule Interview Dialog */}
-        <Dialog open={isScheduleInterviewOpen} onOpenChange={setIsScheduleInterviewOpen}>
+        <Dialog open={isScheduleInterviewOpen} onOpenChange={(open) => {
+          setIsScheduleInterviewOpen(open)
+          if (!open) {
+            // Reset form when closing
+            setInterviewCandidate('')
+            setInterviewDate('')
+            setInterviewTime('')
+            setInterviewType('')
+            setInterviewNotes('')
+          }
+        }}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Schedule Interview</DialogTitle>
@@ -3995,33 +3403,26 @@ export default function HRPage() {
             <div className="space-y-6 mt-4">
               <div>
                 <Label htmlFor="candidate">Select Candidate</Label>
-                <Select>
+                <Select value={interviewCandidate} onValueChange={setInterviewCandidate}>
                   <SelectTrigger id="candidate">
                     <SelectValue placeholder="Choose candidate..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cand1">John Doe - Software Engineer</SelectItem>
-                    <SelectItem value="cand2">Jane Smith - Product Designer</SelectItem>
-                    <SelectItem value="cand3">Mike Johnson - Data Analyst</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="interviewer">Select Interviewer</Label>
-                <Select>
-                  <SelectTrigger id="interviewer">
-                    <SelectValue placeholder="Choose interviewer..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="int1">Michael Chen - Engineering Lead</SelectItem>
-                    <SelectItem value="int2">Sarah Johnson - Product Manager</SelectItem>
-                    <SelectItem value="int3">Diane Young - Senior Designer</SelectItem>
+                    {applications.length === 0 ? (
+                      <SelectItem value="none" disabled>No candidates available</SelectItem>
+                    ) : (
+                      applications.map((app) => (
+                        <SelectItem key={app.id} value={app.id || ''}>
+                          {app.anonymousId} - {app.jobTitle}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label htmlFor="interview-type">Interview Type</Label>
-                <Select>
+                <Select value={interviewType} onValueChange={setInterviewType}>
                   <SelectTrigger id="interview-type">
                     <SelectValue placeholder="Select type..." />
                   </SelectTrigger>
@@ -4036,19 +3437,31 @@ export default function HRPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="interview-date">Date</Label>
-                  <Input id="interview-date" type="date" />
+                  <Input 
+                    id="interview-date" 
+                    type="date" 
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="interview-time">Time</Label>
-                  <Input id="interview-time" type="time" />
+                  <Input 
+                    id="interview-time" 
+                    type="time" 
+                    value={interviewTime}
+                    onChange={(e) => setInterviewTime(e.target.value)}
+                  />
                 </div>
               </div>
               <div>
                 <Label htmlFor="interview-notes">Notes</Label>
                 <Textarea
                   id="interview-notes"
-                  placeholder="Add any special instructions or notes..."
+                  placeholder="Add interview type, interviewer name, and any special instructions..."
                   rows={3}
+                  value={interviewNotes}
+                  onChange={(e) => setInterviewNotes(e.target.value)}
                 />
               </div>
             </div>
@@ -4056,10 +3469,33 @@ export default function HRPage() {
               <Button variant="outline" onClick={() => setIsScheduleInterviewOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => {
-                alert("Interview scheduled successfully!")
-                setIsScheduleInterviewOpen(false)
-              }}>
+              <Button 
+                onClick={async () => {
+                  if (!interviewCandidate || !interviewDate) {
+                    alert("Please select a candidate and date")
+                    return
+                  }
+                  
+                  try {
+                    // Combine notes with interview details
+                    const fullNotes = `Interview Type: ${interviewType || 'Not specified'}\nTime: ${interviewTime || 'Not specified'}\n\n${interviewNotes}`
+                    
+                    const success = await scheduleInterview(interviewCandidate, interviewDate, fullNotes)
+                    
+                    if (success) {
+                      alert("Interview scheduled successfully!")
+                      await loadData() // Refresh the data
+                      setIsScheduleInterviewOpen(false)
+                    } else {
+                      alert("Failed to schedule interview. Please try again.")
+                    }
+                  } catch (error) {
+                    console.error('Error scheduling interview:', error)
+                    alert("An error occurred. Please try again.")
+                  }
+                }}
+                disabled={!interviewCandidate || !interviewDate}
+              >
                 <Calendar className="mr-2 h-4 w-4" />
                 Schedule Interview
               </Button>
@@ -4084,10 +3520,15 @@ export default function HRPage() {
                     <SelectValue placeholder="Select employee..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="emp1">Michael Chen</SelectItem>
-                    <SelectItem value="emp2">Sarah Johnson</SelectItem>
-                    <SelectItem value="emp3">Diane Young</SelectItem>
-                    <SelectItem value="emp4">Guy Hawkins</SelectItem>
+                    {employees.length === 0 ? (
+                      <SelectItem value="none" disabled>No employees available</SelectItem>
+                    ) : (
+                      employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name} - {emp.department}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -4228,11 +3669,15 @@ export default function HRPage() {
                     <SelectValue placeholder="Choose employee..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="emp1">Michael Chen - Engineering</SelectItem>
-                    <SelectItem value="emp2">Sarah Johnson - Product</SelectItem>
-                    <SelectItem value="emp3">Diane Young - Design</SelectItem>
-                    <SelectItem value="emp4">Guy Hawkins - Sales</SelectItem>
-                    <SelectItem value="emp5">Robert Fox - Operations</SelectItem>
+                    {employees.length === 0 ? (
+                      <SelectItem value="none" disabled>No employees available</SelectItem>
+                    ) : (
+                      employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name} - {emp.department}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -4296,6 +3741,98 @@ export default function HRPage() {
               }}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 Assign Training
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Selected Employees?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {selectedEmployees.length} employee(s)? This action cannot be undone and will permanently remove their records from the database.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Candidate Details Dialog */}
+        <Dialog open={isCandidateDetailsOpen} onOpenChange={setIsCandidateDetailsOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Application Status</DialogTitle>
+              <DialogDescription>
+                {selectedCandidate?.anonymousId} - {selectedCandidate?.jobTitle}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedCandidate && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <Badge 
+                    variant={
+                      selectedCandidate.status === 'new' ? 'secondary' :
+                      selectedCandidate.status === 'reviewing' ? 'default' :
+                      selectedCandidate.status === 'interviewed' || selectedCandidate.status === 'interview-scheduled' ? 'outline' :
+                      selectedCandidate.status === 'offer' ? 'default' :
+                      'secondary'
+                    }
+                    className="text-base px-3 py-1"
+                  >
+                    {selectedCandidate.status.replace('-', ' ')}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Anonymous ID</Label>
+                    <p className="text-base font-medium mt-1">{selectedCandidate.anonymousId}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Position Applied</Label>
+                    <p className="text-base font-medium mt-1">{selectedCandidate.jobTitle}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Department</Label>
+                    <p className="text-base font-medium mt-1">{selectedCandidate.department}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Applied Date</Label>
+                    <p className="text-base font-medium mt-1">
+                      {new Date(selectedCandidate.appliedDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {selectedCandidate.interviewDate && (
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Interview Date</Label>
+                      <p className="text-base font-medium mt-1">
+                        {new Date(selectedCandidate.interviewDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                  {selectedCandidate.rating && (
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Rating</Label>
+                      <div className="flex items-center gap-1 mt-1">
+                        {Array.from({ length: selectedCandidate.rating }).map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCandidateDetailsOpen(false)}>
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

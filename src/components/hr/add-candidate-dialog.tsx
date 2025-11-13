@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Upload, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { submitJobApplication, type JobApplication, getAllJobs, type Job } from "@/lib/recruitment-db"
+import { submitApplication } from "@/lib/recruitment-data"
 
 // Generate anonymous candidate ID
 const generateCandidateId = () => {
@@ -52,8 +54,10 @@ const redactPII = (text: string): string => {
 
 export function AddCandidateDialog() {
   const [open, setOpen] = useState(false)
+  const [jobs, setJobs] = useState<Job[]>([])
   const [formData, setFormData] = useState({
     candidateId: "",
+    jobId: "",
     position: "",
     assignedTo: "",
     skills: "",
@@ -65,6 +69,22 @@ export function AddCandidateDialog() {
     resumeText: "",
   })
   const [showRedactionWarning, setShowRedactionWarning] = useState(false)
+
+  // Load available jobs when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadJobs()
+    }
+  }, [open])
+
+  const loadJobs = async () => {
+    try {
+      const jobsData = await getAllJobs()
+      setJobs(jobsData)
+    } catch (error) {
+      console.error('Error loading jobs:', error)
+    }
+  }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -89,37 +109,111 @@ export function AddCandidateDialog() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Generate anonymous ID if not exists
-    const candidateId = formData.candidateId || generateCandidateId()
-    
-    // Redact any PII in notes field
-    const redactedNotes = redactPII(formData.notes)
-    
-    const anonymousCandidate = {
-      ...formData,
-      candidateId,
-      notes: redactedNotes,
+    if (!formData.jobId || !formData.assignedTo) {
+      alert("Please fill in all required fields (Job Position and Assigned Recruiter)")
+      return
     }
     
-    console.log("[v0] Adding anonymous candidate:", anonymousCandidate)
-    // In a real app, this would save to database with full PII redaction
-    setOpen(false)
-    setFormData({
-      candidateId: "",
-      position: "",
-      assignedTo: "",
-      skills: "",
-      experience: "",
-      education: "",
-      certifications: "",
-      notes: "",
-      resumeFile: null,
-      resumeText: "",
-    })
-    setShowRedactionWarning(false)
+    try {
+      // Generate anonymous ID if not exists
+      const candidateId = formData.candidateId || generateCandidateId()
+      
+      // Redact any PII in notes field
+      const redactedNotes = redactPII(formData.notes)
+      
+      // Create application data structure for Supabase
+      const applicationData: JobApplication = {
+        anonymousId: candidateId,
+        jobId: formData.jobId, // Use the real job posting ID
+        firstName: "Anonymous", // Anonymous candidate
+        lastName: "Candidate",
+        email: "anonymous@redacted.com", // Placeholder email
+        phone: "+1 (555) XXX-XXXX", // Placeholder phone
+        location: "Location Redacted", // Anonymous location
+        coverLetter: `Skills: ${formData.skills}\nExperience: ${formData.experience}\nEducation: ${formData.education}\nCertifications: ${formData.certifications}\nAssigned To: ${formData.assignedTo}\nNotes: ${redactedNotes}`,
+        resumeFileName: formData.resumeFile?.name || null,
+        linkedin: null,
+        portfolio: null
+      }
+      
+      // Submit the application to Supabase
+      const success = await submitJobApplication(applicationData)
+      
+      if (success) {
+        // Also add to the mock data system so it shows in the current recruitment dashboard
+        const selectedJob = jobs.find(job => job.id === formData.jobId)
+        const mockApplicationData = {
+          jobId: formData.jobId,
+          jobTitle: selectedJob?.title || formData.position,
+          department: selectedJob?.department || "Other",
+          firstName: "Anonymous",
+          lastName: "Candidate", 
+          email: "anonymous@redacted.com",
+          phone: "+1 (555) XXX-XXXX",
+          location: "Location Redacted",
+          resume: formData.resumeFile,
+          coverLetter: `Skills: ${formData.skills}\nExperience: ${formData.experience}\nEducation: ${formData.education}\nCertifications: ${formData.certifications}\nNotes: ${redactedNotes}`,
+          linkedin: undefined,
+          portfolio: undefined
+        }
+        
+        // Add to mock system for immediate display
+        submitApplication(mockApplicationData)
+        
+        console.log("Anonymous candidate added successfully to database and recruitment dashboard")
+        alert("Anonymous candidate added successfully!")
+        
+        setOpen(false)
+        setFormData({
+          candidateId: "",
+          jobId: "",
+          position: "",
+          assignedTo: "",
+          skills: "",
+          experience: "",
+          education: "",
+          certifications: "",
+          notes: "",
+          resumeFile: null,
+          resumeText: "",
+        })
+        setShowRedactionWarning(false)
+      } else {
+        throw new Error("Failed to save to database")
+      }
+    } catch (error) {
+      console.error("Error adding candidate:", error)
+      
+      // Show more detailed error message
+      let errorMessage = "Error adding candidate. Please try again."
+      if (error instanceof Error) {
+        errorMessage += `\n\nDetails: ${error.message}`
+      }
+      
+      // Check if it's a database connection issue
+      if (error && typeof error === 'object' && 'code' in error) {
+        errorMessage += `\n\nDatabase Error Code: ${error.code}`
+      }
+      
+      alert(errorMessage)
+    }
+  }
+  
+  // Helper function to map position to department
+  const getDepartmentFromPosition = (position: string): string => {
+    const positionDepartmentMap: { [key: string]: string } = {
+      "Senior Developer": "Engineering",
+      "DevOps Engineer": "Engineering", 
+      "Data Analyst": "Engineering",
+      "Product Manager": "Product",
+      "UX Designer": "Design",
+      "Marketing Manager": "Marketing",
+      "Sales Representative": "Sales"
+    }
+    return positionDepartmentMap[position] || "Other"
   }
 
   return (
@@ -162,24 +256,34 @@ export function AddCandidateDialog() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="position">Position Applied For *</Label>
+              <Label htmlFor="position">Job Position *</Label>
               <Select
-                value={formData.position}
-                onValueChange={(value) => setFormData({ ...formData, position: value })}
+                value={formData.jobId}
+                onValueChange={(value) => {
+                  const selectedJob = jobs.find(job => job.id === value)
+                  setFormData({ 
+                    ...formData, 
+                    jobId: value,
+                    position: selectedJob?.title || ""
+                  })
+                }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select position" />
+                  <SelectValue placeholder="Select job posting" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Senior Developer">Senior Developer</SelectItem>
-                  <SelectItem value="Product Manager">Product Manager</SelectItem>
-                  <SelectItem value="UX Designer">UX Designer</SelectItem>
-                  <SelectItem value="Marketing Manager">Marketing Manager</SelectItem>
-                  <SelectItem value="Sales Representative">Sales Representative</SelectItem>
-                  <SelectItem value="Data Analyst">Data Analyst</SelectItem>
-                  <SelectItem value="DevOps Engineer">DevOps Engineer</SelectItem>
+                  {jobs.map((job) => (
+                    <SelectItem key={job.id} value={job.id}>
+                      {job.title} - {job.department}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {jobs.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Loading available positions...
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2">
