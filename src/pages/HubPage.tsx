@@ -29,6 +29,9 @@ import {
 } from 'lucide-react'
 import * as ProjectData from '@/lib/project-data-supabase'
 import type { Project } from '@/lib/project-data'
+import * as CSApi from '@/lib/customer-success-api'
+import * as HRApi from '@/lib/hr-api'
+import { getAllJobs, getAllApplications } from '@/lib/recruitment-db'
 
 export default function HubPage() {
   const [timeRange, setTimeRange] = useState('7d')
@@ -39,30 +42,66 @@ export default function HubPage() {
   const [createType, setCreateType] = useState('')
   const [createTitle, setCreateTitle] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
+  const [csClients, setCSClients] = useState<any[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
+  const [performanceReviews, setPerformanceReviews] = useState<any[]>([])
+  const [goals, setGoals] = useState<any[]>([])
+  const [jobPostings, setJobPostings] = useState<any[]>([])
+  const [jobApplications, setJobApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Load projects from Supabase
+  // Load all data from Supabase
   useEffect(() => {
-    const loadProjects = async () => {
+    const loadAllData = async () => {
       try {
         setLoading(true)
-        const data = await ProjectData.getAllProjects()
-        setProjects(data)
+        
+        // Load Projects
+        const projectsData = await ProjectData.getAllProjects()
+        setProjects(projectsData)
+        
+        // Load Customer Success data
+        const clientsData = await CSApi.getAllClients()
+        setCSClients(clientsData)
+        
+        // Load HR data
+        const employeesData = await HRApi.getAllEmployees()
+        setEmployees(employeesData)
+        
+        const reviewsData = await HRApi.getAllPerformanceReviews()
+        setPerformanceReviews(reviewsData)
+        
+        const goalsData = await HRApi.getAllGoals()
+        setGoals(goalsData)
+        
+        // Load Recruitment data
+        const jobsData = await getAllJobs()
+        setJobPostings(jobsData)
+        
+        const appsData = await getAllApplications()
+        setJobApplications(appsData)
       } catch (err) {
-        console.error('Error loading projects:', err)
+        console.error('Error loading data:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    loadProjects()
+    loadAllData()
 
-    // Listen for project updates
-    const handleProjectUpdate = () => {
-      loadProjects()
-    }
+    // Listen for updates
+    const handleProjectUpdate = () => loadAllData()
+    const handleAppUpdate = () => loadAllData()
+    
     window.addEventListener('projectDataUpdated', handleProjectUpdate)
-    return () => window.removeEventListener('projectDataUpdated', handleProjectUpdate)
+    window.addEventListener('applicationSubmitted', handleAppUpdate)
+    window.addEventListener('applicationUpdated', handleAppUpdate)
+    
+    return () => {
+      window.removeEventListener('projectDataUpdated', handleProjectUpdate)
+      window.removeEventListener('applicationSubmitted', handleAppUpdate)
+      window.removeEventListener('applicationUpdated', handleAppUpdate)
+    }
   }, [])
 
   // Calculate real project metrics
@@ -100,6 +139,86 @@ export default function HubPage() {
     }
   }, [projects])
 
+  // Calculate Customer Success metrics
+  const csMetrics = useMemo(() => {
+    if (csClients.length === 0) {
+      return {
+        avgHealthScore: 0,
+        atRiskClients: 0,
+        upcomingRenewals: 0,
+        avgNPS: 0,
+      }
+    }
+
+    const totalHealth = csClients.reduce((sum, c) => sum + (c.health_score || 0), 0)
+    const avgHealthScore = Math.round(totalHealth / csClients.length)
+    
+    const atRiskClients = csClients.filter(c => c.status === 'at-risk').length
+    
+    // Count renewals in next 60 days
+    const today = new Date()
+    const sixtyDaysLater = new Date(today)
+    sixtyDaysLater.setDate(today.getDate() + 60)
+    const upcomingRenewals = csClients.filter(c => {
+      if (!c.renewal_date) return false
+      const renewalDate = new Date(c.renewal_date)
+      return renewalDate >= today && renewalDate <= sixtyDaysLater
+    }).length
+    
+    const totalNPS = csClients.reduce((sum, c) => sum + (c.nps_score || 0), 0)
+    const avgNPS = Math.round(totalNPS / csClients.length)
+
+    return {
+      avgHealthScore,
+      atRiskClients,
+      upcomingRenewals,
+      avgNPS,
+    }
+  }, [csClients])
+
+  // Calculate HR metrics
+  const hrMetrics = useMemo(() => {
+    // Case-insensitive status check
+    const activeEmployees = employees.filter(e => e.status?.toLowerCase() === 'active').length
+    
+    // Reviews due in next 30 days
+    const today = new Date()
+    const thirtyDaysLater = new Date(today)
+    thirtyDaysLater.setDate(today.getDate() + 30)
+    const reviewsDue = employees.filter(e => {
+      if (!e.next_review_date) return false
+      const reviewDate = new Date(e.next_review_date)
+      return reviewDate >= today && reviewDate <= thirtyDaysLater
+    }).length
+    
+    // Open job positions (handle TRUE as string from database)
+    const openPositions = jobPostings.filter(j => 
+      j.is_active === true || j.is_active === 'TRUE' || j.is_active === 'true'
+    ).length
+    
+    // New applications (last 7 days)
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(today.getDate() - 7)
+    const newApplications = jobApplications.filter(a => {
+      const appliedDate = new Date(a.applied_date)
+      return appliedDate >= sevenDaysAgo
+    }).length
+    
+    // Calculate average performance score
+    const employeesWithScore = employees.filter(e => e.performance_score)
+    const avgPerformance = employeesWithScore.length > 0
+      ? employeesWithScore.reduce((sum, e) => sum + (e.performance_score || 0), 0) / employeesWithScore.length
+      : 0
+
+    return {
+      activeEmployees,
+      reviewsDue,
+      openPositions,
+      newApplications,
+      avgPerformance: Math.round(avgPerformance * 10) / 10,
+    }
+  }, [employees, performanceReviews, jobPostings, jobApplications])
+
   const kpis = [
     {
       title: 'Active Projects',
@@ -119,16 +238,16 @@ export default function HubPage() {
     },
     {
       title: 'Active Clients',
-      value: '89',
-      trend: '+5%',
-      trendUp: true,
+      value: csClients.filter(c => c.status !== 'at-risk').length.toString(),
+      trend: csMetrics.atRiskClients > 0 ? `-${csMetrics.atRiskClients}` : '+5%',
+      trendUp: csMetrics.atRiskClients === 0,
       icon: Users,
       color: 'text-purple-500',
     },
     {
       title: 'Team Members',
-      value: '47',
-      trend: '+2',
+      value: hrMetrics.activeEmployees.toString(),
+      trend: '+0',
       trendUp: true,
       icon: UserCheck,
       color: 'text-orange-500',
@@ -150,8 +269,8 @@ export default function HubPage() {
       color: 'text-cyan-500',
     },
     {
-      title: 'Automation Jobs',
-      value: '342',
+      title: 'Job Applications',
+      value: hrMetrics.newApplications.toString(),
       trend: '+28%',
       trendUp: true,
       icon: Bot,
@@ -168,7 +287,7 @@ export default function HubPage() {
       metrics: [
         { label: 'Completion', value: `${projectMetrics.completionRate}%`, progress: projectMetrics.completionRate },
         { label: 'Overdue Tasks', value: projectMetrics.overdueTasks.toString(), status: projectMetrics.overdueTasks > 0 ? 'warning' : 'success' },
-        { label: 'Total Tasks', value: projectMetrics.totalTasks.toString(), status: 'info' },
+        { label: 'Active Projects', value: projects.filter(p => p.status === 'active').length.toString(), status: 'info' },
       ],
       href: '/projects',
     },
@@ -190,9 +309,9 @@ export default function HubPage() {
       icon: Users,
       color: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
       metrics: [
-        { label: 'Avg Health Score', value: '8.2/10', progress: 82 },
-        { label: 'Renewal Dates', value: '14 upcoming', status: 'info' },
-        { label: 'NPS Trend', value: '+12', status: 'success' },
+        { label: 'Avg Health Score', value: `${csMetrics.avgHealthScore}%`, progress: csMetrics.avgHealthScore },
+        { label: 'At-Risk Clients', value: csMetrics.atRiskClients.toString(), status: csMetrics.atRiskClients > 0 ? 'warning' : 'success' },
+        { label: 'Renewals (60d)', value: csMetrics.upcomingRenewals.toString(), status: 'info' },
       ],
       href: '/customer-success',
     },
@@ -214,9 +333,9 @@ export default function HubPage() {
       icon: UserCheck,
       color: 'bg-pink-500/10 text-pink-500 border-pink-500/20',
       metrics: [
-        { label: 'Open Positions', value: '5', status: 'info' },
-        { label: 'Reviews Due', value: '8', status: 'warning' },
-        { label: 'Satisfaction', value: '4.3/5', progress: 86 },
+        { label: 'Active Employees', value: hrMetrics.activeEmployees.toString(), status: 'success' },
+        { label: 'Reviews Due (30d)', value: hrMetrics.reviewsDue.toString(), status: hrMetrics.reviewsDue > 0 ? 'warning' : 'success' },
+        { label: 'Open Positions', value: hrMetrics.openPositions.toString(), status: 'info' },
       ],
       href: '/hr',
     },

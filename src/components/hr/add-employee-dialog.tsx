@@ -41,7 +41,7 @@ export function AddEmployeeDialog() {
         email: formData.email,
         position: formData.position,
         department: formData.department,
-        status: 'Onboarding' as const,
+        status: 'Active' as const,
         phone: '', // Add phone field later if needed
         hire_date: formData.startDate,
       }

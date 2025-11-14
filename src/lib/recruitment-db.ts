@@ -17,6 +17,7 @@ export interface Job {
   qualifications: string[]
   benefits: string[]
   applicationCount?: number
+  is_active?: boolean | string
 }
 
 export interface JobApplication {
@@ -52,7 +53,6 @@ export async function getAllJobs(): Promise<Job[]> {
   const { data, error } = await supabase
     .from('job_postings')
     .select('*')
-    .eq('is_active', true)
     .order('posted_date', { ascending: false })
 
   if (error) {
@@ -74,6 +74,7 @@ export async function getAllJobs(): Promise<Job[]> {
     qualifications: job.qualifications,
     benefits: job.benefits,
     applicationCount: job.application_count,
+    is_active: job.is_active,
   }))
 }
 

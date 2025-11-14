@@ -657,8 +657,8 @@ export async function getHRStats() {
   const goals = await getAllGoals()
 
   const totalEmployees = employees.length
-  const activeEmployees = employees.filter((e) => e.status === 'Active').length
-  const onboardingEmployees = employees.filter((e) => e.status === 'Onboarding').length
+  // All employees are active by default
+  const activeEmployees = employees.filter((e) => e.status?.toLowerCase() === 'active').length
   const avgPerformanceScore = employees.length > 0 && employees.some(e => e.performance_score)
     ? Number((employees.filter(e => e.performance_score).reduce((sum, e) => sum + (e.performance_score || 0), 0) / employees.filter(e => e.performance_score).length).toFixed(2))
     : 0
@@ -674,7 +674,6 @@ export async function getHRStats() {
   return {
     totalEmployees,
     activeEmployees,
-    onboardingEmployees,
     avgPerformanceScore,
     totalGoals,
     onTrackGoals,
