@@ -544,6 +544,20 @@ export async function createMentorship(mentorship: Omit<Mentorship, 'id' | 'crea
   return data
 }
 
+export async function deleteMentorship(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('hr_mentorships')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting mentorship:', error)
+    return false
+  }
+
+  return true
+}
+
 // ==================== RECOGNITIONS ====================
 
 export async function getAllRecognitions(): Promise<Recognition[]> {
@@ -573,6 +587,20 @@ export async function createRecognition(recognition: Omit<Recognition, 'id' | 'c
   }
 
   return data
+}
+
+export async function deleteRecognition(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('hr_recognitions')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting recognition:', error)
+    return false
+  }
+
+  return true
 }
 
 // ==================== LEARNING PATHS ====================
@@ -612,6 +640,20 @@ export async function createLearningPath(learningPath: Omit<LearningPath, 'id' |
   return data
 }
 
+export async function deleteLearningPath(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('hr_learning_paths')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting learning path:', error)
+    return false
+  }
+
+  return true
+}
+
 // ==================== CAREER PATHS ====================
 
 export async function getAllCareerPaths(): Promise<CareerPath[]> {
@@ -647,6 +689,20 @@ export async function createCareerPath(careerPath: Omit<CareerPath, 'id' | 'crea
   }
 
   return data
+}
+
+export async function deleteCareerPath(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('hr_career_paths')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting career path:', error)
+    return false
+  }
+
+  return true
 }
 
 // ==================== UTILITY FUNCTIONS ====================

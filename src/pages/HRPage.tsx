@@ -107,7 +107,7 @@ export default function HRPage() {
   const [goalSearchQuery, setGoalSearchQuery] = useState("")
   
   // Analytics date range
-  const [analyticsDateRange, setAnalyticsDateRange] = useState("30")
+  const [analyticsDateRange, setAnalyticsDateRange] = useState("all")
   
   // Data state
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -167,6 +167,14 @@ export default function HRPage() {
   const [isGiveRecognitionOpen, setIsGiveRecognitionOpen] = useState(false)
   const [isAddLearningPathDialogOpen, setIsAddLearningPathDialogOpen] = useState(false)
   const [isAddCareerPathDialogOpen, setIsAddCareerPathDialogOpen] = useState(false)
+  
+  // Selection state for deletion
+  const [selectedReviews, setSelectedReviews] = useState<Set<string>>(new Set())
+  const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set())
+  const [selectedMentorships, setSelectedMentorships] = useState<Set<string>>(new Set())
+  const [selectedRecognitions, setSelectedRecognitions] = useState<Set<string>>(new Set())
+  const [selectedLearningPaths, setSelectedLearningPaths] = useState<Set<string>>(new Set())
+  const [selectedCareerPaths, setSelectedCareerPaths] = useState<Set<string>>(new Set())
   const [mentorshipForm, setMentorshipForm] = useState({
     mentor_id: "",
     mentee_id: "",
@@ -399,6 +407,133 @@ export default function HRPage() {
   }
 
   // Handler for deleting selected employees
+  // Delete handlers for different tabs
+  const handleDeleteSelectedReviews = async () => {
+    try {
+      for (const reviewId of selectedReviews) {
+        await hrApi.deletePerformanceReview(reviewId)
+      }
+      setSelectedReviews(new Set())
+      await loadData()
+      toast({
+        title: "Success",
+        description: `Deleted ${selectedReviews.size} review(s)`,
+      })
+    } catch (error) {
+      console.error('Error deleting reviews:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete reviews",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteSelectedGoals = async () => {
+    try {
+      for (const goalId of selectedGoals) {
+        await hrApi.deleteGoal(goalId)
+      }
+      setSelectedGoals(new Set())
+      await loadData()
+      toast({
+        title: "Success",
+        description: `Deleted ${selectedGoals.size} goal(s)`,
+      })
+    } catch (error) {
+      console.error('Error deleting goals:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete goals",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteSelectedMentorships = async () => {
+    try {
+      for (const mentorshipId of selectedMentorships) {
+        await hrApi.deleteMentorship(mentorshipId)
+      }
+      setSelectedMentorships(new Set())
+      await loadData()
+      toast({
+        title: "Success",
+        description: `Deleted ${selectedMentorships.size} mentorship(s)`,
+      })
+    } catch (error) {
+      console.error('Error deleting mentorships:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete mentorships",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteSelectedRecognitions = async () => {
+    try {
+      for (const recognitionId of selectedRecognitions) {
+        await hrApi.deleteRecognition(recognitionId)
+      }
+      setSelectedRecognitions(new Set())
+      await loadData()
+      toast({
+        title: "Success",
+        description: `Deleted ${selectedRecognitions.size} recognition(s)`,
+      })
+    } catch (error) {
+      console.error('Error deleting recognitions:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete recognitions",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteSelectedLearningPaths = async () => {
+    try {
+      for (const learningPathId of selectedLearningPaths) {
+        await hrApi.deleteLearningPath(learningPathId)
+      }
+      setSelectedLearningPaths(new Set())
+      await loadData()
+      toast({
+        title: "Success",
+        description: `Deleted ${selectedLearningPaths.size} learning path(s)`,
+      })
+    } catch (error) {
+      console.error('Error deleting learning paths:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete learning paths",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteSelectedCareerPaths = async () => {
+    try {
+      for (const careerPathId of selectedCareerPaths) {
+        await hrApi.deleteCareerPath(careerPathId)
+      }
+      setSelectedCareerPaths(new Set())
+      await loadData()
+      toast({
+        title: "Success",
+        description: `Deleted ${selectedCareerPaths.size} career path(s)`,
+      })
+    } catch (error) {
+      console.error('Error deleting career paths:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete career paths",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleDeleteSelected = async () => {
     try {
       // Delete employees from database
@@ -1478,10 +1613,21 @@ export default function HRPage() {
                       <CardTitle>Employee Performance Reviews</CardTitle>
                       <CardDescription>Track and manage employee performance ratings</CardDescription>
                     </div>
-                    <Button onClick={() => setIsAddReviewDialogOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Review
-                    </Button>
+                    <div className="flex gap-2">
+                      {selectedReviews.size > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          onClick={handleDeleteSelectedReviews}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete ({selectedReviews.size})
+                        </Button>
+                      )}
+                      <Button onClick={() => setIsAddReviewDialogOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Review
+                      </Button>
+                    </div>
                   </div>
                   
                   {/* Filters */}
@@ -1586,9 +1732,23 @@ export default function HRPage() {
 
                     return filteredReviews.map((review) => {
                       const overallRating = calculateOverallRating(review)
+                      const isSelected = selectedReviews.has(review.id)
                       return (
                         <div key={review.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                           <div className="flex items-start justify-between mb-4">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => {
+                                const newSelected = new Set(selectedReviews)
+                                if (checked) {
+                                  newSelected.add(review.id)
+                                } else {
+                                  newSelected.delete(review.id)
+                                }
+                                setSelectedReviews(newSelected)
+                              }}
+                              className="mr-3 mt-1"
+                            />
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2 flex-wrap">
                                 <h3 className="font-semibold">{review.employee?.name || 'Unknown Employee'}</h3>
@@ -1858,10 +2018,21 @@ export default function HRPage() {
                       <CardTitle>Employee Goals</CardTitle>
                       <CardDescription>Track and manage employee goals and progress</CardDescription>
                     </div>
-                    <Button onClick={() => setIsAddGoalDialogOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Goal
-                    </Button>
+                    <div className="flex gap-2">
+                      {selectedGoals.size > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          onClick={handleDeleteSelectedGoals}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete ({selectedGoals.size})
+                        </Button>
+                      )}
+                      <Button onClick={() => setIsAddGoalDialogOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Goal
+                      </Button>
+                    </div>
                   </div>
                   
                   {/* Filters */}
@@ -1965,9 +2136,24 @@ export default function HRPage() {
                       )
                     }
 
-                    return filteredGoals.map((goal) => (
+                    return filteredGoals.map((goal) => {
+                      const isSelected = selectedGoals.has(goal.id)
+                      return (
                       <div key={goal.id} className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                         <div className="flex items-start justify-between mb-3">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const newSelected = new Set(selectedGoals)
+                              if (checked) {
+                                newSelected.add(goal.id)
+                              } else {
+                                newSelected.delete(goal.id)
+                              }
+                              setSelectedGoals(newSelected)
+                            }}
+                            className="mr-3 mt-1"
+                          />
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2 flex-wrap">
                               <h3 className="font-semibold">{goal.goal}</h3>
@@ -2051,7 +2237,8 @@ export default function HRPage() {
                           </Button>
                         </div>
                       </div>
-                    ))
+                      )
+                    })
                   })()}
                 </div>
               </CardContent>
@@ -2803,10 +2990,22 @@ export default function HRPage() {
                       <Rocket className="h-5 w-5 text-primary" />
                       <CardTitle>Career Path Planning</CardTitle>
                     </div>
-                    <Button onClick={() => setIsAddCareerPathDialogOpen(true)} size="sm">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Career Path
-                    </Button>
+                    <div className="flex gap-2">
+                      {selectedCareerPaths.size > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={handleDeleteSelectedCareerPaths}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete ({selectedCareerPaths.size})
+                        </Button>
+                      )}
+                      <Button onClick={() => setIsAddCareerPathDialogOpen(true)} size="sm">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Career Path
+                      </Button>
+                    </div>
                   </div>
                   <CardDescription>Employee career progression and development tracking</CardDescription>
                 </CardHeader>
@@ -2825,9 +3024,24 @@ export default function HRPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {careerPaths.map((path) => (
+                      {careerPaths.map((path) => {
+                        const isSelected = selectedCareerPaths.has(path.id)
+                        return (
                       <div key={path.id} className="p-3 border rounded-lg">
                         <div className="flex items-start justify-between mb-2">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const newSelected = new Set(selectedCareerPaths)
+                              if (checked) {
+                                newSelected.add(path.id)
+                              } else {
+                                newSelected.delete(path.id)
+                              }
+                              setSelectedCareerPaths(newSelected)
+                            }}
+                            className="mr-3 mt-1"
+                          />
                           <div>
                             <h3 className="font-semibold text-sm mb-1">{path.employee?.name || 'Unknown'}</h3>
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -2862,7 +3076,8 @@ export default function HRPage() {
                           </div>
                         </div>
                       </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -2876,10 +3091,22 @@ export default function HRPage() {
                       <Users className="h-5 w-5 text-primary" />
                       <CardTitle>Mentorship Program</CardTitle>
                     </div>
-                    <Button onClick={() => setIsCreateMatchOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Match
-                    </Button>
+                    <div className="flex gap-2">
+                      {selectedMentorships.size > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={handleDeleteSelectedMentorships}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete ({selectedMentorships.size})
+                        </Button>
+                      )}
+                      <Button onClick={() => setIsCreateMatchOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Match
+                      </Button>
+                    </div>
                   </div>
                   <CardDescription>Zenith-powered mentor-mentee matching</CardDescription>
                 </CardHeader>
@@ -2898,9 +3125,24 @@ export default function HRPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {mentorships.map((match) => (
+                      {mentorships.map((match) => {
+                        const isSelected = selectedMentorships.has(match.id)
+                        return (
                       <div key={match.id} className="p-3 border rounded-lg">
                         <div className="flex items-start justify-between mb-2">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const newSelected = new Set(selectedMentorships)
+                              if (checked) {
+                                newSelected.add(match.id)
+                              } else {
+                                newSelected.delete(match.id)
+                              }
+                              setSelectedMentorships(newSelected)
+                            }}
+                            className="mr-3 mt-1"
+                          />
                           <div className="flex-1">
                             <div className="flex items-center gap-1.5 mb-1">
                               <h4 className="font-semibold text-sm">{match.mentor?.name || 'Unknown'}</h4>
@@ -2921,7 +3163,8 @@ export default function HRPage() {
                           <Badge variant="secondary" className="text-xs">{match.status}</Badge>
                         </div>
                       </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -2935,10 +3178,22 @@ export default function HRPage() {
                       <GraduationCap className="h-5 w-5 text-primary" />
                       <CardTitle>Learning & Development</CardTitle>
                     </div>
-                    <Button onClick={() => setIsAddLearningPathDialogOpen(true)} size="sm">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Learning Path
-                    </Button>
+                    <div className="flex gap-2">
+                      {selectedLearningPaths.size > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={handleDeleteSelectedLearningPaths}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete ({selectedLearningPaths.size})
+                        </Button>
+                      )}
+                      <Button onClick={() => setIsAddLearningPathDialogOpen(true)} size="sm">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Learning Path
+                      </Button>
+                    </div>
                   </div>
                   <CardDescription>Training programs and skill development tracking</CardDescription>
                 </CardHeader>
@@ -2957,9 +3212,24 @@ export default function HRPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {learningPaths.map((learning) => (
+                      {learningPaths.map((learning) => {
+                        const isSelected = selectedLearningPaths.has(learning.id)
+                        return (
                       <div key={learning.id} className="p-3 border rounded-lg">
                         <div className="flex items-start justify-between mb-2">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const newSelected = new Set(selectedLearningPaths)
+                              if (checked) {
+                                newSelected.add(learning.id)
+                              } else {
+                                newSelected.delete(learning.id)
+                              }
+                              setSelectedLearningPaths(newSelected)
+                            }}
+                            className="mr-3 mt-1"
+                          />
                           <div className="flex-1">
                             <h4 className="font-semibold text-sm mb-0.5">{learning.employee?.name || 'Unknown'}</h4>
                             <p className="text-xs text-muted-foreground">{learning.course}</p>
@@ -2986,7 +3256,8 @@ export default function HRPage() {
                           Due: {learning.due_date ? new Date(learning.due_date).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -3000,10 +3271,22 @@ export default function HRPage() {
                       <Award className="h-5 w-5 text-primary" />
                       <CardTitle>Recognition & Achievements</CardTitle>
                     </div>
-                    <Button onClick={() => setIsGiveRecognitionOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Give Recognition
-                    </Button>
+                    <div className="flex gap-2">
+                      {selectedRecognitions.size > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={handleDeleteSelectedRecognitions}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete ({selectedRecognitions.size})
+                        </Button>
+                      )}
+                      <Button onClick={() => setIsGiveRecognitionOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Give Recognition
+                      </Button>
+                    </div>
                   </div>
                   <CardDescription>Peer and manager recognition tracking</CardDescription>
                 </CardHeader>
@@ -3022,9 +3305,24 @@ export default function HRPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {recognitions.map((recognition) => (
+                      {recognitions.map((recognition) => {
+                        const isSelected = selectedRecognitions.has(recognition.id)
+                        return (
                       <div key={recognition.id} className="p-3 border rounded-lg bg-accent/30">
                         <div className="flex items-start gap-2">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const newSelected = new Set(selectedRecognitions)
+                              if (checked) {
+                                newSelected.add(recognition.id)
+                              } else {
+                                newSelected.delete(recognition.id)
+                              }
+                              setSelectedRecognitions(newSelected)
+                            }}
+                            className="mr-2 mt-1"
+                          />
                           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <ThumbsUp className="h-4 w-4 text-primary" />
                           </div>
@@ -3042,7 +3340,8 @@ export default function HRPage() {
                           </div>
                         </div>
                       </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </CardContent>
