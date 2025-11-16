@@ -31,3 +31,6 @@ SELECT 'Job postings activated:' as message, COUNT(*) as count
 FROM job_postings 
 WHERE is_active = true;
 
+
+
+

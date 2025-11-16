@@ -54,7 +54,7 @@ export function AnimatedCTASection() {
             className="text-xl text-white/90 mb-8 max-w-2xl mx-auto drop-shadow-md animate-fade-in-up"
             style={{ animationDelay: "0.7s" }}
           >
-            Join thousands of companies already using Zenith to streamline their operations and boost productivity.
+            Join thousands of companies already using Katana to streamline their operations and boost productivity.
           </p>
           <div
             className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up"

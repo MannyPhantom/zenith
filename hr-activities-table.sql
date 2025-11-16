@@ -26,3 +26,6 @@ CREATE POLICY "Enable insert for authenticated users" ON hr_activities
   FOR INSERT WITH CHECK (true);
 
 
+
+
+

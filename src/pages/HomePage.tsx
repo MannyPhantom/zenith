@@ -58,7 +58,7 @@ export default function HomePage() {
       <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="font-bold text-xl">Zenith Technologies</div>
+            <div className="font-bold text-xl">Katana Technologies</div>
             <span className="text-sm text-muted-foreground hidden md:inline">— Unified BusinessOps Platform</span>
           </div>
           <div className="flex items-center gap-6">
@@ -520,7 +520,7 @@ export default function HomePage() {
       <section className="py-20 px-6 bg-muted/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Teams get more done with Zenith</h2>
+            <h2 className="text-4xl font-bold mb-4">Teams get more done with Katana</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -533,7 +533,7 @@ export default function HomePage() {
                 </div>
                 <p className="text-lg font-semibold mb-2">"We replaced four tools."</p>
                 <p className="text-muted-foreground text-sm">
-                  Zenith consolidated our project management, inventory, and HR systems into one platform. 
+                  Katana consolidated our project management, inventory, and HR systems into one platform. 
                   Setup was smooth and our team adapted quickly.
                 </p>
                 <div className="mt-4 text-sm text-muted-foreground">— Sarah M., Operations Director</div>
@@ -720,7 +720,7 @@ export default function HomePage() {
             <AccordionItem value="item-2">
               <AccordionTrigger>Can I integrate with existing tools?</AccordionTrigger>
               <AccordionContent>
-                Yes! Zenith integrates with popular tools like QuickBooks, Xero, Google Workspace, 
+                Yes! Katana integrates with popular tools like QuickBooks, Xero, Google Workspace, 
                 Microsoft 365, Slack, and Microsoft Teams. We also offer a robust REST API for custom 
                 integrations. View our full integration catalog in the hub.
               </AccordionContent>
@@ -771,7 +771,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold mb-4">Ready to unify your business operations?</h2>
           <p className="text-xl text-muted-foreground mb-8">
-            Join teams that are working smarter with Zenith. Start your free trial today.
+            Join teams that are working smarter with Katana. Start your free trial today.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link to="/hub">
@@ -789,7 +789,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <div className="font-bold text-lg mb-4">Zenith Technologies</div>
+              <div className="font-bold text-lg mb-4">Katana Technologies</div>
               <p className="text-sm text-muted-foreground">
                 Unified BusinessOps Platform for modern teams
               </p>
@@ -823,7 +823,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-            © 2025 Zenith Technologies. All rights reserved.
+            © 2025 Katana Technologies. All rights reserved.
           </div>
         </div>
       </footer>

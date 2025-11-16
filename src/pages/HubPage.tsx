@@ -403,7 +403,7 @@ export default function HubPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Zenith Hub</h1>
+            <h1 className="text-4xl font-bold mb-2">Katana Hub</h1>
             <p className="text-muted-foreground">BusinessOps Platform - Central Command Center</p>
           </div>
           <div className="flex items-center gap-3">

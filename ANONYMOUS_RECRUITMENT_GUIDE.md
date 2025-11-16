@@ -1,7 +1,7 @@
 # Anonymous Recruitment System - Implementation Guide
 
 ## Overview
-The Zenith SaaS HR module now includes a fully anonymous recruitment system designed to eliminate bias in the hiring process. All personally identifiable information (PII) is automatically redacted, and candidates are identified solely by unique anonymous IDs.
+The Katana SaaS HR module now includes a fully anonymous recruitment system designed to eliminate bias in the hiring process. All personally identifiable information (PII) is automatically redacted, and candidates are identified solely by unique anonymous IDs.
 
 ## Key Features
 

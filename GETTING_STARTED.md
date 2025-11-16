@@ -2,7 +2,7 @@
 
 ## ✅ What Was Done
 
-Recreated your entire Zenith SaaS platform as a **clean React + Vite application** with:
+Recreated your entire Katana SaaS platform as a **clean React + Vite application** with:
 - ✅ **Working drag-and-drop Kanban board**
 - ✅ No hydration issues (pure client-side React)
 - ✅ Fast development server (Vite)

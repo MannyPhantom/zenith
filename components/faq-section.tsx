@@ -6,24 +6,24 @@ import { ChevronDown } from "lucide-react"
 
 const faqs = [
   {
-    question: "What is Zenith and how does it work?",
+    question: "What is Katana and how does it work?",
     answer:
-      "Zenith is a comprehensive SaaS platform designed to streamline your business operations. It combines project management, team collaboration, analytics, and automation tools in one unified dashboard. Simply sign up, invite your team, and start organizing your workflows with our intuitive interface.",
+      "Katana is a comprehensive SaaS platform designed to streamline your business operations. It combines project management, team collaboration, analytics, and automation tools in one unified dashboard. Simply sign up, invite your team, and start organizing your workflows with our intuitive interface.",
   },
   {
-    question: "Can I try Zenith before committing to a paid plan?",
+    question: "Can I try Katana before committing to a paid plan?",
     answer:
       "We offer a 14-day free trial for all our plans. No credit card required. You'll have full access to all features during the trial period, and you can upgrade or cancel anytime.",
   },
   {
-    question: "How secure is my data with Zenith?",
+    question: "How secure is my data with Katana?",
     answer:
       "Security is our top priority. We use bank-level encryption, comply with SOC 2 Type II standards, and offer features like two-factor authentication, SSO integration, and regular security audits. Your data is stored in secure, redundant data centers with 99.9% uptime guarantee.",
   },
   {
-    question: "Can I integrate Zenith with my existing tools?",
+    question: "Can I integrate Katana with my existing tools?",
     answer:
-      "Yes! Zenith integrates with over 100+ popular tools including Slack, Google Workspace, Microsoft 365, Salesforce, Zapier, and many more. Our API also allows for custom integrations to fit your specific workflow needs.",
+      "Yes! Katana integrates with over 100+ popular tools including Slack, Google Workspace, Microsoft 365, Salesforce, Zapier, and many more. Our API also allows for custom integrations to fit your specific workflow needs.",
   },
   {
     question: "What kind of support do you provide?",
@@ -38,7 +38,7 @@ const faqs = [
   {
     question: "Do you offer refunds?",
     answer:
-      "We offer a 30-day money-back guarantee for all paid plans. If you're not satisfied with Zenith within the first 30 days of your subscription, contact our support team for a full refund.",
+      "We offer a 30-day money-back guarantee for all paid plans. If you're not satisfied with Katana within the first 30 days of your subscription, contact our support team for a full refund.",
   },
   {
     question: "Is there a limit on the number of projects or users?",
@@ -75,7 +75,7 @@ export function FAQSection() {
             transition={{ duration: 0.6, delay: 0.2 }}
             viewport={{ once: true }}
           >
-            Everything you need to know about Zenith. Can't find what you're looking for? Contact our support team.
+            Everything you need to know about Katana. Can't find what you're looking for? Contact our support team.
           </motion.p>
         </div>
 

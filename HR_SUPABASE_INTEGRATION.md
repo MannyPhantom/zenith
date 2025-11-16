@@ -153,3 +153,6 @@ The HR page is now connected to Supabase! The core functionality (employees, rev
 
 
 
+
+
+

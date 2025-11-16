@@ -1,4 +1,4 @@
-# 🎉 Your Zenith React App is Ready!
+# 🎉 Your Katana React App is Ready!
 
 ## ✅ Your Server is Running
 

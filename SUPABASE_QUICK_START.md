@@ -2,7 +2,7 @@
 
 ## 🚀 What's Been Done
 
-Your Zenith SaaS project is now fully integrated with Supabase for the **Project Management** module! Here's what's been implemented:
+Your Katana SaaS project is now fully integrated with Supabase for the **Project Management** module! Here's what's been implemented:
 
 ### ✅ Completed Integration
 
@@ -399,6 +399,9 @@ Your project management module now has a fully functional backend database with 
 - Supabase Discord: https://discord.supabase.com
 
 **Happy Building!** 🚀
+
+
+
 
 
 

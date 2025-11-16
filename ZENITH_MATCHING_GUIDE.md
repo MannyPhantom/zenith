@@ -1,12 +1,12 @@
-# Zenith Matching System - Technical Documentation
+# Katana Matching System - Technical Documentation
 
 ## Overview
-The Zenith Matching System is a sophisticated candidate-job matching algorithm that analyzes multiple factors to calculate a compatibility score between candidates and job positions.
+The Katana Matching System is a sophisticated candidate-job matching algorithm that analyzes multiple factors to calculate a compatibility score between candidates and job positions.
 
 ## How It Works
 
 ### Scoring Algorithm
-The Zenith Match Score is calculated using a weighted average of four key components:
+The Katana Match Score is calculated using a weighted average of four key components:
 
 1. **Skills Match (40% weight)**
    - Compares candidate skills against required and preferred job skills
@@ -198,7 +198,7 @@ No backend API calls required - all calculations happen client-side for speed.
 
 ## Privacy & Anonymity
 
-The Zenith Matching System maintains full anonymity:
+The Katana Matching System maintains full anonymity:
 - Only evaluates skills, experience, education
 - No personal identifiable information used in scoring
 - Candidate IDs used instead of names
@@ -212,7 +212,7 @@ The Zenith Matching System maintains full anonymity:
 2. Click "Add Anonymous Candidate"
 3. Fill out the form with real candidate information
 4. Submit the form
-5. View the calculated Zenith Match Score in the candidate list
+5. View the calculated Katana Match Score in the candidate list
 
 ### Expected Results
 
@@ -263,7 +263,7 @@ Potential improvements to the matching system:
 
 ## Support
 
-For questions or issues with the Zenith Matching System:
+For questions or issues with the Katana Matching System:
 - Check this documentation first
 - Review the code comments in `zenith-matching.ts`
 - Test with the provided examples

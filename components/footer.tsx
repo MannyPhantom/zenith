@@ -8,7 +8,7 @@ export function Footer() {
           <div className="col-span-1 md:col-span-2">
             <ZenithLogo className="mb-4" />
             <p className="text-white/70 mb-4 max-w-md">
-              Empowering businesses with cutting-edge SaaS solutions. Elevate your success to new heights with Zenith.
+              Empowering businesses with cutting-edge SaaS solutions. Elevate your success to new heights with Katana.
             </p>
             <p className="text-sm text-white/50 italic">"Reach the peak of your potential"</p>
           </div>
@@ -67,7 +67,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-white/10 mt-8 pt-8 text-center text-white/50">
-          <p>© 2025 Zenith Technologies. All rights reserved.</p>
+          <p>© 2025 Katana Technologies. All rights reserved.</p>
         </div>
       </div>
     </footer>

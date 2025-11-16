@@ -644,7 +644,7 @@ export default function HRPage() {
             <div>
               <h1 className="text-3xl font-bold">Human Resources</h1>
               <p className="text-muted-foreground mt-1">ZHire - AI-Powered Human Capital Management</p>
-              <p className="text-sm text-muted-foreground mt-2">Zenith Hub &gt; Human Resources</p>
+              <p className="text-sm text-muted-foreground mt-2">Katana Hub &gt; Human Resources</p>
             </div>
             <div className="flex gap-2">
               <AddEmployeeDialog />

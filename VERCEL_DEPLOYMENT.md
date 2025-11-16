@@ -1,4 +1,4 @@
-# Vercel Deployment Guide for Zenith SaaS
+# Vercel Deployment Guide for Katana SaaS
 
 ## 🚀 Quick Fix for "No Customer Success Data Found" Error
 
@@ -230,5 +230,8 @@ After deployment, test the connection:
    )
    ```
 3. Should log `true` if configured correctly
+
+
+
 
 

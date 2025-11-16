@@ -4,8 +4,8 @@ import "./globals.css"
 import ClientLayout from "./ClientLayout"
 
 export const metadata: Metadata = {
-  title: "Zenith - Modern SaaS Solution",
-  description: "Elevate your business to new heights with Zenith",
+  title: "Katana - Modern SaaS Solution",
+  description: "Elevate your business to new heights with Katana",
   generator: "v0.app",
 }
 

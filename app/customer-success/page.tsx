@@ -204,7 +204,7 @@ export default function CustomerSuccessPage() {
         <div className="flex items-center justify-between mb-2">
           <div>
             <h1 className="text-3xl font-bold">Customer Success Platform</h1>
-            <p className="text-muted-foreground">Zenith Success</p>
+            <p className="text-muted-foreground">Katana Success</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm">
@@ -221,7 +221,7 @@ export default function CustomerSuccessPage() {
             </Button>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">Zenith Hub &gt; Customer Success Platform</p>
+        <p className="text-sm text-muted-foreground">Katana Hub &gt; Customer Success Platform</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

@@ -118,7 +118,7 @@ export default function WorkforcePage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <span>Zenith Hub</span>
+                <span>Katana Hub</span>
                 <ChevronRight className="h-4 w-4" />
                 <span>Workflow Management</span>
               </div>

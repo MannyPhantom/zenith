@@ -1,4 +1,4 @@
-# Zenith - Modern SaaS Solution
+# Katana - Modern SaaS Solution
 
 A modern, fully functional SaaS platform built with React, TypeScript, and Vite featuring a **drag-and-drop Kanban board**.
 

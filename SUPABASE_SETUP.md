@@ -1,4 +1,4 @@
-# Supabase Setup Guide for Zenith SaaS
+# Supabase Setup Guide for Katana SaaS
 
 This guide will help you set up Supabase as the backend database for the Project Management module.
 
@@ -206,6 +206,9 @@ const { data } = await supabase
 ---
 
 **Ready to start building!** 🚀
+
+
+
 
 
 

@@ -869,7 +869,7 @@ export default function HRPage() {
                 <h1 className="text-3xl font-bold">Human Resources</h1>
               </div>
               
-              <p className="text-muted-foreground mt-2">ZHire - Zenith-Powered Human Capital Management</p>
+              <p className="text-muted-foreground mt-2">ZHire - Katana-Powered Human Capital Management</p>
             </div>
             <div className="flex gap-2">
               <AddEmployeeDialog />
@@ -1070,7 +1070,7 @@ export default function HRPage() {
                   <div>
                     <h3 className="text-xl font-bold mb-1">Recruitment Pipeline</h3>
                     <p className="text-sm text-muted-foreground">
-                      Anonymous, bias-free hiring with Zenith-powered matching
+                      Anonymous, bias-free hiring with Katana-powered matching
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -3108,7 +3108,7 @@ export default function HRPage() {
                       </Button>
                     </div>
                   </div>
-                  <CardDescription>Zenith-powered mentor-mentee matching</CardDescription>
+                  <CardDescription>Katana-powered mentor-mentee matching</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {mentorships.length === 0 ? (

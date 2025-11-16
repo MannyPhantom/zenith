@@ -214,3 +214,6 @@ rateApplication(applicationId: string, rating: number): Promise<boolean>
 The Careers page and Recruitment system are fully connected to Supabase with privacy-first anonymous application management!
 
 
+
+
+

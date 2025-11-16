@@ -1,4 +1,4 @@
--- Zenith SaaS Project Management Database Schema
+-- Katana SaaS Project Management Database Schema
 -- Run this in your Supabase SQL Editor
 
 -- Enable UUID extension

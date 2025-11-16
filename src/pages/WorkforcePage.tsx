@@ -865,7 +865,7 @@ export default function WorkforcePage() {
           </table>
 
           <div class="footer">
-            <p>Zenith Technologies - TaskBeacon Workforce Management</p>
+            <p>Katana Technologies - TaskBeacon Workforce Management</p>
           </div>
         </body>
         </html>

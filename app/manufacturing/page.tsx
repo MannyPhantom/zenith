@@ -142,7 +142,7 @@ export default function ManufacturingPage() {
             </Button>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Zenith Hub &gt; Manufacturing Operations</p>
+        <p className="text-xs text-muted-foreground">Katana Hub &gt; Manufacturing Operations</p>
       </div>
 
       {/* KPI Cards */}

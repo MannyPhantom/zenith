@@ -984,7 +984,7 @@ export default function CustomerSuccessPage() {
                 <h1 className="text-3xl font-bold">Customer Success Platform</h1>
               </div>
               
-              <p className="text-muted-foreground mt-2">Zenith Success - Proactive customer engagement</p>
+              <p className="text-muted-foreground mt-2">Katana Success - Proactive customer engagement</p>
             </div>
             <div className="flex gap-2">
               <Dialog open={isAddCSMDialogOpen} onOpenChange={setIsAddCSMDialogOpen}>

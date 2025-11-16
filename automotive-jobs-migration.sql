@@ -304,3 +304,6 @@ FROM job_postings
 WHERE department IN ('Detailing', 'Performance', 'Customer Service', 'Operations')
 ORDER BY posted_date DESC;
 
+
+
+
