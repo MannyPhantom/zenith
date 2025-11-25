@@ -126,13 +126,13 @@ export default function HomePage() {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 bg-background/95 backdrop-blur-md border-border" align="end" forceMount>
+                <DropdownMenuContent className="w-64 bg-background/95 backdrop-blur-md border-border" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{profile.full_name || 'User'}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{profile.email}</p>
+                      <p className="text-xs leading-none text-muted-foreground break-all">{profile.email}</p>
                       {organization && (
-                        <p className="text-xs leading-none text-muted-foreground mt-1">
+                        <p className="text-xs leading-none text-muted-foreground mt-1 break-all">
                           {organization.name}
                         </p>
                       )}
