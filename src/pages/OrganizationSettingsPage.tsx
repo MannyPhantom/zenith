@@ -421,7 +421,7 @@ export default function OrganizationSettingsPage() {
                 className={`${getRoleBadgeColor(selectedUser?.role || '')} flex items-center gap-1 w-fit`}
               >
                 {getRoleIcon(selectedUser?.role || '')}
-                {selectedUser?.role.charAt(0).toUpperCase() + selectedUser?.role.slice(1)}
+                {selectedUser?.role ? selectedUser.role.charAt(0).toUpperCase() + selectedUser.role.slice(1) : ''}
               </Badge>
             </div>
 
