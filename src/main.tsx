@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider } from '@/components/theme-provider'
+import { AuthProvider } from '@/contexts/AuthContext'
 import App from './App'
 import './index.css'
 
@@ -60,7 +61,9 @@ ReactDOM.createRoot(root).render(
           storageKey="zenith-theme"
           disableTransitionOnChange={false}
         >
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </ThemeProvider>
       </BrowserRouter>
     </ErrorBoundary>

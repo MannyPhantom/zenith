@@ -18,7 +18,8 @@ import {
   Factory,
   Briefcase,
   Laptop,
-  Heart
+  Heart,
+  LogOut
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -31,8 +32,49 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/contexts/AuthContext'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function HomePage() {
+  const { user, profile, organization, signInWithMicrosoft, signOut, loading } = useAuth()
+
+  const handleSignIn = async () => {
+    try {
+      await signInWithMicrosoft()
+    } catch (error) {
+      console.error('Sign in error:', error)
+    }
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Sign out error:', error)
+    }
+  }
+
+  const getUserInitials = () => {
+    if (profile?.full_name) {
+      return profile.full_name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    }
+    return user?.email?.slice(0, 2).toUpperCase() || 'U'
+  }
+
   // Company logos for social proof
   const companies = [
     { name: "TechCorp", icon: Laptop },
@@ -68,6 +110,63 @@ export default function HomePage() {
             <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Pricing</a>
             <a href="#faq" className="text-sm font-medium hover:text-primary transition-colors">FAQ</a>
             <SimpleThemeToggle />
+            
+            {/* Auth Section */}
+            {loading ? (
+              <div className="w-8 h-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : user && profile ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={profile.avatar_url || undefined} alt={profile.full_name || ''} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-background/95 backdrop-blur-md border-border" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{profile.full_name || 'User'}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{profile.email}</p>
+                      {organization && (
+                        <p className="text-xs leading-none text-muted-foreground mt-1">
+                          {organization.name}
+                        </p>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/hub" className="cursor-pointer w-full">
+                      <LayoutGrid className="mr-2 h-4 w-4" />
+                      <span>Go to Hub</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleSignIn}
+                className="flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#00a4ef"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#ffb900"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#7fba00"/>
+                </svg>
+                Sign in with Microsoft
+              </Button>
+            )}
           </div>
         </div>
       </nav>

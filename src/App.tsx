@@ -29,6 +29,8 @@ import EmployeeGoalsPage from './pages/employee/EmployeeGoalsPage'
 import EmployeeDevelopmentPage from './pages/employee/EmployeeDevelopmentPage'
 import EmployeeProfilePage from './pages/employee/EmployeeProfilePage'
 import JobApplicationsPage from './pages/employee/JobApplicationsPage'
+import OnboardingPage from './pages/OnboardingPage'
+import OrganizationSettingsPage from './pages/OrganizationSettingsPage'
 
 function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -49,8 +51,10 @@ function App() {
         {!isLandingPage && <Header />}
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/hub" element={<HubPage />} />
           <Route path="/careers" element={<CareersPage />} />
+          <Route path="/settings/organization" element={<OrganizationSettingsPage />} />
           
           {/* Projects Routes */}
           <Route path="/projects" element={<ProjectsPage />} />

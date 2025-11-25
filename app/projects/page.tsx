@@ -5,6 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import {
+  ActiveProjectsWidget,
+  PortfolioHealthWidget,
+  BudgetUtilizationWidget,
+  TeamUtilizationWidget,
+  OnTimeDeliveryWidget,
+  WidgetGrid
+} from "@/components/projects/widgets"
+import {
   LayoutDashboard,
   Kanban,
   GanttChart,
@@ -487,65 +495,26 @@ export default function ProjectsPage() {
         {/* Dashboard Tab */}
         <TabsContent value="dashboard" className="space-y-4">
           {/* Portfolio KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Active Projects</CardDescription>
-                <CardTitle className="text-2xl">{portfolioMetrics.activeProjects}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xs text-muted-foreground">{portfolioMetrics.totalProjects} total</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Portfolio Health</CardDescription>
-                <CardTitle className="text-2xl">{portfolioMetrics.avgHealth}%</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Progress value={portfolioMetrics.avgHealth} className="h-1" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Budget Utilization</CardDescription>
-                <CardTitle className="text-2xl">
-                  {Math.round((portfolioMetrics.totalSpent / portfolioMetrics.totalBudget) * 100)}%
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xs text-muted-foreground">
-                  ${(portfolioMetrics.totalSpent / 1000).toFixed(0)}K / $
-                  {(portfolioMetrics.totalBudget / 1000).toFixed(0)}K
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Team Utilization</CardDescription>
-                <CardTitle className="text-2xl">{portfolioMetrics.teamUtilization}%</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Progress value={portfolioMetrics.teamUtilization} className="h-1" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>On-Time Delivery</CardDescription>
-                <CardTitle className="text-2xl">{portfolioMetrics.onTimeDelivery}%</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center text-xs text-green-500">
-                  <ArrowUpRight className="h-3 w-3 mr-1" />
-                  +5% vs last month
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <WidgetGrid columns={{ md: 2, lg: 5 }} gap={4}>
+            <ActiveProjectsWidget 
+              activeProjects={portfolioMetrics.activeProjects}
+              totalProjects={portfolioMetrics.totalProjects}
+            />
+            <PortfolioHealthWidget 
+              healthPercentage={portfolioMetrics.avgHealth}
+            />
+            <BudgetUtilizationWidget 
+              totalSpent={portfolioMetrics.totalSpent}
+              totalBudget={portfolioMetrics.totalBudget}
+            />
+            <TeamUtilizationWidget 
+              utilizationPercentage={portfolioMetrics.teamUtilization}
+            />
+            <OnTimeDeliveryWidget 
+              percentage={portfolioMetrics.onTimeDelivery}
+              trend={{ value: 5, label: "vs last month" }}
+            />
+          </WidgetGrid>
 
           {/* AI Insights & Alerts */}
           <Card>

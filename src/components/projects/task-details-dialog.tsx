@@ -29,10 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { updateTask, deleteTask, getProjectTeamMembers, type Task, type TeamMember } from "@/lib/project-data-supabase"
-import { Edit, Trash2, Calendar, User, Flag, CheckCircle } from "lucide-react"
+import { Slider } from "@/components/ui/slider"
+import { updateTask, deleteTask, getProjectTeamMembers, getStatusFromProgress, type Task, type TeamMember } from "@/lib/project-data-supabase"
+import { Edit, Trash2, Calendar, User, Flag, CheckCircle, TrendingUp } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect } from "react"
+import { EmployeeAvatar } from "@/components/ui/employee-avatar"
 
 interface TaskDetailsDialogProps {
   projectId: string
@@ -74,17 +76,33 @@ export function TaskDetailsDialog({
   const handleSave = async () => {
     if (!formData.title.trim()) return
 
-    await updateTask(projectId, task.id, {
+    console.log('[TaskDetailsDialog] Saving task with progress:', formData.progress)
+    
+    // Build updates object - only include status if it was manually changed
+    // (not auto-calculated from progress)
+    const updates: Partial<Task> = {
       title: formData.title,
       description: formData.description,
-      status: formData.status,
       priority: formData.priority,
       assignee: formData.assignee,
       deadline: formData.deadline,
       progress: formData.progress,
-    })
+    }
+    
+    // Only include status if user manually changed it from a non-auto-updated state
+    // OR if task is blocked/backlog (user-controlled states)
+    if (formData.status === 'blocked' || formData.status === 'backlog' || 
+        task.status === 'blocked' || task.status === 'backlog') {
+      updates.status = formData.status
+      console.log('[TaskDetailsDialog] Including manual status:', formData.status)
+    } else {
+      console.log('[TaskDetailsDialog] Letting progress auto-determine status')
+    }
+
+    await updateTask(projectId, task.id, updates)
 
     setMode('view')
+    onOpenChange(false)
   }
 
   const handleDelete = async () => {
@@ -219,7 +237,14 @@ export function TaskDetailsDialog({
                         <User className="w-4 h-4 text-muted-foreground" />
                         <span className="font-medium">Assignee:</span>
                       </div>
-                      <p className="text-sm">{task.assignee.name}</p>
+                      <div className="flex items-center gap-2">
+                        <EmployeeAvatar
+                          name={task.assignee.name}
+                          photoUrl={task.assignee.avatar && task.assignee.avatar !== "/placeholder.svg?height=32&width=32" ? task.assignee.avatar : undefined}
+                          size="sm"
+                        />
+                        <p className="text-sm">{task.assignee.name}</p>
+                      </div>
                     </div>
 
                     {task.deadline && (
@@ -233,20 +258,26 @@ export function TaskDetailsDialog({
                     )}
                   </div>
 
-                  {task.status !== "done" && task.progress > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">Progress</span>
-                        <span className="text-muted-foreground">{task.progress}%</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-primary rounded-full h-2 transition-all"
-                          style={{ width: `${task.progress}%` }}
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Progress
+                      </span>
+                      <span className="text-lg font-semibold text-primary">{task.progress}%</span>
                     </div>
-                  )}
+                    <div className="w-full bg-muted rounded-full h-2.5">
+                      <div
+                        className="bg-primary rounded-full h-2.5 transition-all"
+                        style={{ width: `${task.progress}%` }}
+                      />
+                    </div>
+                    {task.status !== 'blocked' && task.status !== 'backlog' && task.progress !== 100 && task.progress !== 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Progress updates will auto-adjust task status
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 // Edit Mode
@@ -359,17 +390,41 @@ export function TaskDetailsDialog({
                     </div>
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-progress">Progress: {formData.progress}%</Label>
-                    <input
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="edit-progress" className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Progress
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={formData.progress}
+                          onChange={(e) => {
+                            const value = Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                            setFormData({ ...formData, progress: value })
+                          }}
+                          className="w-20 h-8 text-center"
+                        />
+                        <span className="text-sm font-medium">%</span>
+                      </div>
+                    </div>
+                    <Slider
                       id="edit-progress"
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={formData.progress}
-                      onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) })}
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={[formData.progress]}
+                      onValueChange={(value) => setFormData({ ...formData, progress: value[0] })}
                       className="w-full"
                     />
+                    {formData.status !== 'blocked' && formData.status !== 'backlog' && (
+                      <p className="text-xs text-muted-foreground">
+                        Status will auto-update: {formData.progress === 0 && 'To Do'}{formData.progress > 0 && formData.progress < 75 && 'In Progress'}{formData.progress >= 75 && formData.progress < 100 && 'Review'}{formData.progress === 100 && 'Done'}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

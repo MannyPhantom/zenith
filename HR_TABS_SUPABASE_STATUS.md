@@ -147,3 +147,8 @@ The HR page is fully functional with complete Supabase integration! 🎉
 
 
 
+
+
+
+
+

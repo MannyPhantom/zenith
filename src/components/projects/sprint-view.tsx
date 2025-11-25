@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { Project, Task } from "@/lib/project-data"
 import * as ProjectData from "@/lib/project-data-supabase"
 import { Plus, Play, CheckCircle2, Calendar, Users, Target, TrendingUp, Flag, X, Trash2 } from "lucide-react"
+import { EmployeeAvatar } from "@/components/ui/employee-avatar"
 
 interface SprintViewProps {
   project: Project
@@ -462,7 +463,14 @@ export function SprintView({ project, onProjectUpdate }: SprintViewProps) {
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>{task.assignee.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <EmployeeAvatar
+                              name={task.assignee.name}
+                              photoUrl={task.assignee.avatar && task.assignee.avatar !== "/placeholder.svg?height=32&width=32" ? task.assignee.avatar : undefined}
+                              size="sm"
+                            />
+                            <span>{task.assignee.name}</span>
+                          </div>
                           <span>•</span>
                           <span>Due {task.deadline}</span>
                         </div>
@@ -741,9 +749,14 @@ export function SprintView({ project, onProjectUpdate }: SprintViewProps) {
                           {task.status}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {task.assignee.name} • Due {task.deadline}
-                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <EmployeeAvatar
+                          name={task.assignee.name}
+                          photoUrl={task.assignee.avatar && task.assignee.avatar !== "/placeholder.svg?height=32&width=32" ? task.assignee.avatar : undefined}
+                          size="sm"
+                        />
+                        <span>{task.assignee.name} • Due {task.deadline}</span>
+                      </div>
                     </div>
                   </div>
                 ))

@@ -32,6 +32,7 @@ import {
   Target,
   Sparkles,
   Clock,
+  Settings,
 } from "lucide-react"
 import * as api from '@/lib/customer-success-api'
 import type { Client, ClientTask, ClientMilestone, ClientInteraction } from '@/lib/customer-success-api'
@@ -39,6 +40,26 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from "recharts"
+import { WidgetSettingsDialog } from "@/components/projects/widgets/WidgetSettingsDialog"
+import { useWidgetLayout } from "@/hooks/useWidgetLayout"
+import { useToast } from "@/hooks/use-toast"
 
 export default function CustomerSuccessPage() {
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -170,6 +191,32 @@ export default function CustomerSuccessPage() {
     interactionDate: "",
   })
   
+  // Analytics widget settings state
+  const [analyticsSettingsDialogOpen, setAnalyticsSettingsDialogOpen] = useState(false)
+  const { toast } = useToast()
+
+  // Analytics widget layout management
+  const {
+    layout: analyticsLayout,
+    visibleWidgets: visibleAnalyticsWidgets,
+    toggleWidget: toggleAnalyticsWidget,
+    resetLayout: resetAnalyticsLayout,
+  } = useWidgetLayout({
+    defaultLayout: [
+      { id: 'key-metrics-overview', type: 'KeyMetricsOverview', visible: true },
+      { id: 'client-health-distribution', type: 'ClientHealthDistribution', visible: true },
+      { id: 'revenue-analytics', type: 'RevenueAnalytics', visible: true },
+      { id: 'interaction-activity', type: 'InteractionActivity', visible: true },
+      { id: 'task-performance', type: 'TaskPerformance', visible: true },
+      { id: 'health-score-trends', type: 'HealthScoreTrends', visible: true },
+      { id: 'arr-growth-trend', type: 'ARRGrowthTrend', visible: true },
+      { id: 'top-clients-arr', type: 'TopClientsARR', visible: true },
+      { id: 'csm-performance', type: 'CSMPerformance', visible: true },
+      { id: 'upcoming-milestones', type: 'UpcomingMilestones', visible: true },
+    ],
+    storageKey: 'customer-success-analytics-layout',
+  })
+
   // Data state
   const [clients, setClients] = useState<Client[]>([])
   const [tasks, setTasks] = useState<ClientTask[]>([])
@@ -3313,8 +3360,25 @@ export default function CustomerSuccessPage() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
+          {/* Analytics Section Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Analytics Dashboard</h2>
+              <p className="text-muted-foreground">Comprehensive insights into your customer success metrics</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAnalyticsSettingsDialogOpen(true)}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Widget Settings
+            </Button>
+          </div>
+
           {/* Key Metrics Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {visibleAnalyticsWidgets.some(w => w.id === 'key-metrics-overview') && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-2">
@@ -3370,9 +3434,11 @@ export default function CustomerSuccessPage() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Client Health Distribution */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {visibleAnalyticsWidgets.some(w => w.id === 'client-health-distribution') && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle>Client Health Distribution</CardTitle>
@@ -3381,67 +3447,45 @@ export default function CustomerSuccessPage() {
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                        <span className="text-sm">Healthy (80-100)</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {clients.filter(c => c.health_score >= 80).length} clients
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{
-                          width: `${clients.length > 0 ? (clients.filter(c => c.health_score >= 80).length / clients.length) * 100 : 0}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                        <span className="text-sm">Moderate (60-79)</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {clients.filter(c => c.health_score >= 60 && c.health_score < 80).length} clients
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-yellow-500 h-2 rounded-full"
-                        style={{
-                          width: `${clients.length > 0 ? (clients.filter(c => c.health_score >= 60 && c.health_score < 80).length / clients.length) * 100 : 0}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                        <span className="text-sm">At Risk (&lt;60)</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {clients.filter(c => c.health_score < 60).length} clients
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-red-500 h-2 rounded-full"
-                        style={{
-                          width: `${clients.length > 0 ? (clients.filter(c => c.health_score < 60).length / clients.length) * 100 : 0}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        {
+                          name: 'Healthy (80-100)',
+                          value: clients.filter(c => c.health_score >= 80).length,
+                          fill: '#22c55e'
+                        },
+                        {
+                          name: 'Moderate (60-79)',
+                          value: clients.filter(c => c.health_score >= 60 && c.health_score < 80).length,
+                          fill: '#eab308'
+                        },
+                        {
+                          name: 'At Risk (<60)',
+                          value: clients.filter(c => c.health_score < 60).length,
+                          fill: '#ef4444'
+                        }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name.split(' ')[0]}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {[
+                        { fill: '#22c55e' },
+                        { fill: '#eab308' },
+                        { fill: '#ef4444' }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
 
                 <div className="mt-6 p-4 bg-muted rounded-lg">
                   <div className="flex items-start gap-3">
@@ -3458,6 +3502,7 @@ export default function CustomerSuccessPage() {
             </Card>
 
             {/* Revenue Analytics */}
+            {visibleAnalyticsWidgets.some(w => w.id === 'revenue-analytics') && (
             <Card>
               <CardHeader>
                 <CardTitle>Revenue Analytics</CardTitle>
@@ -3466,62 +3511,78 @@ export default function CustomerSuccessPage() {
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total ARR</p>
-                      <p className="text-2xl font-bold">${(stats.totalARR / 1000).toFixed(0)}K</p>
-                    </div>
-                    <DollarSign className="w-8 h-8 text-green-500" />
-                  </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={[
+                      {
+                        name: 'Healthy',
+                        arr: clients.filter(c => c.health_score >= 80).reduce((sum, c) => sum + c.arr, 0) / 1000,
+                        fill: '#22c55e'
+                      },
+                      {
+                        name: 'Moderate',
+                        arr: clients.filter(c => c.health_score >= 60 && c.health_score < 80).reduce((sum, c) => sum + c.arr, 0) / 1000,
+                        fill: '#eab308'
+                      },
+                      {
+                        name: 'At Risk',
+                        arr: clients.filter(c => c.health_score < 60).reduce((sum, c) => sum + c.arr, 0) / 1000,
+                        fill: '#ef4444'
+                      }
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" />
+                    <YAxis label={{ value: 'ARR ($K)', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip 
+                      formatter={(value: number) => [`$${value.toFixed(0)}K`, 'ARR']}
+                      contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                    />
+                    <Bar dataKey="arr" fill="#8884d8" radius={[8, 8, 0, 0]}>
+                      {[
+                        { fill: '#22c55e' },
+                        { fill: '#eab308' },
+                        { fill: '#ef4444' }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Healthy Clients ARR</span>
-                      <span className="text-sm font-medium">
-                        ${(clients.filter(c => c.health_score >= 80).reduce((sum, c) => sum + c.arr, 0) / 1000).toFixed(0)}K
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Moderate Clients ARR</span>
-                      <span className="text-sm font-medium">
-                        ${(clients.filter(c => c.health_score >= 60 && c.health_score < 80).reduce((sum, c) => sum + c.arr, 0) / 1000).toFixed(0)}K
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-red-500">At Risk ARR</span>
-                      <span className="text-sm font-medium text-red-500">
-                        ${(clients.filter(c => c.health_score < 60).reduce((sum, c) => sum + c.arr, 0) / 1000).toFixed(0)}K
-                      </span>
-                    </div>
+                <div className="mt-4 pt-4 border-t space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Total ARR</span>
+                    <span className="text-sm font-bold">${(stats.totalARR / 1000).toFixed(0)}K</span>
                   </div>
-
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Average ARR per Client</span>
-                      <span className="text-sm font-bold">
-                        ${clients.length > 0 ? Math.round(stats.totalARR / clients.length / 1000) : 0}K
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Renewals Next 90 Days</span>
-                      <span className="text-sm font-bold">
-                        {clients.filter(c => {
-                          const renewalDate = new Date(c.renewal_date)
-                          const ninetyDaysFromNow = new Date()
-                          ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90)
-                          return renewalDate <= ninetyDaysFromNow && renewalDate >= new Date()
-                        }).length}
-                      </span>
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Average ARR per Client</span>
+                    <span className="text-sm font-bold">
+                      ${clients.length > 0 ? Math.round(stats.totalARR / clients.length / 1000) : 0}K
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Renewals Next 90 Days</span>
+                    <span className="text-sm font-bold">
+                      {clients.filter(c => {
+                        const renewalDate = new Date(c.renewal_date)
+                        const ninetyDaysFromNow = new Date()
+                        ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90)
+                        return renewalDate <= ninetyDaysFromNow && renewalDate >= new Date()
+                      }).length}
+                    </span>
                   </div>
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
+          )}
 
           {/* Activity & Engagement */}
+          {visibleAnalyticsWidgets.some(w => w.id === 'interaction-activity' || w.id === 'task-performance') && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {visibleAnalyticsWidgets.some(w => w.id === 'interaction-activity') && (
             <Card>
               <CardHeader>
                 <CardTitle>Interaction Activity</CardTitle>
@@ -3530,124 +3591,266 @@ export default function CustomerSuccessPage() {
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm">Email Interactions</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {interactions.filter(i => i.type === 'email').length}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{
-                          width: `${interactions.length > 0 ? (interactions.filter(i => i.type === 'email').length / interactions.length) * 100 : 0}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">Call Interactions</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {interactions.filter(i => i.type === 'call').length}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{
-                          width: `${interactions.length > 0 ? (interactions.filter(i => i.type === 'call').length / interactions.length) * 100 : 0}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-purple-500" />
-                        <span className="text-sm">Meeting Interactions</span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {interactions.filter(i => i.type === 'meeting').length}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-purple-500 h-2 rounded-full"
-                        style={{
-                          width: `${interactions.length > 0 ? (interactions.filter(i => i.type === 'meeting').length / interactions.length) * 100 : 0}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={[
+                      {
+                        name: 'Email',
+                        count: interactions.filter(i => i.type === 'email').length,
+                        fill: '#3b82f6'
+                      },
+                      {
+                        name: 'Call',
+                        count: interactions.filter(i => i.type === 'call').length,
+                        fill: '#22c55e'
+                      },
+                      {
+                        name: 'Meeting',
+                        count: interactions.filter(i => i.type === 'meeting').length,
+                        fill: '#a855f7'
+                      }
+                    ]}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="name" />
+                    <Tooltip 
+                      formatter={(value: number) => [value, 'Interactions']}
+                      contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                    />
+                    <Bar dataKey="count" fill="#8884d8" radius={[0, 8, 8, 0]}>
+                      {[
+                        { fill: '#3b82f6' },
+                        { fill: '#22c55e' },
+                        { fill: '#a855f7' }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
+            )}
 
+            {visibleAnalyticsWidgets.some(w => w.id === 'task-performance') && (
             <Card>
               <CardHeader>
                 <CardTitle>Task Performance</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Task completion metrics
+                  Task status and priority breakdown
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                      <CheckCircle2 className="w-6 h-6 text-green-500 mx-auto mb-2" />
-                      <p className="text-2xl font-bold">{stats.completedTasks}</p>
-                      <p className="text-xs text-muted-foreground">Completed</p>
-                    </div>
-                    <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                      <Circle className="w-6 h-6 text-blue-500 mx-auto mb-2" />
-                      <p className="text-2xl font-bold">{stats.totalTasks - stats.completedTasks - stats.overdueTasks}</p>
-                      <p className="text-xs text-muted-foreground">Active</p>
-                    </div>
-                    <div className="text-center p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-                      <AlertCircle className="w-6 h-6 text-red-500 mx-auto mb-2" />
-                      <p className="text-2xl font-bold">{stats.overdueTasks}</p>
-                      <p className="text-xs text-muted-foreground">Overdue</p>
-                    </div>
-                  </div>
+                <div className="space-y-6">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Completed', value: stats.completedTasks, fill: '#22c55e' },
+                          { name: 'Active', value: stats.totalTasks - stats.completedTasks - stats.overdueTasks, fill: '#3b82f6' },
+                          { name: 'Overdue', value: stats.overdueTasks, fill: '#ef4444' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={70}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {[
+                          { fill: '#22c55e' },
+                          { fill: '#3b82f6' },
+                          { fill: '#ef4444' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
 
-                  <div className="pt-4 border-t space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">High Priority Tasks</span>
-                      <span className="text-sm font-medium">
-                        {tasks.filter(t => t.priority === 'high').length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Medium Priority Tasks</span>
-                      <span className="text-sm font-medium">
-                        {tasks.filter(t => t.priority === 'medium').length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Low Priority Tasks</span>
-                      <span className="text-sm font-medium">
-                        {tasks.filter(t => t.priority === 'low').length}
-                      </span>
-                    </div>
+                  <div className="pt-4 border-t">
+                    <p className="text-sm font-medium mb-3">By Priority</p>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart
+                        data={[
+                          { priority: 'High', count: tasks.filter(t => t.priority === 'high').length, fill: '#ef4444' },
+                          { priority: 'Medium', count: tasks.filter(t => t.priority === 'medium').length, fill: '#eab308' },
+                          { priority: 'Low', count: tasks.filter(t => t.priority === 'low').length, fill: '#3b82f6' }
+                        ]}
+                      >
+                        <XAxis dataKey="priority" />
+                        <YAxis />
+                        <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                        <Bar dataKey="count" fill="#8884d8" radius={[8, 8, 0, 0]}>
+                          {[
+                            { fill: '#ef4444' },
+                            { fill: '#eab308' },
+                            { fill: '#3b82f6' }
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
+          )}
+
+          {/* Health Score Trends */}
+          {visibleAnalyticsWidgets.some(w => w.id === 'health-score-trends') && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Client Health Score Trends</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Historical health scores over the last 6 months
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={[
+                    { month: 'Jun', healthy: 65, moderate: 25, atRisk: 10 },
+                    { month: 'Jul', healthy: 68, moderate: 23, atRisk: 9 },
+                    { month: 'Aug', healthy: 70, moderate: 22, atRisk: 8 },
+                    { month: 'Sep', healthy: 72, moderate: 20, atRisk: 8 },
+                    { month: 'Oct', healthy: 75, moderate: 18, atRisk: 7 },
+                    { month: 'Nov', healthy: clients.length > 0 ? Math.round((clients.filter(c => c.health_score >= 80).length / clients.length) * 100) : 0,
+                      moderate: clients.length > 0 ? Math.round((clients.filter(c => c.health_score >= 60 && c.health_score < 80).length / clients.length) * 100) : 0,
+                      atRisk: clients.length > 0 ? Math.round((clients.filter(c => c.health_score < 60).length / clients.length) * 100) : 0 }
+                  ]}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="month" />
+                  <YAxis label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip 
+                    formatter={(value: number) => [`${value}%`, '']}
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="healthy" stroke="#22c55e" strokeWidth={2} name="Healthy" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="moderate" stroke="#eab308" strokeWidth={2} name="Moderate" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="atRisk" stroke="#ef4444" strokeWidth={2} name="At Risk" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          )}
+
+          {/* ARR Growth Trend */}
+          {visibleAnalyticsWidgets.some(w => w.id === 'arr-growth-trend') && (
+          <Card>
+            <CardHeader>
+              <CardTitle>ARR Growth Trend</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Monthly recurring revenue progression
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart
+                  data={[
+                    { month: 'Jun', arr: stats.totalARR * 0.82 / 1000, expansion: 10, churn: 5 },
+                    { month: 'Jul', arr: stats.totalARR * 0.87 / 1000, expansion: 12, churn: 4 },
+                    { month: 'Aug', arr: stats.totalARR * 0.90 / 1000, expansion: 15, churn: 3 },
+                    { month: 'Sep', arr: stats.totalARR * 0.94 / 1000, expansion: 18, churn: 4 },
+                    { month: 'Oct', arr: stats.totalARR * 0.97 / 1000, expansion: 20, churn: 3 },
+                    { month: 'Nov', arr: stats.totalARR / 1000, expansion: 25, churn: 2 }
+                  ]}
+                >
+                  <defs>
+                    <linearGradient id="colorARR" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="month" />
+                  <YAxis label={{ value: 'ARR ($K)', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip 
+                    formatter={(value: number, name: string) => {
+                      if (name === 'arr') return [`$${value.toFixed(0)}K`, 'Total ARR']
+                      if (name === 'expansion') return [`$${value}K`, 'Expansion']
+                      if (name === 'churn') return [`$${value}K`, 'Churn']
+                      return [value, name]
+                    }}
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                  />
+                  <Legend />
+                  <Area type="monotone" dataKey="arr" stroke="#22c55e" fillOpacity={1} fill="url(#colorARR)" name="Total ARR" />
+                  <Line type="monotone" dataKey="expansion" stroke="#3b82f6" strokeWidth={2} name="Expansion" dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="churn" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 5" name="Churn" dot={{ r: 3 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+              <div className="mt-4 grid grid-cols-3 gap-4">
+                <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <p className="text-sm text-muted-foreground">Current MRR</p>
+                  <p className="text-xl font-bold text-green-500">${(stats.totalARR / 1000 / 12).toFixed(1)}K</p>
+                </div>
+                <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <p className="text-sm text-muted-foreground">Growth Rate</p>
+                  <p className="text-xl font-bold text-blue-500">+18%</p>
+                </div>
+                <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                  <p className="text-sm text-muted-foreground">Net Retention</p>
+                  <p className="text-xl font-bold text-purple-500">112%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          )}
+
+          {/* Top Clients by ARR */}
+          {visibleAnalyticsWidgets.some(w => w.id === 'top-clients-arr') && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Clients by ARR</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Highest value client accounts
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={clients
+                    .sort((a, b) => b.arr - a.arr)
+                    .slice(0, 5)
+                    .map(client => ({
+                      name: client.name.length > 15 ? client.name.substring(0, 15) + '...' : client.name,
+                      arr: client.arr / 1000,
+                      health: client.health_score
+                    }))}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" label={{ value: 'ARR ($K)', position: 'bottom' }} />
+                  <YAxis type="category" dataKey="name" width={120} />
+                  <Tooltip 
+                    formatter={(value: number, name: string) => {
+                      if (name === 'arr') return [`$${value.toFixed(0)}K`, 'ARR']
+                      if (name === 'health') return [`${value}%`, 'Health Score']
+                      return [value, name]
+                    }}
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                  />
+                  <Bar dataKey="arr" fill="#3b82f6" radius={[0, 8, 8, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          )}
 
           {/* CSM Performance & Milestones */}
+          {visibleAnalyticsWidgets.some(w => w.id === 'csm-performance' || w.id === 'upcoming-milestones') && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {visibleAnalyticsWidgets.some(w => w.id === 'csm-performance') && (
             <Card>
               <CardHeader>
                 <CardTitle>CSM Performance</CardTitle>
@@ -3704,7 +3907,9 @@ export default function CustomerSuccessPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
 
+            {visibleAnalyticsWidgets.some(w => w.id === 'upcoming-milestones') && (
             <Card>
               <CardHeader>
                 <CardTitle>Milestone Progress</CardTitle>
@@ -3776,9 +3981,12 @@ export default function CustomerSuccessPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
+          )}
 
           {/* Top Clients by ARR */}
+          {visibleAnalyticsWidgets.some(w => w.id === 'top-clients-arr') && (
           <Card>
             <CardHeader>
               <CardTitle>Top Clients by ARR</CardTitle>
@@ -3813,8 +4021,24 @@ export default function CustomerSuccessPage() {
               </div>
             </CardContent>
           </Card>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* Analytics Widget Settings Dialog */}
+      <WidgetSettingsDialog
+        open={analyticsSettingsDialogOpen}
+        onOpenChange={setAnalyticsSettingsDialogOpen}
+        layout={analyticsLayout}
+        onToggleWidget={toggleAnalyticsWidget}
+        onReset={() => {
+          resetAnalyticsLayout()
+          toast({
+            title: "Layout reset",
+            description: "Analytics widget layout has been reset to default.",
+          })
+        }}
+      />
 
       {/* Global View Client Dialog - Available from any tab */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>

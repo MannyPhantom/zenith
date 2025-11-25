@@ -240,7 +240,23 @@ export default function EmployeeDirectoryPage() {
                 <div className="flex flex-col items-center text-center mb-4">
                   {/* Avatar */}
                   <div className="relative mb-3">
-                    <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
+                    {employee.photo && employee.photo !== "/placeholder.svg?height=100&width=100" && (
+                      <img 
+                        src={employee.photo} 
+                        alt={employee.name}
+                        className="w-20 h-20 rounded-full object-cover border-2 border-background"
+                        onError={(e) => {
+                          // Fallback to initials if image fails to load
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                          const fallback = target.nextElementSibling as HTMLElement
+                          if (fallback) fallback.style.display = 'flex'
+                        }}
+                      />
+                    )}
+                    <div 
+                      className={`w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary ${employee.photo && employee.photo !== "/placeholder.svg?height=100&width=100" ? 'hidden' : ''}`}
+                    >
                       {employee.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div className={`absolute bottom-1 right-1 w-4 h-4 rounded-full ${getStatusColor(employee.status)} border-2 border-background`} />
@@ -297,7 +313,23 @@ export default function EmployeeDirectoryPage() {
                   <div className="flex items-center gap-4">
                     {/* Avatar */}
                     <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
+                      {employee.photo && employee.photo !== "/placeholder.svg?height=100&width=100" && (
+                        <img 
+                          src={employee.photo} 
+                          alt={employee.name}
+                          className="w-12 h-12 rounded-full object-cover border-2 border-background"
+                          onError={(e) => {
+                            // Fallback to initials if image fails to load
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            const fallback = target.nextElementSibling as HTMLElement
+                            if (fallback) fallback.style.display = 'flex'
+                          }}
+                        />
+                      )}
+                      <div 
+                        className={`w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary ${employee.photo && employee.photo !== "/placeholder.svg?height=100&width=100" ? 'hidden' : ''}`}
+                      >
                         {employee.name.split(' ').map(n => n[0]).join('')}
                       </div>
                       <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${getStatusColor(employee.status)} border-2 border-background`} />

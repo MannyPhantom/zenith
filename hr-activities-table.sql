@@ -29,3 +29,8 @@ CREATE POLICY "Enable insert for authenticated users" ON hr_activities
 
 
 
+
+
+
+
+

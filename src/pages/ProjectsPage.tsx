@@ -5,10 +5,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { CheckCircle2, Clock, AlertCircle, TrendingUp, Calendar, Users, Plus, Trash2, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { CheckCircle2, Clock, AlertCircle, Plus, Trash2, Loader2, Settings, Save, X } from 'lucide-react'
 import * as ProjectData from '@/lib/project-data-supabase'
 import type { Task, Project } from '@/lib/project-data'
 import { AddProjectDialog } from '@/components/projects/add-project-dialog'
+import { 
+  TotalProjectsWidget, 
+  UpcomingDeadlinesWidget, 
+  TeamMembersWidget,
+  RecentActivityWidget,
+  DraggableWidget,
+  DraggableWidgetGrid,
+  WidgetSettingsDialog
+} from '@/components/projects/widgets'
+import { useWidgetLayout } from '@/hooks/useWidgetLayout'
+import { useToast } from '@/hooks/use-toast'
 
 interface WorkItem {
   id: string
@@ -73,7 +84,27 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [addProjectDialogOpen, setAddProjectDialogOpen] = useState(false)
-  const [showAllActivities, setShowAllActivities] = useState(false)
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const { toast } = useToast()
+
+  // Widget layout management - Start simple with just the 3 metric widgets
+  const {
+    layout,
+    visibleWidgets,
+    isEditMode,
+    setIsEditMode,
+    reorderWidgets,
+    toggleWidget,
+    saveLayout,
+    resetLayout,
+  } = useWidgetLayout({
+    defaultLayout: [
+      { id: 'total-projects', type: 'TotalProjectsWidget', visible: true },
+      { id: 'upcoming-deadlines', type: 'UpcomingDeadlinesWidget', visible: true },
+      { id: 'team-members', type: 'TeamMembersWidget', visible: true },
+    ],
+    storageKey: 'projects-dashboard-layout',
+  })
 
   // Load projects from Supabase
   const loadProjects = async () => {
@@ -278,51 +309,124 @@ export default function ProjectsPage() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button size="sm" onClick={() => setAddProjectDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Button>
+          {isEditMode ? (
+            <>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => {
+                  setIsEditMode(false)
+                  toast({
+                    title: "Changes discarded",
+                    description: "Widget layout was not saved.",
+                  })
+                }}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              <Button 
+                size="sm"
+                onClick={() => {
+                  saveLayout()
+                  setIsEditMode(false)
+                  toast({
+                    title: "Layout saved",
+                    description: "Your widget layout has been saved.",
+                  })
+                }}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Layout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setSettingsDialogOpen(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Widget Settings
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setIsEditMode(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Customize Layout
+              </Button>
+              <Button size="sm" onClick={() => setAddProjectDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Project
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.totalProjects}</div>
-            <p className="text-xs text-muted-foreground">
-              {metrics.activeProjects} active
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Deadlines</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.upcomingDeadlines}</div>
-            <p className="text-xs text-muted-foreground">
-              Next 7 days
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.teamMembers}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all projects
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {isEditMode && (
+        <div className="bg-primary/10 border border-primary rounded-lg p-4">
+          <p className="text-sm font-medium flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Edit Mode: Drag widgets to rearrange them
+          </p>
+        </div>
+      )}
+
+      <DraggableWidgetGrid 
+        columns={{ md: 2, lg: 3 }} 
+        gap={4}
+        isEditMode={isEditMode}
+        widgetIds={visibleWidgets.map(w => w.id)}
+        onReorder={reorderWidgets}
+      >
+        {visibleWidgets.map((widget, index) => {
+          let content = null
+          
+          switch (widget.type) {
+            case 'TotalProjectsWidget':
+              content = (
+                <TotalProjectsWidget 
+                  totalProjects={metrics.totalProjects}
+                  activeProjects={metrics.activeProjects}
+                />
+              )
+              break
+            case 'UpcomingDeadlinesWidget':
+              content = (
+                <UpcomingDeadlinesWidget 
+                  count={metrics.upcomingDeadlines}
+                  timeframe="Next 7 days"
+                />
+              )
+              break
+            case 'TeamMembersWidget':
+              content = (
+                <TeamMembersWidget 
+                  count={metrics.teamMembers}
+                  description="Across all projects"
+                />
+              )
+              break
+            default:
+              return null
+          }
+
+          return (
+            <DraggableWidget
+              key={widget.id}
+              id={widget.id}
+              index={index}
+              isEditMode={isEditMode}
+            >
+              {content}
+            </DraggableWidget>
+          )
+        })}
+      </DraggableWidgetGrid>
 
       <Tabs defaultValue="grid" className="space-y-4">
         <TabsList>
@@ -442,80 +546,37 @@ export default function ProjectsPage() {
         </TabsContent>
       </Tabs>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Latest updates across your projects</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {(showAllActivities ? workItems : workItems.slice(0, 5)).map((item) => (
-              <div key={item.id} className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div
-                    className={`h-2 w-2 rounded-full ${
-                      item.priority === 'high'
-                        ? 'bg-red-500'
-                        : item.priority === 'medium'
-                        ? 'bg-yellow-500'
-                        : 'bg-green-500'
-                    }`}
-                  />
-                  <div>
-                    <p className="text-sm font-medium leading-none">{item.title}</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {item.projectName} • {item.time}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="capitalize">
-                    {item.status.replace('-', ' ')}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleItemComplete(item.projectId, item.taskId)}
-                  >
-                    {item.completed ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Clock className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {workItems.length > 5 && (
-            <div className="mt-4 flex justify-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAllActivities(!showAllActivities)}
-                className="text-sm"
-              >
-                {showAllActivities ? (
-                  <>
-                    <ChevronUp className="h-4 w-4 mr-2" />
-                    Show Less
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4 mr-2" />
-                    Show More ({workItems.length - 5} more)
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <RecentActivityWidget 
+        activities={workItems.map(item => ({
+          id: item.id,
+          title: item.title,
+          projectName: item.projectName,
+          projectId: item.projectId,
+          status: item.status === 'done' ? 'done' : item.status === 'in-progress' ? 'in-progress' : 'pending',
+          time: item.time,
+          color: item.priority === 'high' ? 'bg-red-500' : item.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+        }))}
+        maxVisible={5}
+      />
 
       <AddProjectDialog
         open={addProjectDialogOpen}
         onOpenChange={setAddProjectDialogOpen}
         onAddProject={handleAddProject}
+      />
+
+      <WidgetSettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        layout={layout}
+        onToggleWidget={toggleWidget}
+        onReset={() => {
+          resetLayout()
+          toast({
+            title: "Layout reset",
+            description: "Widget layout has been reset to default.",
+          })
+        }}
       />
     </div>
   )

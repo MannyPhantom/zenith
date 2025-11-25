@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import type { Project, Task } from "@/lib/project-data"
 import { updateTaskStatus, reorderTasks } from "@/lib/project-data-supabase"
 import { GripVertical, Plus } from "lucide-react"
+import { EmployeeAvatar } from "@/components/ui/employee-avatar"
 
 interface KanbanBoardProps {
   project: Project
@@ -93,12 +94,11 @@ function TaskCard({
           <h4 className="text-sm font-medium text-foreground leading-tight">{task.title}</h4>
 
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">
-              {task.assignee.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </div>
+            <EmployeeAvatar
+              name={task.assignee.name}
+              photoUrl={task.assignee.avatar && task.assignee.avatar !== "/placeholder.svg?height=32&width=32" ? task.assignee.avatar : undefined}
+              size="sm"
+            />
             <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
           </div>
 
@@ -117,7 +117,7 @@ function TaskCard({
             </span>
           </div>
 
-          {task.status !== "done" && task.progress > 0 && (
+          {task.status !== "done" && (
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Progress</span>
@@ -251,7 +251,15 @@ export function KanbanBoard({ project, onAddTask, onTaskClick }: KanbanBoardProp
 
   // Update tasks whenever project.tasks changes
   useEffect(() => {
-    console.log("[KanbanBoard] Project tasks updated:", project.tasks.length, "tasks")
+    console.log("[KanbanBoard] 📋 Project tasks updated:", project.tasks.length, "tasks")
+    console.log("[KanbanBoard] 📊 Task status distribution:", {
+      backlog: project.tasks.filter(t => t.status === 'backlog').length,
+      todo: project.tasks.filter(t => t.status === 'todo').length,
+      'in-progress': project.tasks.filter(t => t.status === 'in-progress').length,
+      review: project.tasks.filter(t => t.status === 'review').length,
+      blocked: project.tasks.filter(t => t.status === 'blocked').length,
+      done: project.tasks.filter(t => t.status === 'done').length,
+    })
     setTasks(project.tasks)
   }, [project.tasks])
 

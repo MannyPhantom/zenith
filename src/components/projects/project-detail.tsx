@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -51,13 +51,15 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   
   console.log("[ProjectDetail] Rendering, dialog open:", addTaskDialogOpen)
   
-  // Load project data
-  const loadProject = async () => {
+  // Load project data - wrapped in useCallback to prevent infinite loops
+  const loadProject = useCallback(async () => {
     try {
       setLoading(true)
+      console.log('[ProjectDetail] Loading project data...')
       const data = await getProjectById(projectId)
       if (data) {
         const projectWithProgress = await getProjectWithProgress(data)
+        console.log('[ProjectDetail] Project loaded with', projectWithProgress.tasks.length, 'tasks')
         setProject(projectWithProgress)
       }
     } catch (err) {
@@ -65,25 +67,25 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [projectId])
 
   // Initial load
   useEffect(() => {
     loadProject()
-  }, [projectId])
+  }, [loadProject])
 
   // Listen for data updates and refresh
   useEffect(() => {
     const handleProjectUpdate = (event: CustomEvent) => {
       if (event.detail.projectId === projectId) {
-        console.log('Project data updated, refreshing...')
+        console.log('[ProjectDetail] ✨ Project data updated event received, refreshing...')
         loadProject()
       }
     }
     
     window.addEventListener('projectDataUpdated' as any, handleProjectUpdate)
     return () => window.removeEventListener('projectDataUpdated' as any, handleProjectUpdate)
-  }, [projectId])
+  }, [projectId, loadProject])
 
   if (!project) {
     return (

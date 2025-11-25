@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Project, Task } from "@/lib/project-data"
 import { Plus, Search, Filter, MoreVertical, Trash2 } from "lucide-react"
 import { TaskDetailsDialog } from "./task-details-dialog"
-import { getProjectTeamMembers, updateTaskStatus, deleteTask, addTask } from "@/lib/project-data-supabase"
+import { getProjectTeamMembers, updateTaskStatus, deleteTask, addTask, updateTask } from "@/lib/project-data-supabase"
+import { EmployeeAvatar } from "@/components/ui/employee-avatar"
 
 interface TableViewProps {
   project: Project
@@ -108,6 +109,18 @@ export function TableView({ project }: TableViewProps) {
     
     // Update the underlying data and trigger refresh across all views
     await updateTaskStatus(project.id, taskId, newStatus)
+  }
+
+  const handleProgressChange = async (taskId: string, newProgress: number) => {
+    console.log('[TableView] Updating task progress:', taskId, 'to', newProgress + '%')
+    
+    // Update local state immediately for responsive UI
+    setTasks(tasks.map((task) => (task.id === taskId ? { ...task, progress: newProgress } : task)))
+    
+    // Update the underlying data and trigger refresh across all views
+    await updateTask(project.id, taskId, { progress: newProgress })
+    
+    console.log('[TableView] Task progress updated, event dispatched')
   }
 
   const getPriorityColor = (priority: Task["priority"]) => {
@@ -331,12 +344,11 @@ export function TableView({ project }: TableViewProps) {
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">
-                        {task.assignee.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </div>
+                      <EmployeeAvatar
+                        name={task.assignee.name}
+                        photoUrl={task.assignee.avatar && task.assignee.avatar !== "/placeholder.svg?height=32&width=32" ? task.assignee.avatar : undefined}
+                        size="sm"
+                      />
                       <span className="text-sm text-foreground">{task.assignee.name}</span>
                     </div>
                   </td>
@@ -365,10 +377,21 @@ export function TableView({ project }: TableViewProps) {
                       {task.priority}
                     </Badge>
                   </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2 min-w-[120px]">
+                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 min-w-[140px]">
                       <Progress value={task.progress} className="flex-1 h-2" />
-                      <span className="text-sm text-muted-foreground">{task.progress}%</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={task.progress}
+                        onChange={(e) => {
+                          const value = Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                          handleProgressChange(task.id, value)
+                        }}
+                        className="w-14 h-7 text-xs text-center p-1"
+                      />
+                      <span className="text-xs text-muted-foreground">%</span>
                     </div>
                   </td>
                   <td className="p-4">

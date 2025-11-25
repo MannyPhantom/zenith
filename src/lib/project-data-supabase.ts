@@ -159,6 +159,24 @@ export async function updateTask(projectId: string, taskId: string, updates: Par
     return mockUpdate(projectId, taskId, updates)
   }
 
+  // If progress is being updated, automatically update status to match (unless status is explicitly provided)
+  let autoUpdatedStatus = false
+  if (updates.progress !== undefined && updates.status === undefined) {
+    // Get current task to check if status should be auto-updated
+    const project = await api.getProjectById(projectId)
+    const task = project?.tasks.find((t) => t.id === taskId)
+    
+    // Only auto-update status if it's not 'blocked' or 'backlog' (user-controlled states)
+    if (task && task.status !== 'blocked' && task.status !== 'backlog') {
+      const newStatus = getStatusFromProgress(updates.progress)
+      if (newStatus !== task.status) {
+        updates.status = newStatus
+        autoUpdatedStatus = true
+        console.log(`[updateTask] Auto-updating task status from "${task.status}" to "${newStatus}" based on ${updates.progress}% progress`)
+      }
+    }
+  }
+
   await api.updateTask(taskId, updates)
   
   // Log activity for status changes
@@ -178,7 +196,8 @@ export async function updateTask(projectId: string, taskId: string, updates: Par
   // Clear cache and dispatch event
   projectsCache = null
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('projectDataUpdated', { detail: { projectId } }))
+    console.log('[updateTask] Dispatching projectDataUpdated event for project:', projectId)
+    window.dispatchEvent(new CustomEvent('projectDataUpdated', { detail: { projectId, autoUpdatedStatus } }))
   }
 }
 
@@ -211,10 +230,13 @@ export async function addTask(projectId: string, taskData: Omit<Task, 'id'>): Pr
 }
 
 export async function getProjectWithProgress(project: Project): Promise<Project> {
-  // Calculate progress based on completed tasks
-  const completedTasks = project.tasks.filter((t) => t.status === 'done').length
+  // Calculate progress based on sum of all task progress percentages
   const totalTasks = project.tasks.length
-  const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+  const completedTasks = project.tasks.filter((t) => t.status === 'done').length
+  
+  // Sum of all task progress divided by number of tasks
+  const totalProgress = project.tasks.reduce((sum, task) => sum + (task.progress || 0), 0)
+  const progress = totalTasks > 0 ? Math.round(totalProgress / totalTasks) : 0
 
   return {
     ...project,
@@ -266,6 +288,19 @@ export function invalidateCache(): void {
 
 export function isUsingSupabase(): boolean {
   return USE_SUPABASE
+}
+
+/**
+ * Helper function to automatically determine task status based on progress percentage
+ * @param progress - Task progress percentage (0-100)
+ * @returns Appropriate task status
+ */
+export function getStatusFromProgress(progress: number): Task['status'] {
+  if (progress === 0) return 'todo'
+  if (progress === 100) return 'done'
+  if (progress >= 75) return 'review'
+  if (progress >= 1) return 'in-progress'
+  return 'todo'
 }
 
 // ==================== MILESTONE FUNCTIONS ====================

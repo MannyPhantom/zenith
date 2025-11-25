@@ -28,6 +28,7 @@ import type { Project, TeamMember } from "@/lib/project-data"
 import { addTeamMember, updateTeamMember, deleteTeamMember } from "@/lib/project-data-supabase"
 import { Mail, MoreHorizontal, UserPlus, Search, Pencil, Trash2, UserMinus, User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { EmployeeAvatar } from "@/components/ui/employee-avatar"
 
 interface TeamManagementProps {
   project: Project
@@ -387,12 +388,11 @@ export function TeamManagement({ project, onProjectUpdate }: TeamManagementProps
           return (
             <Card key={member.id} className="p-6 hover:border-primary/40 transition-all">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-xl font-bold">
-                  {member.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </div>
+                <EmployeeAvatar
+                  name={member.name}
+                  photoUrl={member.avatar && member.avatar !== "/placeholder.svg?height=32&width=32" ? member.avatar : undefined}
+                  size="lg"
+                />
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-2">
                     <div>
@@ -477,12 +477,11 @@ export function TeamManagement({ project, onProjectUpdate }: TeamManagementProps
               <div key={member.id} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold">
-                      {member.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </div>
+                    <EmployeeAvatar
+                      name={member.name}
+                      photoUrl={member.avatar && member.avatar !== "/placeholder.svg?height=32&width=32" ? member.avatar : undefined}
+                      size="md"
+                    />
                     <div>
                       <p className="font-medium text-foreground">{member.name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -511,12 +510,11 @@ export function TeamManagement({ project, onProjectUpdate }: TeamManagementProps
           {selectedMember && (
             <div className="space-y-4 py-4">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-xl font-bold">
-                  {selectedMember.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </div>
+                <EmployeeAvatar
+                  name={selectedMember.name}
+                  photoUrl={selectedMember.avatar && selectedMember.avatar !== "/placeholder.svg?height=32&width=32" ? selectedMember.avatar : undefined}
+                  size="lg"
+                />
                 <div>
                   <h3 className="font-semibold text-lg">{selectedMember.name}</h3>
                   <p className="text-sm text-muted-foreground">{selectedMember.role}</p>

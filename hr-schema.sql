@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS hr_employees (
   email TEXT UNIQUE NOT NULL,
   phone TEXT,
   manager_id UUID REFERENCES hr_employees(id) ON DELETE SET NULL,
+  photo_url TEXT, -- URL to employee photo (JPEG) from employee portal
   hire_date DATE NOT NULL DEFAULT CURRENT_DATE,
   next_review_date DATE,
   last_review_date DATE,

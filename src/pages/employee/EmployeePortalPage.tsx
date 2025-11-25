@@ -73,7 +73,20 @@ export default function EmployeePortalPage() {
       {/* Welcome Header */}
       <div className="mb-8">
         <div className="flex items-center gap-6 mb-4">
-          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
+          {currentUser.photo && currentUser.photo !== "/placeholder.svg?height=100&width=100" ? (
+            <img 
+              src={currentUser.photo} 
+              alt={currentUser.name}
+              className="w-20 h-20 rounded-full object-cover border-2 border-background"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+                const fallback = target.nextElementSibling as HTMLElement
+                if (fallback) fallback.style.display = 'flex'
+              }}
+            />
+          ) : null}
+          <div className={`w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary ${currentUser.photo && currentUser.photo !== "/placeholder.svg?height=100&width=100" ? 'hidden' : ''}`}>
             {currentUser.name.split(' ').map(n => n[0]).join('')}
           </div>
           <div className="flex-1">

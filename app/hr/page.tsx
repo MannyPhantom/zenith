@@ -1,4 +1,5 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
+import * as hrApi from '../../src/lib/hr-api'
 import { Button } from "../../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import { Badge } from "../../components/ui/badge"
@@ -44,6 +45,7 @@ import { AddEmployeeDialog } from "../../components/hr/add-employee-dialog"
 import { AddReviewDialog } from "../../components/hr/add-review-dialog"
 import { AddGoalDialog } from "../../components/hr/add-goal-dialog"
 import { AddCandidateDialog } from "../../components/hr/add-candidate-dialog"
+import { EmployeeAvatar } from "../../src/components/ui/employee-avatar"
 
 // Mock data for employees
 const mockEmployees = [
@@ -473,6 +475,8 @@ export default function HRPage() {
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [riskFilter, setRiskFilter] = useState("all")
+  const [employees, setEmployees] = useState<hrApi.Employee[]>([])
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(true)
 
   // Calculate days until/since review
   const getDaysUntilReview = (reviewDate: string) => {
@@ -536,8 +540,33 @@ export default function HRPage() {
     }
   }
 
-  // Filter employees based on search
-  const filteredEmployees = mockEmployees.filter(
+  // Load employees from database
+  useEffect(() => {
+    loadEmployees()
+    
+    // Listen for employee added event
+    const handleEmployeeAdded = () => {
+      loadEmployees()
+    }
+    
+    window.addEventListener('employeeAdded', handleEmployeeAdded)
+    return () => window.removeEventListener('employeeAdded', handleEmployeeAdded)
+  }, [])
+
+  const loadEmployees = async () => {
+    try {
+      setIsLoadingEmployees(true)
+      const employeesData = await hrApi.getAllEmployees()
+      setEmployees(employeesData)
+    } catch (error) {
+      console.error('Error loading employees:', error)
+    } finally {
+      setIsLoadingEmployees(false)
+    }
+  }
+
+  // Filter employees based on search - always use real employees if available
+  const filteredEmployees = (employees.length > 0 ? employees : []).filter(
     (emp) =>
       emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       emp.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -545,7 +574,9 @@ export default function HRPage() {
   )
 
   // Featured employee (first active employee)
-  const featuredEmployee = mockEmployees.find((emp) => emp.status === "Active")
+  const featuredEmployee = employees.length > 0
+    ? employees.find((emp) => emp.status === "Active") || employees[0]
+    : null
 
   // Helper function to calculate overall rating
   const calculateOverallRating = (review: (typeof mockPerformanceReviews)[0]) => {
@@ -863,6 +894,15 @@ export default function HRPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
+                    {isLoadingEmployees ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Loading employees...</p>
+                      </div>
+                    ) : filteredEmployees.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No employees found. Add your first employee using the button above.</p>
+                      </div>
+                    ) : (
                     <div className="space-y-4">
                       {filteredEmployees.map((employee) => (
                         <div
@@ -879,20 +919,32 @@ export default function HRPage() {
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               <Calendar className="inline h-3 w-3 mr-1" />
-                              Next Review: {getDaysUntilReview(employee.nextReview)}
+                              Next Review: {getDaysUntilReview(
+                                employees.length > 0 
+                                  ? (employee as hrApi.Employee).next_review_date || new Date().toISOString()
+                                  : (employee as any).nextReview || new Date().toISOString()
+                              )}
                             </p>
                           </div>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
-                              View Reviews
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              Edit
-                            </Button>
+                          <div className="flex items-center gap-3">
+                            <EmployeeAvatar 
+                              name={employee.name} 
+                              photoUrl={(employee as hrApi.Employee).photo_url || undefined} 
+                              size="md"
+                            />
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm">
+                                View Reviews
+                              </Button>
+                              <Button variant="outline" size="sm">
+                                Edit
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -906,9 +958,16 @@ export default function HRPage() {
                       <CardTitle>Featured Employee</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div>
-                        <h3 className="font-semibold text-lg">{featuredEmployee.name}</h3>
-                        <p className="text-sm text-muted-foreground">{featuredEmployee.position}</p>
+                      <div className="flex items-center gap-3">
+                        <EmployeeAvatar 
+                          name={featuredEmployee.name} 
+                          photoUrl={(featuredEmployee as hrApi.Employee).photo_url || undefined} 
+                          size="md"
+                        />
+                        <div>
+                          <h3 className="font-semibold text-lg">{featuredEmployee.name}</h3>
+                          <p className="text-sm text-muted-foreground">{featuredEmployee.position}</p>
+                        </div>
                       </div>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
@@ -919,18 +978,32 @@ export default function HRPage() {
                           <span className="text-muted-foreground">Status:</span>
                           <Badge variant={getStatusVariant(featuredEmployee.status)}>{featuredEmployee.status}</Badge>
                         </div>
-                        {featuredEmployee.lastReview && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Last Review:</span>
-                            <span className="font-medium">
-                              {new Date(featuredEmployee.lastReview).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
+                        {employees.length > 0 
+                          ? (featuredEmployee as hrApi.Employee).last_review_date && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Last Review:</span>
+                                <span className="font-medium">
+                                  {new Date((featuredEmployee as hrApi.Employee).last_review_date!).toLocaleDateString()}
+                                </span>
+                              </div>
+                            )
+                          : (featuredEmployee as any).lastReview && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Last Review:</span>
+                                <span className="font-medium">
+                                  {new Date((featuredEmployee as any).lastReview).toLocaleDateString()}
+                                </span>
+                              </div>
+                            )
+                        }
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Next Review:</span>
                           <span className="font-medium">
-                            {new Date(featuredEmployee.nextReview).toLocaleDateString()}
+                            {new Date(
+                              employees.length > 0
+                                ? (featuredEmployee as hrApi.Employee).next_review_date || new Date().toISOString()
+                                : (featuredEmployee as any).nextReview || new Date().toISOString()
+                            ).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
@@ -1278,6 +1351,15 @@ export default function HRPage() {
                 <CardDescription>Comprehensive employee information and management</CardDescription>
               </CardHeader>
               <CardContent>
+                {isLoadingEmployees ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Loading employees...</p>
+                  </div>
+                ) : filteredEmployees.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No employees found.</p>
+                  </div>
+                ) : (
                 <div className="space-y-4">
                   {filteredEmployees.map((employee) => (
                     <div
@@ -1288,7 +1370,12 @@ export default function HRPage() {
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-semibold">{employee.name}</h3>
                           <Badge variant={getStatusVariant(employee.status)}>{employee.status}</Badge>
-                          {employee.performanceScore && employee.performanceScore >= 4.5 && (
+                          {(employees.length > 0 
+                            ? (employee as hrApi.Employee).performance_score 
+                            : (employee as any).performanceScore) && 
+                          (employees.length > 0 
+                            ? (employee as hrApi.Employee).performance_score! >= 4.5 
+                            : (employee as any).performanceScore >= 4.5) && (
                             <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500">
                               <Star className="h-3 w-3 fill-yellow-500" />
                               Top Performer
@@ -1301,32 +1388,48 @@ export default function HRPage() {
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                           <span>
                             <Calendar className="inline h-3 w-3 mr-1" />
-                            Next Review: {getDaysUntilReview(employee.nextReview)}
+                            Next Review: {getDaysUntilReview(
+                              employees.length > 0
+                                ? (employee as hrApi.Employee).next_review_date || new Date().toISOString()
+                                : (employee as any).nextReview || new Date().toISOString()
+                            )}
                           </span>
-                          {employee.performanceScore && (
+                          {(employees.length > 0 
+                            ? (employee as hrApi.Employee).performance_score 
+                            : (employee as any).performanceScore) && (
                             <span>
                               <Star className="inline h-3 w-3 mr-1" />
-                              Score: {employee.performanceScore}/5.0
+                              Score: {employees.length > 0
+                                ? (employee as hrApi.Employee).performance_score
+                                : (employee as any).performanceScore}/5.0
                             </span>
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          <MessageSquare className="mr-2 h-4 w-4" />
-                          Feedback
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Target className="mr-2 h-4 w-4" />
-                          Goals
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          View Profile
-                        </Button>
+                      <div className="flex items-center gap-3">
+                        <EmployeeAvatar 
+                          name={employee.name} 
+                          photoUrl={(employee as hrApi.Employee).photo_url || undefined} 
+                          size="md"
+                        />
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm">
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Feedback
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Target className="mr-2 h-4 w-4" />
+                            Goals
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            View Profile
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1402,6 +1505,11 @@ export default function HRPage() {
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
+                              <EmployeeAvatar 
+                                name={review.employeeName} 
+                                photoUrl={null} 
+                                size="sm"
+                              />
                               <h3 className="font-semibold">{review.employeeName}</h3>
                               {getReviewStatusBadge(review.status)}
                               {getTrendIcon(review.trend)}
@@ -1558,7 +1666,14 @@ export default function HRPage() {
                             </Badge>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                            <span className="font-medium">{goal.employeeName}</span>
+                            <div className="flex items-center gap-2">
+                              <EmployeeAvatar 
+                                name={goal.employeeName} 
+                                photoUrl={null} 
+                                size="sm"
+                              />
+                              <span className="font-medium">{goal.employeeName}</span>
+                            </div>
                             <span>•</span>
                             <span>{goal.department}</span>
                             <span>•</span>
@@ -2341,9 +2456,16 @@ export default function HRPage() {
                     {mock360Feedback.map((feedback) => (
                       <div key={feedback.id} className="p-4 border rounded-lg">
                         <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="font-semibold mb-1">{feedback.employeeName}</h3>
-                            <p className="text-sm text-muted-foreground">{feedback.feedbackCount} feedback responses</p>
+                          <div className="flex items-center gap-3">
+                            <EmployeeAvatar 
+                              name={feedback.employeeName} 
+                              photoUrl={null} 
+                              size="md"
+                            />
+                            <div>
+                              <h3 className="font-semibold mb-1">{feedback.employeeName}</h3>
+                              <p className="text-sm text-muted-foreground">{feedback.feedbackCount} feedback responses</p>
+                            </div>
                           </div>
                           <div className="text-right">
                             <div className="text-2xl font-bold text-green-500">{feedback.overallScore}</div>

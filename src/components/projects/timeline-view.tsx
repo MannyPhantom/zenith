@@ -6,6 +6,7 @@ import type { Project, Task } from "@/lib/project-data"
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { EmployeeAvatar } from "@/components/ui/employee-avatar"
 
 interface TimelineViewProps {
   project: Project
@@ -168,9 +169,11 @@ export function TimelineView({ project }: TimelineViewProps) {
                     {/* Lane Header */}
                     <div className="px-4 py-3 border-b border-border/40 bg-muted/20">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-semibold">
-                          {member.name.charAt(0)}
-                        </div>
+                        <EmployeeAvatar
+                          name={member.name}
+                          photoUrl={member.avatar && member.avatar !== "/placeholder.svg?height=32&width=32" ? member.avatar : undefined}
+                          size="md"
+                        />
                         <div>
                           <div className="text-sm font-semibold text-foreground">{member.name}</div>
                           <div className="text-xs text-muted-foreground">{member.role}</div>

@@ -16,6 +16,7 @@ export interface Employee {
   email: string
   phone?: string
   manager_id?: string | null
+  photo_url?: string | null
   hire_date: string
   next_review_date?: string | null
   last_review_date?: string | null
@@ -166,7 +167,14 @@ export async function getAllEmployees(): Promise<Employee[]> {
     return []
   }
 
-  return data || []
+  // Ensure manager photos are included
+  return (data || []).map(employee => ({
+    ...employee,
+    manager: employee.manager ? {
+      ...employee.manager,
+      photo_url: employee.manager.photo_url || null
+    } : null
+  }))
 }
 
 export async function getEmployeeById(id: string): Promise<Employee | null> {

@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Project, Task } from "@/lib/project-data"
-import { addTask, getProjectTeamMembers } from "@/lib/project-data-supabase"
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { addTask, getProjectTeamMembers, deleteTask, updateTask } from "@/lib/project-data-supabase"
+import { ChevronLeft, ChevronRight, Plus, X, GripVertical } from "lucide-react"
 import { TaskDetailsDialog } from "./task-details-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 interface CalendarViewProps {
   project: Project
@@ -25,6 +26,9 @@ export function CalendarView({ project }: CalendarViewProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [taskDetailsOpen, setTaskDetailsOpen] = useState(false)
   const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null)
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null)
+  const { toast } = useToast()
   const [newEvent, setNewEvent] = useState({
     title: "",
     description: "",
@@ -115,6 +119,11 @@ export function CalendarView({ project }: CalendarViewProps) {
       
       if (!newTaskWithId) {
         console.error("[CalendarView] Failed to add task")
+        toast({
+          title: "Error",
+          description: "Failed to add event. Please try again.",
+          variant: "destructive",
+        })
         return
       }
       
@@ -132,8 +141,107 @@ export function CalendarView({ project }: CalendarViewProps) {
       })
       setIsDialogOpen(false)
       
+      toast({
+        title: "Event added",
+        description: `"${newTaskWithId.title}" has been added to the calendar.`,
+      })
+      
       console.log("[CalendarView] Event added:", newTaskWithId.title)
     }
+  }
+
+  // Handle quick add on cell click
+  const handleCellClick = (day: number) => {
+    const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`
+    setNewEvent({
+      ...newEvent,
+      date: dateStr,
+    })
+    setIsDialogOpen(true)
+  }
+
+  // Handle task deletion
+  const handleDeleteTask = async (e: React.MouseEvent, task: Task) => {
+    e.stopPropagation() // Prevent opening task details
+    
+    if (window.confirm(`Are you sure you want to delete "${task.title}"?`)) {
+      try {
+        await deleteTask(project.id, task.id)
+        setTasks(tasks.filter(t => t.id !== task.id))
+        
+        toast({
+          title: "Task deleted",
+          description: `"${task.title}" has been removed.`,
+        })
+      } catch (error) {
+        console.error("[CalendarView] Failed to delete task:", error)
+        toast({
+          title: "Error",
+          description: "Failed to delete task. Please try again.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, task: Task) => {
+    setDraggedTask(task)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTask(null)
+    setDragOverDate(null)
+  }
+
+  const handleDragOver = (e: React.DragEvent, day: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`
+    setDragOverDate(dateStr)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverDate(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, day: number) => {
+    e.preventDefault()
+    setDragOverDate(null)
+    
+    if (!draggedTask) return
+    
+    const newDeadline = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`
+    
+    // Don't update if dropping on the same date
+    if (draggedTask.deadline === newDeadline) {
+      setDraggedTask(null)
+      return
+    }
+    
+    try {
+      await updateTask(project.id, draggedTask.id, { deadline: newDeadline })
+      
+      // Update local state
+      setTasks(tasks.map(t => 
+        t.id === draggedTask.id ? { ...t, deadline: newDeadline } : t
+      ))
+      
+      toast({
+        title: "Task moved",
+        description: `"${draggedTask.title}" has been moved to ${new Date(newDeadline).toLocaleDateString()}.`,
+      })
+    } catch (error) {
+      console.error("[CalendarView] Failed to update task:", error)
+      toast({
+        title: "Error",
+        description: "Failed to move task. Please try again.",
+        variant: "destructive",
+      })
+    }
+    
+    setDraggedTask(null)
   }
 
   return (
@@ -161,6 +269,13 @@ export function CalendarView({ project }: CalendarViewProps) {
           </div>
         </div>
 
+        {/* Instructions hint */}
+        <div className="mb-4 p-3 bg-muted/30 rounded-lg border border-border/40">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold">💡 Tip:</span> Click on any day to add an event • Drag tasks between days • Hover over tasks to delete
+          </p>
+        </div>
+
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-2">
           {/* Day Headers */}
@@ -172,7 +287,7 @@ export function CalendarView({ project }: CalendarViewProps) {
 
           {/* Empty cells for days before month starts */}
           {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-            <div key={`empty-${i}`} className="min-h-[120px] bg-muted/20 rounded-lg" />
+            <div key={`empty-${i}`} className="min-h-[120px] bg-muted/20 rounded-lg border border-transparent" />
           ))}
 
           {/* Calendar Days */}
@@ -182,13 +297,20 @@ export function CalendarView({ project }: CalendarViewProps) {
             const isToday = day === today.getDate() && 
                            currentDate.getMonth() === today.getMonth() && 
                            currentDate.getFullYear() === today.getFullYear()
+            const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`
+            const isDragOver = dragOverDate === dateStr
 
             return (
               <div
                 key={day}
+                onDragOver={(e) => handleDragOver(e, day)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, day)}
+                onClick={() => handleCellClick(day)}
                 className={`
-                  min-h-[120px] p-2 rounded-lg border border-border/40 hover:border-primary/40 transition-all
-                  ${isToday ? "bg-primary/5 border-primary/60" : "bg-card"}
+                  min-h-[120px] p-2 rounded-lg border transition-all cursor-pointer
+                  ${isToday ? "bg-primary/5 border-primary/60" : "bg-card border-border/40"}
+                  ${isDragOver ? "border-primary border-2 bg-primary/10 scale-[1.02]" : "hover:border-primary/40 hover:shadow-sm"}
                 `}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -211,12 +333,16 @@ export function CalendarView({ project }: CalendarViewProps) {
                   {dayTasks.slice(0, 3).map((task) => (
                     <div
                       key={task.id}
-                      onClick={() => {
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, task)}
+                      onDragEnd={handleDragEnd}
+                      onClick={(e) => {
+                        e.stopPropagation()
                         setSelectedTask(task)
                         setTaskDetailsOpen(true)
                       }}
                       className={`
-                        text-xs p-1.5 rounded truncate cursor-pointer transition-all hover:scale-105 hover:shadow-md
+                        group relative text-xs p-1.5 pl-6 pr-7 rounded truncate cursor-move transition-all hover:scale-105 hover:shadow-md
                         ${
                           task.status === "done"
                             ? "bg-green-500/20 text-green-700 dark:text-green-300"
@@ -226,13 +352,34 @@ export function CalendarView({ project }: CalendarViewProps) {
                                 ? "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300"
                                 : "bg-blue-500/20 text-blue-700 dark:text-blue-300"
                         }
+                        ${draggedTask?.id === task.id ? "opacity-50" : ""}
                       `}
                     >
+                      <GripVertical className="absolute left-0.5 top-1/2 -translate-y-1/2 w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
                       {task.title}
+                      <button
+                        onClick={(e) => handleDeleteTask(e, task)}
+                        className="absolute right-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/30 rounded"
+                        title="Delete task"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
                   ))}
                   {dayTasks.length > 3 && (
-                    <div className="text-xs text-muted-foreground text-center">+{dayTasks.length - 3} more</div>
+                    <div 
+                      className="text-xs text-muted-foreground text-center py-1 hover:bg-muted/50 rounded cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // Show first task from the extras
+                        if (dayTasks[3]) {
+                          setSelectedTask(dayTasks[3])
+                          setTaskDetailsOpen(true)
+                        }
+                      }}
+                    >
+                      +{dayTasks.length - 3} more
+                    </div>
                   )}
                 </div>
               </div>

@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import * as hrApi from '@/lib/hr-api'
+import { supabase } from '@/lib/supabase'
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus } from "lucide-react"
+import { Plus, Upload, X, Image as ImageIcon } from "lucide-react"
 
 export function AddEmployeeDialog() {
   const [open, setOpen] = useState(false)
@@ -29,13 +30,97 @@ export function AddEmployeeDialog() {
     department: "",
     supervisor: "",
     startDate: "",
+    photoUrl: "",
     notes: "",
   })
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file (JPEG, PNG, etc.)')
+        return
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image file size must be less than 5MB')
+        return
+      }
+      
+      setSelectedPhoto(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removePhoto = () => {
+    setSelectedPhoto(null)
+    setPhotoPreview(null)
+    setFormData({ ...formData, photoUrl: "" })
+  }
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!selectedPhoto) return null
+
+    setUploadingPhoto(true)
+    try {
+      const fileExt = selectedPhoto.name.split('.').pop()
+      const fileName = `employee-photos/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+      
+      const { data, error } = await supabase.storage
+        .from('employee-photos')
+        .upload(fileName, selectedPhoto, {
+          cacheControl: '3600',
+          upsert: false,
+        })
+
+      if (error) {
+        console.error('Error uploading photo:', error)
+        alert('Failed to upload photo. Please try again.')
+        return null
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('employee-photos')
+        .getPublicUrl(data.path)
+
+      return urlData.publicUrl
+    } catch (err) {
+      console.error('Error uploading photo:', err)
+      alert('Failed to upload photo. Please try again.')
+      return null
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     try {
+      // Upload photo first if one is selected
+      let photoUrl = formData.photoUrl
+      if (selectedPhoto) {
+        const uploadedUrl = await uploadPhoto()
+        if (uploadedUrl) {
+          photoUrl = uploadedUrl
+        } else {
+          // If upload fails, don't proceed
+          return
+        }
+      }
+      
       const employeeData = {
         name: formData.name,
         email: formData.email,
@@ -44,6 +129,7 @@ export function AddEmployeeDialog() {
         status: 'Active' as const,
         phone: '', // Add phone field later if needed
         hire_date: formData.startDate,
+        photo_url: photoUrl || null,
       }
       
       const newEmployee = await hrApi.createEmployee(employeeData)
@@ -64,8 +150,11 @@ export function AddEmployeeDialog() {
           department: "",
           supervisor: "",
           startDate: "",
+          photoUrl: "",
           notes: "",
         })
+        setSelectedPhoto(null)
+        setPhotoPreview(null)
       } else {
         console.error("Failed to create employee")
       }
@@ -159,6 +248,62 @@ export function AddEmployeeDialog() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="photo">Employee Photo</Label>
+              
+              {photoPreview ? (
+                <div className="relative">
+                  <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-border">
+                    <img 
+                      src={photoPreview} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-0 right-0"
+                    onClick={removePhoto}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <Input
+                      id="photo"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handlePhotoSelect}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Upload a photo file (JPEG, PNG - max 5MB)
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Alternative: URL input */}
+              {!photoPreview && (
+                <div className="mt-2">
+                  <Label htmlFor="photoUrl" className="text-xs text-muted-foreground">
+                    Or enter photo URL:
+                  </Label>
+                  <Input
+                    id="photoUrl"
+                    type="url"
+                    value={formData.photoUrl}
+                    onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
+                    placeholder="https://your-employee-portal.com/photos/employee.jpg"
+                    className="mt-1"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
@@ -173,7 +318,9 @@ export function AddEmployeeDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add Employee</Button>
+            <Button type="submit" disabled={uploadingPhoto}>
+              {uploadingPhoto ? 'Uploading Photo...' : 'Add Employee'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
