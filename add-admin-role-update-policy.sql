@@ -32,3 +32,7 @@ ORDER BY policyname;
 COMMENT ON POLICY "Admins can update user profiles in their organization" ON public.user_profiles 
 IS 'Allows organization owners and admins to update any user profile in their organization, including changing roles';
 
+
+
+
+

@@ -1,7 +1,8 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
+import { useAuth } from './contexts/AuthContext'
 import HomePage from './pages/HomePage'
 import HubPage from './pages/HubPage'
 import ProjectsPage from './pages/ProjectsPage'
@@ -35,9 +36,36 @@ import OrganizationSettingsPage from './pages/OrganizationSettingsPage'
 function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const location = useLocation()
+  const { loading } = useAuth()
+  const [showLoading, setShowLoading] = useState(true)
   
   // Only show sidebar and header when not on landing page
   const isLandingPage = location.pathname === '/'
+
+  // Hide loading screen after auth initializes or after 2 seconds max
+  useEffect(() => {
+    if (!loading) {
+      setShowLoading(false)
+    } else {
+      const timer = setTimeout(() => {
+        setShowLoading(false)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [loading])
+
+  // Show loading screen during initial auth
+  if (showLoading && !isLandingPage) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mx-auto mb-4"></div>
+          <p className="text-lg text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground mt-2">Initializing authentication</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">

@@ -4,14 +4,41 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key'
 
+// Check if Supabase is properly configured
+export const isSupabaseConfigured = 
+  supabaseUrl !== 'https://placeholder.supabase.co' && 
+  supabaseAnonKey !== 'placeholder-key'
+
 // Log environment check (will be removed in production builds)
 if (import.meta.env.DEV) {
   console.log('Supabase URL configured:', supabaseUrl !== 'https://placeholder.supabase.co')
   console.log('Supabase Key configured:', supabaseAnonKey !== 'placeholder-key')
+  if (!isSupabaseConfigured) {
+    console.warn('⚠️ Supabase is not configured - auth will be disabled')
+  }
 }
 
-// Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create Supabase client with timeout settings
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'zenith-saas',
+    },
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
+})
 
 // Database types
 export interface Database {

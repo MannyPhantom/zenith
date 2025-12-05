@@ -32,8 +32,10 @@ import type { Project } from '@/lib/project-data'
 import * as CSApi from '@/lib/customer-success-api'
 import * as HRApi from '@/lib/hr-api'
 import { getAllJobs, getAllApplications } from '@/lib/recruitment-db'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function HubPage() {
+  const { loading: authLoading, user } = useAuth()
   const [timeRange, setTimeRange] = useState('7d')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -50,36 +52,60 @@ export default function HubPage() {
   const [jobApplications, setJobApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Load all data from Supabase
+  // Load all data from Supabase - but only after auth is ready
   useEffect(() => {
+    // Don't load data while auth is still loading
+    if (authLoading) {
+      return
+    }
+
     const loadAllData = async () => {
       try {
         setLoading(true)
         
-        // Load Projects
-        const projectsData = await ProjectData.getAllProjects()
-        setProjects(projectsData)
+        // Use Promise.allSettled to prevent one failure from blocking others
+        // Also add timeouts to prevent hanging
+        const timeout = (ms: number) => new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), ms)
+        )
         
-        // Load Customer Success data
-        const clientsData = await CSApi.getAllClients()
-        setCSClients(clientsData)
+        const withTimeout = <T,>(promise: Promise<T>, ms: number = 5000): Promise<T> => 
+          Promise.race([promise, timeout(ms)]) as Promise<T>
         
-        // Load HR data
-        const employeesData = await HRApi.getAllEmployees()
-        setEmployees(employeesData)
+        // Load all data in parallel with timeouts
+        const [
+          projectsResult,
+          clientsResult,
+          employeesResult,
+          reviewsResult,
+          goalsResult,
+          jobsResult,
+          appsResult
+        ] = await Promise.allSettled([
+          withTimeout(ProjectData.getAllProjects()),
+          withTimeout(CSApi.getAllClients()),
+          withTimeout(HRApi.getAllEmployees()),
+          withTimeout(HRApi.getAllPerformanceReviews()),
+          withTimeout(HRApi.getAllGoals()),
+          withTimeout(getAllJobs()),
+          withTimeout(getAllApplications()),
+        ])
         
-        const reviewsData = await HRApi.getAllPerformanceReviews()
-        setPerformanceReviews(reviewsData)
+        // Set data for successful fetches, use empty arrays for failures
+        if (projectsResult.status === 'fulfilled') setProjects(projectsResult.value)
+        if (clientsResult.status === 'fulfilled') setCSClients(clientsResult.value)
+        if (employeesResult.status === 'fulfilled') setEmployees(employeesResult.value)
+        if (reviewsResult.status === 'fulfilled') setPerformanceReviews(reviewsResult.value)
+        if (goalsResult.status === 'fulfilled') setGoals(goalsResult.value)
+        if (jobsResult.status === 'fulfilled') setJobPostings(jobsResult.value)
+        if (appsResult.status === 'fulfilled') setJobApplications(appsResult.value)
         
-        const goalsData = await HRApi.getAllGoals()
-        setGoals(goalsData)
-        
-        // Load Recruitment data
-        const jobsData = await getAllJobs()
-        setJobPostings(jobsData)
-        
-        const appsData = await getAllApplications()
-        setJobApplications(appsData)
+        // Log any failures for debugging
+        const failures = [projectsResult, clientsResult, employeesResult, reviewsResult, goalsResult, jobsResult, appsResult]
+          .filter(r => r.status === 'rejected')
+        if (failures.length > 0) {
+          console.warn('Some data failed to load:', failures)
+        }
       } catch (err) {
         console.error('Error loading data:', err)
       } finally {
@@ -102,7 +128,7 @@ export default function HubPage() {
       window.removeEventListener('applicationSubmitted', handleAppUpdate)
       window.removeEventListener('applicationUpdated', handleAppUpdate)
     }
-  }, [])
+  }, [authLoading, user])
 
   // Calculate real project metrics
   const projectMetrics = useMemo(() => {
@@ -397,6 +423,29 @@ export default function HubPage() {
       time: '3 hours ago',
     },
   ]
+
+  // Show loading state while auth is loading or data is loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mx-auto mb-4"></div>
+          <p className="text-lg text-muted-foreground">Authenticating...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mx-auto mb-4"></div>
+          <p className="text-lg text-muted-foreground">Loading Hub data...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">

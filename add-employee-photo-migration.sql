@@ -13,3 +13,7 @@ CREATE INDEX IF NOT EXISTS idx_hr_employees_photo_url ON hr_employees(photo_url)
 
 
 
+
+
+
+

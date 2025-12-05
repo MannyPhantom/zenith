@@ -239,22 +239,30 @@ export default function CustomerSuccessPage() {
 
   // Load all data
   useEffect(() => {
+    console.log('🔄 CustomerSuccessPage: Starting data load...')
     loadData()
+    
+    // Emergency timeout to prevent hanging
+    const emergencyTimeout = setTimeout(() => {
+      console.error('🚨 CustomerSuccessPage: EMERGENCY TIMEOUT - forcing loading to false')
+      setIsLoading(false)
+    }, 3000)
+    
+    return () => clearTimeout(emergencyTimeout)
   }, [])
 
   const loadData = async () => {
     try {
       setIsLoading(true)
+      console.log('⏱️ CustomerSuccessPage: Fetching data...')
       
-      // Fetch all data in parallel
-      const [
-        clientsData,
-        tasksData,
-        milestonesData,
-        interactionsData,
-        statsData,
-        csmUsersData,
-      ] = await Promise.all([
+      // Create timeout promise
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Data fetch timeout')), 2000)
+      )
+      
+      // Fetch all data in parallel with timeout
+      const dataPromise = Promise.all([
         api.getAllClients(),
         api.getAllTasks(),
         api.getAllMilestones(),
@@ -262,7 +270,17 @@ export default function CustomerSuccessPage() {
         api.getClientStats(),
         api.getAllCSMUsers(),
       ])
+      
+      const [
+        clientsData,
+        tasksData,
+        milestonesData,
+        interactionsData,
+        statsData,
+        csmUsersData,
+      ] = await Promise.race([dataPromise, timeoutPromise]) as any
 
+      console.log('✅ CustomerSuccessPage: Data loaded successfully')
       setClients(clientsData)
       setTasks(tasksData)
       setMilestones(milestonesData)
@@ -270,8 +288,15 @@ export default function CustomerSuccessPage() {
       setStats(statsData)
       setCsmUsers(csmUsersData)
     } catch (error) {
-      console.error('Error loading customer success data:', error)
+      console.error('❌ CustomerSuccessPage: Error loading data:', error)
+      // Set empty arrays so page can render
+      setClients([])
+      setTasks([])
+      setMilestones([])
+      setInteractions([])
+      setCsmUsers([])
     } finally {
+      console.log('✅ CustomerSuccessPage: Loading complete')
       setIsLoading(false)
     }
   }
