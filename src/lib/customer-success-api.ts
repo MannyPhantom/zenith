@@ -90,10 +90,10 @@ export interface HealthHistory {
 
 export async function getAllCSMUsers(): Promise<CSMUser[]> {
   try {
-    const { data, error } = await withTimeout(
-      supabase.from('csm_users').select('*').order('name'),
-      { timeoutMs: 3000, errorMessage: 'getAllCSMUsers timeout', fallbackValue: { data: [], error: null } }
-    )
+    const { data, error } = await supabase
+      .from('csm_users')
+      .select('*')
+      .order('name')
 
     if (error) {
       console.error('Error fetching CSM users:', error)
@@ -102,7 +102,7 @@ export async function getAllCSMUsers(): Promise<CSMUser[]> {
 
     return data || []
   } catch (error) {
-    console.error('Timeout fetching CSM users:', error)
+    console.error('Error fetching CSM users:', error)
     return []
   }
 }
@@ -171,16 +171,13 @@ export async function deleteCSMUser(id: string): Promise<boolean> {
 
 export async function getAllClients(): Promise<Client[]> {
   try {
-    const { data, error } = await withTimeout(
-      supabase
-        .from('cs_clients')
-        .select(`
-          *,
-          csm:csm_users(*)
-        `)
-        .order('name'),
-      { timeoutMs: 3000, errorMessage: 'getAllClients timeout' }
-    )
+    const { data, error } = await supabase
+      .from('cs_clients')
+      .select(`
+        *,
+        csm:csm_users(*)
+      `)
+      .order('name')
 
     if (error) {
       console.error('Error fetching clients:', error)
@@ -189,7 +186,7 @@ export async function getAllClients(): Promise<Client[]> {
 
     return data || []
   } catch (error) {
-    console.error('Timeout fetching clients:', error)
+    console.error('Error fetching clients:', error)
     return []
   }
 }
@@ -267,17 +264,14 @@ export async function deleteClient(id: string): Promise<boolean> {
 
 export async function getAllTasks(): Promise<ClientTask[]> {
   try {
-    const { data, error } = await withTimeout(
-      supabase
-        .from('cs_tasks')
-        .select(`
-          *,
-          client:cs_clients(*),
-          csm:csm_users(*)
-        `)
-        .order('due_date'),
-      { timeoutMs: 3000, errorMessage: 'getAllTasks timeout' }
-    )
+    const { data, error } = await supabase
+      .from('cs_tasks')
+      .select(`
+        *,
+        client:cs_clients(*),
+        csm:csm_users(*)
+      `)
+      .order('due_date')
 
     if (error) {
       console.error('Error fetching tasks:', error)
@@ -286,7 +280,7 @@ export async function getAllTasks(): Promise<ClientTask[]> {
 
     return data || []
   } catch (error) {
-    console.error('Timeout fetching tasks:', error)
+    console.error('Error fetching tasks:', error)
     return []
   }
 }
@@ -367,16 +361,13 @@ export async function deleteTask(id: string): Promise<boolean> {
 
 export async function getAllMilestones(): Promise<ClientMilestone[]> {
   try {
-    const { data, error } = await withTimeout(
-      supabase
-        .from('cs_milestones')
-        .select(`
-          *,
-          client:cs_clients(*)
-        `)
-        .order('target_date'),
-      { timeoutMs: 3000, errorMessage: 'getAllMilestones timeout' }
-    )
+    const { data, error } = await supabase
+      .from('cs_milestones')
+      .select(`
+        *,
+        client:cs_clients(*)
+      `)
+      .order('target_date')
 
     if (error) {
       console.error('Error fetching milestones:', error)
@@ -385,7 +376,7 @@ export async function getAllMilestones(): Promise<ClientMilestone[]> {
 
     return data || []
   } catch (error) {
-    console.error('Timeout fetching milestones:', error)
+    console.error('Error fetching milestones:', error)
     return []
   }
 }
@@ -463,17 +454,14 @@ export async function deleteMilestone(id: string): Promise<boolean> {
 
 export async function getAllInteractions(): Promise<ClientInteraction[]> {
   try {
-    const { data, error } = await withTimeout(
-      supabase
-        .from('cs_interactions')
-        .select(`
-          *,
-          client:cs_clients(*),
-          csm:csm_users(*)
-        `)
-        .order('interaction_date', { ascending: false }),
-      { timeoutMs: 3000, errorMessage: 'getAllInteractions timeout' }
-    )
+    const { data, error } = await supabase
+      .from('cs_interactions')
+      .select(`
+        *,
+        client:cs_clients(*),
+        csm:csm_users(*)
+      `)
+      .order('interaction_date', { ascending: false })
 
     if (error) {
       console.error('Error fetching interactions:', error)
@@ -482,7 +470,7 @@ export async function getAllInteractions(): Promise<ClientInteraction[]> {
 
     return data || []
   } catch (error) {
-    console.error('Timeout fetching interactions:', error)
+    console.error('Error fetching interactions:', error)
     return []
   }
 }
