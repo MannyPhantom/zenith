@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -7,9 +7,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Edit, ArrowDown, ArrowUp, Package, DollarSign, MapPin, TrendingUp, Calendar, Upload } from "lucide-react"
-import { inventoryItems, inventoryMovements } from "@/lib/inventory-data"
+import { ArrowLeft, Edit, ArrowDown, ArrowUp, Package, DollarSign, MapPin, TrendingUp, Calendar, Upload, Loader2 } from "lucide-react"
+import { 
+  getInventoryItem, 
+  getInventoryMovements, 
+  updateInventoryItem,
+  performScanIn,
+  performCheckOut,
+  type InventoryItem, 
+  type InventoryMovement 
+} from "@/lib/inventory-api"
+import { isSupabaseConfigured } from "@/lib/supabase"
 import { Link } from "react-router-dom"
 
 interface ItemDetailProps {
@@ -17,14 +25,16 @@ interface ItemDetailProps {
 }
 
 export function ItemDetail({ itemId }: ItemDetailProps) {
-  const [item, setItem] = useState(inventoryItems.find((i) => i.id === itemId))
-  const [movements, setMovements] = useState(inventoryMovements.filter((m) => m.itemId === itemId))
+  const [item, setItem] = useState<InventoryItem | null>(null)
+  const [movements, setMovements] = useState<InventoryMovement[]>([])
+  const [loading, setLoading] = useState(true)
   
   // Dialog states
   const [isScanInOpen, setIsScanInOpen] = useState(false)
   const [isScanOutOpen, setIsScanOutOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isUploadOpen, setIsUploadOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
   
   // Form states
   const [scanInQty, setScanInQty] = useState('')
@@ -35,133 +45,192 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
   const [scanOutReference, setScanOutReference] = useState('')
   
   // Edit form states
-  const [editName, setEditName] = useState(item?.productName || '')
-  const [editLocation, setEditLocation] = useState(item?.location || '')
-  const [editMinQty, setEditMinQty] = useState(item?.minQty.toString() || '')
-  const [editReorderQty, setEditReorderQty] = useState(item?.reorderQty.toString() || '')
-  const [editUnitCost, setEditUnitCost] = useState(item?.unitCost.toString() || '')
-  const [editSupplier, setEditSupplier] = useState(item?.supplier || '')
-  const [editCategory, setEditCategory] = useState(item?.category || '')
+  const [editName, setEditName] = useState('')
+  const [editLocation, setEditLocation] = useState('')
+  const [editMinQty, setEditMinQty] = useState('')
+  const [editReorderQty, setEditReorderQty] = useState('')
+  const [editUnitCost, setEditUnitCost] = useState('')
+  const [editSupplier, setEditSupplier] = useState('')
+  const [editCategory, setEditCategory] = useState('')
+
+  useEffect(() => {
+    fetchItemData()
+  }, [itemId])
+
+  useEffect(() => {
+    if (item) {
+      setEditName(item.product_name || '')
+      setEditLocation(item.location || '')
+      setEditMinQty(item.min_qty?.toString() || '')
+      setEditReorderQty(item.reorder_qty?.toString() || '')
+      setEditUnitCost(item.unit_cost?.toString() || '')
+      setEditSupplier(item.supplier_name || '')
+      setEditCategory(item.category || '')
+    }
+  }, [item])
+
+  const fetchItemData = async () => {
+    setLoading(true)
+    try {
+      const [itemData, movementsData] = await Promise.all([
+        getInventoryItem(itemId),
+        getInventoryMovements(itemId)
+      ])
+      setItem(itemData)
+      setMovements(movementsData)
+    } catch (error) {
+      console.error('Error fetching item data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Handler functions
-  const handleScanIn = () => {
-    if (!scanInQty || !scanInReason) {
+  const handleScanIn = async () => {
+    if (!scanInQty || !scanInReason || !item) {
       alert("Please fill in quantity and reason")
       return
     }
 
-    const qty = parseInt(scanInQty)
-    const newQty = item!.onHandQty + qty
-    const newTotalValue = newQty * item!.unitCost
-    const newStatus = newQty <= 0 ? "out-of-stock" : newQty <= item!.minQty ? "low-stock" : "in-stock"
+    setSaving(true)
+    try {
+      const result = await performScanIn(
+        item.id,
+        parseInt(scanInQty),
+        scanInReference || undefined,
+        'Current User' // Get from auth context in production
+      )
 
-    // Update item
-    const updatedItem = {
-      ...item!,
-      onHandQty: newQty,
-      totalValue: newTotalValue,
-      status: newStatus as "in-stock" | "low-stock" | "out-of-stock",
-      lastMovement: new Date(),
+      if (result.success && result.item) {
+        setItem(result.item)
+        await fetchItemData() // Refresh movements
+        
+        // Reset form
+        setScanInQty('')
+        setScanInReason('')
+        setScanInReference('')
+        setIsScanInOpen(false)
+      } else {
+        alert(result.error || 'Failed to scan in')
+      }
+    } catch (error) {
+      console.error('Error scanning in:', error)
+      alert('Failed to scan in')
+    } finally {
+      setSaving(false)
     }
-    setItem(updatedItem)
-
-    // Add movement record
-    const newMovement = {
-      id: `mov${movements.length + 1}`,
-      itemId: itemId,
-      date: new Date(),
-      reason: scanInReason,
-      change: qty,
-      reference: scanInReference || `IN-${Date.now()}`,
-      user: "Current User",
-    }
-    setMovements([newMovement, ...movements])
-
-    // Reset form
-    setScanInQty('')
-    setScanInReason('')
-    setScanInReference('')
-    setIsScanInOpen(false)
   }
 
-  const handleScanOut = () => {
-    if (!scanOutQty || !scanOutReason) {
+  const handleScanOut = async () => {
+    if (!scanOutQty || !scanOutReason || !item) {
       alert("Please fill in quantity and reason")
       return
     }
 
     const qty = parseInt(scanOutQty)
-    if (qty > item!.onHandQty) {
+    if (qty > item.on_hand_qty) {
       alert("Cannot scan out more than available quantity")
       return
     }
 
-    const newQty = item!.onHandQty - qty
-    const newTotalValue = newQty * item!.unitCost
-    const newStatus = newQty <= 0 ? "out-of-stock" : newQty <= item!.minQty ? "low-stock" : "in-stock"
+    setSaving(true)
+    try {
+      const result = await performCheckOut(
+        item.id,
+        qty,
+        scanOutReference || undefined,
+        'Current User' // Get from auth context in production
+      )
 
-    // Update item
-    const updatedItem = {
-      ...item!,
-      onHandQty: newQty,
-      totalValue: newTotalValue,
-      status: newStatus as "in-stock" | "low-stock" | "out-of-stock",
-      lastMovement: new Date(),
+      if (result.success && result.item) {
+        setItem(result.item)
+        await fetchItemData() // Refresh movements
+        
+        // Reset form
+        setScanOutQty('')
+        setScanOutReason('')
+        setScanOutReference('')
+        setIsScanOutOpen(false)
+      } else {
+        alert(result.error || 'Failed to scan out')
+      }
+    } catch (error) {
+      console.error('Error scanning out:', error)
+      alert('Failed to scan out')
+    } finally {
+      setSaving(false)
     }
-    setItem(updatedItem)
-
-    // Add movement record
-    const newMovement = {
-      id: `mov${movements.length + 1}`,
-      itemId: itemId,
-      date: new Date(),
-      reason: scanOutReason,
-      change: -qty,
-      reference: scanOutReference || `OUT-${Date.now()}`,
-      user: "Current User",
-    }
-    setMovements([newMovement, ...movements])
-
-    // Reset form
-    setScanOutQty('')
-    setScanOutReason('')
-    setScanOutReference('')
-    setIsScanOutOpen(false)
   }
 
-  const handleEditItem = () => {
-    if (!editName || !editLocation || !editMinQty || !editUnitCost) {
+  const handleEditItem = async () => {
+    if (!editName || !editLocation || !editMinQty || !editUnitCost || !item) {
       alert("Please fill in all required fields")
       return
     }
 
-    const minQty = parseInt(editMinQty)
-    const unitCost = parseFloat(editUnitCost)
-    const newTotalValue = item!.onHandQty * unitCost
-    const newStatus = item!.onHandQty <= 0 ? "out-of-stock" : item!.onHandQty <= minQty ? "low-stock" : "in-stock"
+    setSaving(true)
+    try {
+      const updatedItem = await updateInventoryItem(item.id, {
+        product_name: editName,
+        location: editLocation,
+        min_qty: parseInt(editMinQty),
+        reorder_qty: parseInt(editReorderQty) || parseInt(editMinQty) * 2,
+        unit_cost: parseFloat(editUnitCost),
+        supplier_name: editSupplier || null,
+        category: editCategory || null,
+      })
 
-    const updatedItem = {
-      ...item!,
-      productName: editName,
-      location: editLocation,
-      minQty: minQty,
-      reorderQty: parseInt(editReorderQty) || minQty * 2,
-      unitCost: unitCost,
-      totalValue: newTotalValue,
-      supplier: editSupplier,
-      category: editCategory,
-      status: newStatus as "in-stock" | "low-stock" | "out-of-stock",
-      lastMovement: new Date(),
+      if (updatedItem) {
+        setItem(updatedItem)
+        setIsEditOpen(false)
+      } else {
+        alert('Failed to update item')
+      }
+    } catch (error) {
+      console.error('Error updating item:', error)
+      alert('Failed to update item')
+    } finally {
+      setSaving(false)
     }
-    setItem(updatedItem)
-    setIsEditOpen(false)
+  }
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-7xl mx-auto">
+          <Card className="p-8 text-center">
+            <h2 className="text-xl font-semibold mb-2">Supabase Not Configured</h2>
+            <p className="text-muted-foreground">
+              Please configure Supabase to use this feature.
+            </p>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
   }
 
   if (!item) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto">
-          <p>Item not found</p>
+          <div className="flex items-center gap-4 mb-6">
+            <Link to="/inventory">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <p className="text-muted-foreground">Item not found</p>
+          </div>
         </div>
       </div>
     )
@@ -192,11 +261,11 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold">{item.productName}</h1>
+              <h1 className="text-3xl font-bold">{item.product_name}</h1>
               <div className="flex items-center gap-3 mt-2">
                 <span className="text-sm text-muted-foreground font-mono">{item.sku}</span>
                 <span className="text-sm text-muted-foreground">•</span>
-                <span className="text-sm text-muted-foreground">{item.location}</span>
+                <span className="text-sm text-muted-foreground">{item.location || 'No location'}</span>
                 <Badge className={getStatusColor(item.status)}>
                   {item.status === "in-stock" && "In Stock"}
                   {item.status === "low-stock" && "Low Stock"}
@@ -245,7 +314,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">On Hand</p>
-                    <p className="text-2xl font-bold">{item.onHandQty}</p>
+                    <p className="text-2xl font-bold">{item.on_hand_qty}</p>
                   </div>
                 </div>
               </Card>
@@ -256,7 +325,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Min Qty</p>
-                    <p className="text-2xl font-bold">{item.minQty}</p>
+                    <p className="text-2xl font-bold">{item.min_qty}</p>
                   </div>
                 </div>
               </Card>
@@ -267,7 +336,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Unit Cost</p>
-                    <p className="text-2xl font-bold">${item.unitCost}</p>
+                    <p className="text-2xl font-bold">${item.unit_cost}</p>
                   </div>
                 </div>
               </Card>
@@ -278,7 +347,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="text-lg font-bold font-mono">{item.location}</p>
+                    <p className="text-lg font-bold font-mono">{item.location || 'N/A'}</p>
                   </div>
                 </div>
               </Card>
@@ -290,19 +359,19 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Supplier</p>
-                  <p className="font-medium">{item.supplier}</p>
+                  <p className="font-medium">{item.supplier_name || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Category</p>
-                  <p className="font-medium">{item.category}</p>
+                  <p className="font-medium">{item.category || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Barcode</p>
-                  <p className="font-mono text-sm">{item.barcode}</p>
+                  <p className="font-mono text-sm">{item.barcode || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Reorder Qty</p>
-                  <p className="font-medium">{item.reorderQty}</p>
+                  <p className="font-medium">{item.reorder_qty}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Allocated</p>
@@ -310,7 +379,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Value</p>
-                  <p className="font-medium">${item.totalValue.toFixed(2)}</p>
+                  <p className="font-medium">${item.total_value.toFixed(2)}</p>
                 </div>
               </div>
             </Card>
@@ -333,18 +402,18 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                     {movements.length > 0 ? (
                       movements.map((movement) => (
                         <tr key={movement.id} className="border-t hover:bg-muted/30 transition-colors">
-                          <td className="p-4 text-sm">{movement.date.toLocaleDateString()}</td>
+                          <td className="p-4 text-sm">{new Date(movement.movement_date).toLocaleDateString()}</td>
                           <td className="p-4">{movement.reason}</td>
                           <td className="p-4">
                             <span
-                              className={`font-semibold ${movement.change > 0 ? "text-green-600" : "text-red-600"}`}
+                              className={`font-semibold ${movement.change_qty > 0 ? "text-green-600" : "text-red-600"}`}
                             >
-                              {movement.change > 0 ? "+" : ""}
-                              {movement.change}
+                              {movement.change_qty > 0 ? "+" : ""}
+                              {movement.change_qty}
                             </span>
                           </td>
-                          <td className="p-4 font-mono text-sm">{movement.reference}</td>
-                          <td className="p-4 text-sm">{movement.user}</td>
+                          <td className="p-4 font-mono text-sm">{movement.reference || '-'}</td>
+                          <td className="p-4 text-sm">{movement.user_name || '-'}</td>
                         </tr>
                       ))
                     ) : (
@@ -366,7 +435,11 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
             <Card className="p-6">
               <h3 className="font-semibold mb-4">Item Image</h3>
               <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                <Package className="w-16 h-16 text-muted-foreground" />
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.product_name} className="w-full h-full object-cover rounded-lg" />
+                ) : (
+                  <Package className="w-16 h-16 text-muted-foreground" />
+                )}
               </div>
               <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
                 <DialogTrigger asChild>
@@ -384,7 +457,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Available</span>
-                  <span className="font-semibold">{item.onHandQty - item.allocated}</span>
+                  <span className="font-semibold">{item.on_hand_qty - item.allocated}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Allocated</span>
@@ -392,29 +465,29 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Reorder Point</span>
-                  <span className="font-semibold">{item.minQty}</span>
+                  <span className="font-semibold">{item.min_qty}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Reorder Qty</span>
-                  <span className="font-semibold">{item.reorderQty}</span>
+                  <span className="font-semibold">{item.reorder_qty}</span>
                 </div>
                 <div className="pt-4 border-t">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Total Value</span>
-                    <span className="text-lg font-bold">${item.totalValue.toFixed(2)}</span>
+                    <span className="text-lg font-bold">${item.total_value.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
             </Card>
 
             {/* Last Movement */}
-            {item.lastMovement && (
+            {item.last_movement_at && (
               <Card className="p-6">
                 <div className="flex items-center gap-3">
                   <Calendar className="w-5 h-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm text-muted-foreground">Last Movement</p>
-                    <p className="font-medium">{item.lastMovement.toLocaleDateString()}</p>
+                    <p className="font-medium">{new Date(item.last_movement_at).toLocaleDateString()}</p>
                   </div>
                 </div>
               </Card>
@@ -427,7 +500,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Scan In Inventory</DialogTitle>
-              <DialogDescription>Add stock to {item.productName}</DialogDescription>
+              <DialogDescription>Add stock to {item.product_name}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -466,9 +539,18 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                 />
               </div>
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1" onClick={handleScanIn}>
-                  <ArrowDown className="w-4 h-4 mr-2" />
-                  Scan In Stock
+                <Button className="flex-1" onClick={handleScanIn} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDown className="w-4 h-4 mr-2" />
+                      Scan In Stock
+                    </>
+                  )}
                 </Button>
                 <Button variant="outline" onClick={() => {
                   setIsScanInOpen(false)
@@ -488,7 +570,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Scan Out Inventory</DialogTitle>
-              <DialogDescription>Remove stock from {item.productName} (Available: {item.onHandQty})</DialogDescription>
+              <DialogDescription>Remove stock from {item.product_name} (Available: {item.on_hand_qty})</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -497,7 +579,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                   id="scan-out-qty"
                   type="number"
                   placeholder="Enter quantity"
-                  max={item.onHandQty}
+                  max={item.on_hand_qty}
                   value={scanOutQty}
                   onChange={(e) => setScanOutQty(e.target.value)}
                 />
@@ -528,9 +610,18 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                 />
               </div>
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1" onClick={handleScanOut}>
-                  <ArrowUp className="w-4 h-4 mr-2" />
-                  Scan Out Stock
+                <Button className="flex-1" onClick={handleScanOut} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUp className="w-4 h-4 mr-2" />
+                      Scan Out Stock
+                    </>
+                  )}
                 </Button>
                 <Button variant="outline" onClick={() => {
                   setIsScanOutOpen(false)
@@ -628,8 +719,15 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1" onClick={handleEditItem}>
-                  Save Changes
+                <Button className="flex-1" onClick={handleEditItem} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
                 </Button>
                 <Button variant="outline" onClick={() => setIsEditOpen(false)}>
                   Cancel
@@ -644,7 +742,7 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Upload Item Image</DialogTitle>
-              <DialogDescription>Add or update image for {item.productName}</DialogDescription>
+              <DialogDescription>Add or update image for {item.product_name}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -655,8 +753,8 @@ export function ItemDetail({ itemId }: ItemDetailProps) {
                   accept="image/*"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      // Simulate image upload
-                      alert(`Image "${e.target.files[0].name}" uploaded successfully!\n\nThis would integrate with your file storage system.`)
+                      // TODO: Implement image upload to Supabase storage
+                      alert(`Image "${e.target.files[0].name}" selected.\n\nImage upload to Supabase Storage coming soon!`)
                       setIsUploadOpen(false)
                     }
                   }}

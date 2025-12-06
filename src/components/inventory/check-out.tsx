@@ -7,42 +7,112 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Scan, Check, AlertTriangle } from "lucide-react"
-import { inventoryItems } from "@/lib/inventory-data"
+import { ArrowLeft, Scan, Check, AlertTriangle, Loader2 } from "lucide-react"
+import { getInventoryItemBySku, performCheckOut, type InventoryItem } from "@/lib/inventory-api"
+import { isSupabaseConfigured } from "@/lib/supabase"
 import { Link } from "react-router-dom"
+
+interface RecentCheckout {
+  item: InventoryItem
+  quantity: number
+  timestamp: Date
+}
 
 export function CheckOut() {
   const [skuInput, setSkuInput] = useState("")
   const [quantity, setQuantity] = useState("1")
   const [reference, setReference] = useState("")
   const [notes, setNotes] = useState("")
-  const [scannedItem, setScannedItem] = useState<(typeof inventoryItems)[0] | null>(null)
-  const [recentCheckouts, setRecentCheckouts] = useState<
-    Array<{ item: (typeof inventoryItems)[0]; quantity: number; timestamp: Date }>
-  >([])
+  const [scannedItem, setScannedItem] = useState<InventoryItem | null>(null)
+  const [recentCheckouts, setRecentCheckouts] = useState<RecentCheckout[]>([])
+  const [scanning, setScanning] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleScan = () => {
-    const item = inventoryItems.find((i) => i.sku.toLowerCase() === skuInput.toLowerCase() || i.barcode === skuInput)
-    if (item) {
-      setScannedItem(item)
-    }
-  }
-
-  const handleConfirm = () => {
-    if (scannedItem && quantity) {
-      setRecentCheckouts([
-        { item: scannedItem, quantity: Number.parseInt(quantity), timestamp: new Date() },
-        ...recentCheckouts.slice(0, 4),
-      ])
+  const handleScan = async () => {
+    if (!skuInput.trim()) return
+    
+    setScanning(true)
+    setError(null)
+    
+    try {
+      const item = await getInventoryItemBySku(skuInput.trim())
+      if (item) {
+        setScannedItem(item)
+      } else {
+        setError('Item not found. Please check the SKU or barcode.')
+        setScannedItem(null)
+      }
+    } catch (err) {
+      console.error('Error scanning item:', err)
+      setError('Failed to look up item')
       setScannedItem(null)
-      setSkuInput("")
-      setQuantity("1")
-      setReference("")
-      setNotes("")
+    } finally {
+      setScanning(false)
     }
   }
 
-  const isLowStock = scannedItem && scannedItem.onHandQty - Number.parseInt(quantity || "0") < scannedItem.minQty
+  const handleConfirm = async () => {
+    if (!scannedItem || !quantity) return
+    
+    const qty = parseInt(quantity)
+    const available = scannedItem.on_hand_qty - scannedItem.allocated
+    
+    if (qty > available) {
+      setError(`Cannot check out more than available quantity (${available})`)
+      return
+    }
+    
+    setConfirming(true)
+    setError(null)
+    
+    try {
+      const result = await performCheckOut(
+        scannedItem.id,
+        qty,
+        reference || undefined,
+        'Current User', // In production, get from auth context
+        notes || undefined
+      )
+      
+      if (result.success && result.item) {
+        setRecentCheckouts([
+          { item: result.item, quantity: qty, timestamp: new Date() },
+          ...recentCheckouts.slice(0, 4),
+        ])
+        setScannedItem(null)
+        setSkuInput("")
+        setQuantity("1")
+        setReference("")
+        setNotes("")
+      } else {
+        setError(result.error || 'Failed to check out item')
+      }
+    } catch (err) {
+      console.error('Error confirming check-out:', err)
+      setError('Failed to complete check-out')
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  const isLowStock = scannedItem && (scannedItem.on_hand_qty - parseInt(quantity || "0")) < scannedItem.min_qty
+  const available = scannedItem ? scannedItem.on_hand_qty - scannedItem.allocated : 0
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-5xl mx-auto">
+          <Card className="p-8 text-center">
+            <h2 className="text-xl font-semibold mb-2">Supabase Not Configured</h2>
+            <p className="text-muted-foreground">
+              Please configure Supabase to use this feature.
+            </p>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -80,19 +150,26 @@ export function CheckOut() {
                       value={skuInput}
                       onChange={(e) => setSkuInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleScan()}
+                      disabled={scanning}
                     />
-                    <Button onClick={handleScan}>
-                      <Scan className="w-4 h-4" />
+                    <Button onClick={handleScan} disabled={scanning || !skuInput.trim()}>
+                      {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Scan className="w-4 h-4" />}
                     </Button>
                   </div>
                 </div>
+
+                {error && (
+                  <div className="p-3 border border-red-500/20 rounded-lg bg-red-500/10 text-red-600 text-sm">
+                    {error}
+                  </div>
+                )}
 
                 {scannedItem && (
                   <>
                     <div className="p-4 border rounded-lg bg-muted/30">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-semibold">{scannedItem.productName}</h3>
+                          <h3 className="font-semibold">{scannedItem.product_name}</h3>
                           <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20">Found</Badge>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -102,15 +179,15 @@ export function CheckOut() {
                           </div>
                           <div>
                             <p className="text-muted-foreground">Location</p>
-                            <p className="font-mono">{scannedItem.location}</p>
+                            <p className="font-mono">{scannedItem.location || 'N/A'}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Available</p>
-                            <p className="font-semibold">{scannedItem.onHandQty - scannedItem.allocated}</p>
+                            <p className="font-semibold">{available}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Min Qty</p>
-                            <p className="font-semibold">{scannedItem.minQty}</p>
+                            <p className="font-semibold">{scannedItem.min_qty}</p>
                           </div>
                         </div>
                       </div>
@@ -131,7 +208,7 @@ export function CheckOut() {
                       <Input
                         type="number"
                         min="1"
-                        max={scannedItem.onHandQty - scannedItem.allocated}
+                        max={available}
                         value={quantity}
                         onChange={(e) => setQuantity(e.target.value)}
                         placeholder="Enter quantity..."
@@ -157,9 +234,18 @@ export function CheckOut() {
                       />
                     </div>
 
-                    <Button onClick={handleConfirm} className="w-full" size="lg">
-                      <Check className="w-4 h-4 mr-2" />
-                      Confirm Check-Out
+                    <Button onClick={handleConfirm} className="w-full" size="lg" disabled={confirming}>
+                      {confirming ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Confirm Check-Out
+                        </>
+                      )}
                     </Button>
                   </>
                 )}
@@ -177,7 +263,7 @@ export function CheckOut() {
                     <div key={index} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between">
                         <div className="space-y-1">
-                          <p className="font-semibold">{checkout.item.productName}</p>
+                          <p className="font-semibold">{checkout.item.product_name}</p>
                           <p className="text-sm text-muted-foreground font-mono">{checkout.item.sku}</p>
                           <div className="flex items-center gap-2 text-sm">
                             <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20">

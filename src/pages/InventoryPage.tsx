@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,8 +16,16 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from 'lucide-react'
-import { inventoryItems, purchaseOrders } from '@/lib/inventory-data'
+import { 
+  getInventoryItems, 
+  createInventoryItem, 
+  getInventoryStats,
+  getOpenPOCount,
+  type InventoryItem 
+} from '@/lib/inventory-api'
+import { isSupabaseConfigured } from '@/lib/supabase'
 
 export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -33,43 +41,90 @@ export default function InventoryPage() {
   const [newItemUnitCost, setNewItemUnitCost] = useState('')
   const [newItemSupplier, setNewItemSupplier] = useState('')
   const [newItemCategory, setNewItemCategory] = useState('')
-  const [items, setItems] = useState(inventoryItems)
+  const [newItemBarcode, setNewItemBarcode] = useState('')
+  
+  const [items, setItems] = useState<InventoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [stats, setStats] = useState({ totalItems: 0, lowStockItems: 0, outOfStockItems: 0, totalValue: 0 })
+  const [openPOCount, setOpenPOCount] = useState(0)
 
-  const totalItems = items.length
-  const lowStockItems = items.filter((item) => item.status === 'low-stock').length
-  const openPOs = purchaseOrders.filter((po) => po.status === 'open').length
+  // Fetch data on mount
+  useEffect(() => {
+    fetchData()
+  }, [])
 
-  const handleAddItem = () => {
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const [itemsData, statsData, poCount] = await Promise.all([
+        getInventoryItems(),
+        getInventoryStats(),
+        getOpenPOCount()
+      ])
+      setItems(itemsData)
+      setStats(statsData)
+      setOpenPOCount(poCount)
+    } catch (error) {
+      console.error('Error fetching inventory data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddItem = async () => {
     if (!newItemSku || !newItemName || !newItemLocation || !newItemQty || !newItemMinQty || !newItemUnitCost) {
       alert("Please fill in all required fields")
       return
     }
 
-    const maxId = Math.max(...items.map(item => parseInt(item.id)))
-    const qty = parseInt(newItemQty)
-    const minQty = parseInt(newItemMinQty)
-    const unitCost = parseFloat(newItemUnitCost)
-    
-    const newItem = {
-      id: (maxId + 1).toString(),
-      sku: newItemSku,
-      productName: newItemName,
-      location: newItemLocation,
-      onHandQty: qty,
-      minQty: minQty,
-      reorderQty: parseInt(newItemReorderQty) || minQty * 2,
-      unitCost: unitCost,
-      totalValue: qty * unitCost,
-      allocated: 0,
-      supplier: newItemSupplier || "Unknown",
-      status: qty <= 0 ? "out-of-stock" as const : qty <= minQty ? "low-stock" as const : "in-stock" as const,
-      category: newItemCategory || "General",
-      lastMovement: new Date(),
-    }
+    setSaving(true)
+    try {
+      const qty = parseInt(newItemQty)
+      const minQty = parseInt(newItemMinQty)
+      const unitCost = parseFloat(newItemUnitCost)
+      
+      const status: 'in-stock' | 'low-stock' | 'out-of-stock' = 
+        qty <= 0 ? 'out-of-stock' : qty <= minQty ? 'low-stock' : 'in-stock'
 
-    setItems([...items, newItem])
-    
-    // Reset form
+      const newItem = await createInventoryItem({
+        sku: newItemSku,
+        product_name: newItemName,
+        location: newItemLocation,
+        on_hand_qty: qty,
+        min_qty: minQty,
+        reorder_qty: parseInt(newItemReorderQty) || minQty * 2,
+        unit_cost: unitCost,
+        allocated: 0,
+        supplier_id: null,
+        supplier_name: newItemSupplier || null,
+        status,
+        barcode: newItemBarcode || null,
+        image_url: null,
+        category: newItemCategory || null,
+        description: null,
+        last_movement_at: null,
+        is_active: true,
+      })
+
+      if (newItem) {
+        setItems([...items, newItem])
+        // Reset form
+        resetForm()
+        setIsNewItemOpen(false)
+        // Refresh stats
+        const newStats = await getInventoryStats()
+        setStats(newStats)
+      }
+    } catch (error) {
+      console.error('Error creating item:', error)
+      alert('Failed to create item')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const resetForm = () => {
     setNewItemSku('')
     setNewItemName('')
     setNewItemLocation('')
@@ -79,14 +134,14 @@ export default function InventoryPage() {
     setNewItemUnitCost('')
     setNewItemSupplier('')
     setNewItemCategory('')
-    setIsNewItemOpen(false)
+    setNewItemBarcode('')
   }
 
   const filteredItems = items.filter(
     (item) =>
-      item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.location.toLowerCase().includes(searchQuery.toLowerCase())
+      (item.location?.toLowerCase().includes(searchQuery.toLowerCase()) || false)
   )
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
@@ -104,6 +159,26 @@ export default function InventoryPage() {
       default:
         return 'bg-gray-500/10 text-gray-600 border-gray-500/20'
     }
+  }
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-7xl mx-auto">
+          <Card className="p-8 text-center">
+            <Box className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-xl font-semibold mb-2">Supabase Not Configured</h2>
+            <p className="text-muted-foreground mb-4">
+              Please configure your Supabase environment variables to use the inventory module.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Set <code className="bg-muted px-1 rounded">VITE_SUPABASE_URL</code> and{' '}
+              <code className="bg-muted px-1 rounded">VITE_SUPABASE_ANON_KEY</code> in your .env file.
+            </p>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -153,19 +228,19 @@ export default function InventoryPage() {
           <Card className="p-6">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Total Items</p>
-              <p className="text-3xl font-bold">{totalItems}</p>
+              <p className="text-3xl font-bold">{loading ? '-' : stats.totalItems}</p>
             </div>
           </Card>
           <Card className="p-6">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Low Stock</p>
-              <p className="text-3xl font-bold text-yellow-600">{lowStockItems}</p>
+              <p className="text-3xl font-bold text-yellow-600">{loading ? '-' : stats.lowStockItems}</p>
             </div>
           </Card>
           <Card className="p-6">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Open POs</p>
-              <p className="text-3xl font-bold text-blue-600">{openPOs}</p>
+              <p className="text-3xl font-bold text-blue-600">{loading ? '-' : openPOCount}</p>
             </div>
           </Card>
         </div>
@@ -268,61 +343,78 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedItems.map((item) => (
-                    <tr key={item.id} className="border-t hover:bg-muted/30 transition-colors">
-                      <td className="p-4 font-mono text-sm">{item.sku}</td>
-                      <td className="p-4">{item.productName}</td>
-                      <td className="p-4 font-mono text-sm">{item.location}</td>
-                      <td className="p-4 font-semibold">{item.onHandQty}</td>
-                      <td className="p-4 text-muted-foreground">{item.minQty}</td>
-                      <td className="p-4">
-                        <Badge className={getStatusColor(item.status)}>
-                          {item.status === 'in-stock' && 'In Stock'}
-                          {item.status === 'low-stock' && 'Low Stock'}
-                          {item.status === 'out-of-stock' && 'Out of Stock'}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <Link to={`/inventory/items/${item.id}`}>
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </Link>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                        <p className="text-muted-foreground">Loading inventory...</p>
                       </td>
                     </tr>
-                  ))}
+                  ) : paginatedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                        {searchQuery ? 'No items match your search' : 'No inventory items yet. Add your first item!'}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedItems.map((item) => (
+                      <tr key={item.id} className="border-t hover:bg-muted/30 transition-colors">
+                        <td className="p-4 font-mono text-sm">{item.sku}</td>
+                        <td className="p-4">{item.product_name}</td>
+                        <td className="p-4 font-mono text-sm">{item.location || '-'}</td>
+                        <td className="p-4 font-semibold">{item.on_hand_qty}</td>
+                        <td className="p-4 text-muted-foreground">{item.min_qty}</td>
+                        <td className="p-4">
+                          <Badge className={getStatusColor(item.status)}>
+                            {item.status === 'in-stock' && 'In Stock'}
+                            {item.status === 'low-stock' && 'Low Stock'}
+                            {item.status === 'out-of-stock' && 'Out of Stock'}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <Link to={`/inventory/items/${item.id}`}>
+                            <Button variant="ghost" size="sm">
+                              View
+                            </Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredItems.length)} of{' '}
-                {filteredItems.length} items
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <span className="text-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
+            {!loading && filteredItems.length > 0 && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredItems.length)} of{' '}
+                  {filteredItems.length} items
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm">
+                    Page {currentPage} of {totalPages || 1}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </Card>
 
@@ -435,21 +527,29 @@ export default function InventoryPage() {
                   />
                 </div>
               </div>
+              <div>
+                <Label htmlFor="item-barcode">Barcode</Label>
+                <Input 
+                  id="item-barcode"
+                  placeholder="Enter barcode (optional)"
+                  value={newItemBarcode}
+                  onChange={(e) => setNewItemBarcode(e.target.value)}
+                />
+              </div>
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1" onClick={handleAddItem}>
-                  Create Item
+                <Button className="flex-1" onClick={handleAddItem} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Item'
+                  )}
                 </Button>
                 <Button variant="outline" onClick={() => {
                   setIsNewItemOpen(false)
-                  setNewItemSku('')
-                  setNewItemName('')
-                  setNewItemLocation('')
-                  setNewItemQty('')
-                  setNewItemMinQty('')
-                  setNewItemReorderQty('')
-                  setNewItemUnitCost('')
-                  setNewItemSupplier('')
-                  setNewItemCategory('')
+                  resetForm()
                 }}>
                   Cancel
                 </Button>
