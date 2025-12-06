@@ -6,37 +6,97 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Scan, Check } from "lucide-react"
-import { inventoryItems } from "@/lib/inventory-data"
+import { ArrowLeft, Scan, Check, Loader2 } from "lucide-react"
+import { getInventoryItemBySku, performScanIn, type InventoryItem } from "@/lib/inventory-api"
+import { isSupabaseConfigured } from "@/lib/supabase"
 import { Link } from "react-router-dom"
+
+interface RecentScan {
+  item: InventoryItem
+  quantity: number
+  timestamp: Date
+}
 
 export function ScanIn() {
   const [skuInput, setSkuInput] = useState("")
   const [quantity, setQuantity] = useState("1")
   const [reference, setReference] = useState("")
-  const [scannedItem, setScannedItem] = useState<(typeof inventoryItems)[0] | null>(null)
-  const [recentScans, setRecentScans] = useState<
-    Array<{ item: (typeof inventoryItems)[0]; quantity: number; timestamp: Date }>
-  >([])
+  const [scannedItem, setScannedItem] = useState<InventoryItem | null>(null)
+  const [recentScans, setRecentScans] = useState<RecentScan[]>([])
+  const [scanning, setScanning] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleScan = () => {
-    const item = inventoryItems.find((i) => i.sku.toLowerCase() === skuInput.toLowerCase() || i.barcode === skuInput)
-    if (item) {
-      setScannedItem(item)
+  const handleScan = async () => {
+    if (!skuInput.trim()) return
+    
+    setScanning(true)
+    setError(null)
+    
+    try {
+      const item = await getInventoryItemBySku(skuInput.trim())
+      if (item) {
+        setScannedItem(item)
+      } else {
+        setError('Item not found. Please check the SKU or barcode.')
+        setScannedItem(null)
+      }
+    } catch (err) {
+      console.error('Error scanning item:', err)
+      setError('Failed to look up item')
+      setScannedItem(null)
+    } finally {
+      setScanning(false)
     }
   }
 
-  const handleConfirm = () => {
-    if (scannedItem && quantity) {
-      setRecentScans([
-        { item: scannedItem, quantity: Number.parseInt(quantity), timestamp: new Date() },
-        ...recentScans.slice(0, 4),
-      ])
-      setScannedItem(null)
-      setSkuInput("")
-      setQuantity("1")
-      setReference("")
+  const handleConfirm = async () => {
+    if (!scannedItem || !quantity) return
+    
+    setConfirming(true)
+    setError(null)
+    
+    try {
+      const result = await performScanIn(
+        scannedItem.id,
+        parseInt(quantity),
+        reference || undefined,
+        'Current User' // In production, get from auth context
+      )
+      
+      if (result.success && result.item) {
+        setRecentScans([
+          { item: result.item, quantity: parseInt(quantity), timestamp: new Date() },
+          ...recentScans.slice(0, 4),
+        ])
+        setScannedItem(null)
+        setSkuInput("")
+        setQuantity("1")
+        setReference("")
+      } else {
+        setError(result.error || 'Failed to scan in item')
+      }
+    } catch (err) {
+      console.error('Error confirming scan-in:', err)
+      setError('Failed to complete scan-in')
+    } finally {
+      setConfirming(false)
     }
+  }
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-5xl mx-auto">
+          <Card className="p-8 text-center">
+            <h2 className="text-xl font-semibold mb-2">Supabase Not Configured</h2>
+            <p className="text-muted-foreground">
+              Please configure Supabase to use this feature.
+            </p>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -75,19 +135,26 @@ export function ScanIn() {
                       value={skuInput}
                       onChange={(e) => setSkuInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleScan()}
+                      disabled={scanning}
                     />
-                    <Button onClick={handleScan}>
-                      <Scan className="w-4 h-4" />
+                    <Button onClick={handleScan} disabled={scanning || !skuInput.trim()}>
+                      {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Scan className="w-4 h-4" />}
                     </Button>
                   </div>
                 </div>
+
+                {error && (
+                  <div className="p-3 border border-red-500/20 rounded-lg bg-red-500/10 text-red-600 text-sm">
+                    {error}
+                  </div>
+                )}
 
                 {scannedItem && (
                   <>
                     <div className="p-4 border rounded-lg bg-muted/30">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-semibold">{scannedItem.productName}</h3>
+                          <h3 className="font-semibold">{scannedItem.product_name}</h3>
                           <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Found</Badge>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -97,15 +164,15 @@ export function ScanIn() {
                           </div>
                           <div>
                             <p className="text-muted-foreground">Location</p>
-                            <p className="font-mono">{scannedItem.location}</p>
+                            <p className="font-mono">{scannedItem.location || 'N/A'}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Current Stock</p>
-                            <p className="font-semibold">{scannedItem.onHandQty}</p>
+                            <p className="font-semibold">{scannedItem.on_hand_qty}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Unit Cost</p>
-                            <p className="font-semibold">${scannedItem.unitCost}</p>
+                            <p className="font-semibold">${scannedItem.unit_cost}</p>
                           </div>
                         </div>
                       </div>
@@ -131,9 +198,18 @@ export function ScanIn() {
                       />
                     </div>
 
-                    <Button onClick={handleConfirm} className="w-full" size="lg">
-                      <Check className="w-4 h-4 mr-2" />
-                      Confirm Scan-In
+                    <Button onClick={handleConfirm} className="w-full" size="lg" disabled={confirming}>
+                      {confirming ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Confirm Scan-In
+                        </>
+                      )}
                     </Button>
                   </>
                 )}
@@ -151,7 +227,7 @@ export function ScanIn() {
                     <div key={index} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between">
                         <div className="space-y-1">
-                          <p className="font-semibold">{scan.item.productName}</p>
+                          <p className="font-semibold">{scan.item.product_name}</p>
                           <p className="text-sm text-muted-foreground font-mono">{scan.item.sku}</p>
                           <div className="flex items-center gap-2 text-sm">
                             <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
