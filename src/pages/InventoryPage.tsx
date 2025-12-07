@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -17,12 +18,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Trash2,
 } from 'lucide-react'
 import { 
   getInventoryItems, 
   createInventoryItem, 
   getInventoryStats,
   getOpenPOCount,
+  deleteInventoryItem,
   type InventoryItem 
 } from '@/lib/inventory-api'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -48,6 +51,9 @@ export default function InventoryPage() {
   const [saving, setSaving] = useState(false)
   const [stats, setStats] = useState({ totalItems: 0, lowStockItems: 0, outOfStockItems: 0, totalValue: 0 })
   const [openPOCount, setOpenPOCount] = useState(0)
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   // Fetch data on mount
   useEffect(() => {
@@ -135,6 +141,53 @@ export default function InventoryPage() {
     setNewItemSupplier('')
     setNewItemCategory('')
     setNewItemBarcode('')
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(paginatedItems.map(item => item.id))
+      setSelectedItems(allIds)
+    } else {
+      setSelectedItems(new Set())
+    }
+  }
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedItems)
+    if (checked) {
+      newSelected.add(itemId)
+    } else {
+      newSelected.delete(itemId)
+    }
+    setSelectedItems(newSelected)
+  }
+
+  const handleDeleteSelected = async () => {
+    if (selectedItems.size === 0) return
+
+    setDeleting(true)
+    try {
+      // Delete all selected items
+      const deletePromises = Array.from(selectedItems).map(id => deleteInventoryItem(id))
+      const results = await Promise.all(deletePromises)
+      
+      const successCount = results.filter(Boolean).length
+      
+      if (successCount > 0) {
+        // Refresh the data
+        await fetchData()
+        setSelectedItems(new Set())
+        setIsDeleteDialogOpen(false)
+        alert(`Successfully deleted ${successCount} item(s)`)
+      } else {
+        alert('Failed to delete items')
+      }
+    } catch (error) {
+      console.error('Error deleting items:', error)
+      alert('Failed to delete items')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const filteredItems = items.filter(
@@ -308,6 +361,48 @@ export default function InventoryPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Items</h2>
               <div className="flex items-center gap-2">
+                {selectedItems.size > 0 && (
+                  <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete ({selectedItems.size})
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Delete Items</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to delete {selectedItems.size} item(s)? This action cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex gap-2 pt-4">
+                        <Button 
+                          variant="destructive" 
+                          className="flex-1" 
+                          onClick={handleDeleteSelected}
+                          disabled={deleting}
+                        >
+                          {deleting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            'Delete'
+                          )}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setIsDeleteDialogOpen(false)}
+                          disabled={deleting}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -333,6 +428,13 @@ export default function InventoryPage() {
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
+                    <th className="text-left p-4 font-medium w-12">
+                      <Checkbox
+                        checked={paginatedItems.length > 0 && paginatedItems.every(item => selectedItems.has(item.id))}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all items"
+                      />
+                    </th>
                     <th className="text-left p-4 font-medium">SKU</th>
                     <th className="text-left p-4 font-medium">Product Name</th>
                     <th className="text-left p-4 font-medium">Location</th>
@@ -345,20 +447,27 @@ export default function InventoryPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center">
+                      <td colSpan={8} className="p-8 text-center">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                         <p className="text-muted-foreground">Loading inventory...</p>
                       </td>
                     </tr>
                   ) : paginatedItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
                         {searchQuery ? 'No items match your search' : 'No inventory items yet. Add your first item!'}
                       </td>
                     </tr>
                   ) : (
                     paginatedItems.map((item) => (
                       <tr key={item.id} className="border-t hover:bg-muted/30 transition-colors">
+                        <td className="p-4">
+                          <Checkbox
+                            checked={selectedItems.has(item.id)}
+                            onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+                            aria-label={`Select ${item.product_name}`}
+                          />
+                        </td>
                         <td className="p-4 font-mono text-sm">{item.sku}</td>
                         <td className="p-4">{item.product_name}</td>
                         <td className="p-4 font-mono text-sm">{item.location || '-'}</td>
