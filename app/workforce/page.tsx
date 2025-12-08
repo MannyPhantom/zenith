@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -32,61 +32,66 @@ import {
   BarChart3,
   FileText,
   Settings,
+  Loader2,
 } from "lucide-react"
+import {
+  getJobs,
+  getTechnicians,
+  type Job,
+  type Technician,
+} from "@/lib/wfm-api"
 
 export default function WorkforcePage() {
   const [activePortal, setActivePortal] = useState<"admin" | "technician">("admin")
   const [activeTab, setActiveTab] = useState("dashboard")
+  const [loading, setLoading] = useState(true)
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [technicians, setTechnicians] = useState<Technician[]>([])
 
-  // Sample data
-  const jobs = [
-    {
-      id: "#101",
-      title: "HVAC Repair",
-      technician: "John Smith",
-      startDate: "Jan 15, 2025",
-      endDate: "Jan 15, 2025",
-      status: "In Progress",
-    },
-    {
-      id: "#102",
-      title: "Plumbing Check",
-      technician: "Sarah Johnson",
-      startDate: "Jan 16, 2025",
-      endDate: "Jan 16, 2025",
-      status: "Assigned",
-    },
-    {
-      id: "#103",
-      title: "Electrical Install",
-      technician: "Mike Davis",
-      startDate: "Jan 17, 2025",
-      endDate: "Jan 17, 2025",
-      status: "Completed",
-    },
-    {
-      id: "#104",
-      title: "Roof Inspection",
-      technician: "John Smith",
-      startDate: "Jan 18, 2025",
-      endDate: "Jan 18, 2025",
-      status: "Assigned",
-    },
-    {
-      id: "#105",
-      title: "Paint Job",
-      technician: "Sarah Johnson",
-      startDate: "Jan 19, 2025",
-      endDate: "Jan 19, 2025",
-      status: "Overdue",
-    },
-  ]
+  // Calculate metrics from fetched data
+  const totalJobs = jobs.length
+  const activeTechnicians = technicians.filter(t => t.status === 'active' && t.is_active).length
+  const assignedJobs = jobs.filter(j => j.status === 'assigned').length
+  const inProgressJobs = jobs.filter(j => j.status === 'in-progress').length
+  
+  // Calculate completed this week
+  const now = new Date()
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(now.getDate() - now.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
+  const completedThisWeek = jobs.filter(j => {
+    if (j.status !== 'completed') return false
+    const completedDate = j.updated_at ? new Date(j.updated_at) : null
+    return completedDate && completedDate >= startOfWeek
+  }).length
 
-  const technicians = [
-    { name: "John Smith", phone: "(555) 123-4567", activeJobs: 2, status: "Active" },
-    { name: "Sarah Johnson", phone: "(555) 234-5678", activeJobs: 2, status: "Active" },
-    { name: "Mike Davis", phone: "(555) 345-6789", activeJobs: 1, status: "Active" },
-  ]
+  // Calculate overdue jobs (end_date in the past and status not completed)
+  const overdueJobs = jobs.filter(j => {
+    if (j.status === 'completed' || j.status === 'cancelled') return false
+    if (!j.end_date) return false
+    const endDate = new Date(j.end_date)
+    return endDate < new Date()
+  }).length
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const [jobsData, techniciansData] = await Promise.all([
+        getJobs(),
+        getTechnicians(),
+      ])
+      setJobs(jobsData)
+      setTechnicians(techniciansData)
+    } catch (error) {
+      console.error('Error fetching WFM data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const recentActivity = [
     "Job #103 completed by Mike Davis",
@@ -96,17 +101,38 @@ export default function WorkforcePage() {
   ]
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Assigned":
+    switch (status.toLowerCase()) {
+      case "assigned":
         return "bg-blue-500/10 text-blue-500 border-blue-500/20"
-      case "In Progress":
+      case "in-progress":
+      case "in progress":
         return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-      case "Completed":
+      case "completed":
         return "bg-green-500/10 text-green-500 border-green-500/20"
-      case "Overdue":
-        return "bg-red-500/10 text-red-500 border-red-500/20"
+      case "on-hold":
+      case "on hold":
+        return "bg-orange-500/10 text-orange-500 border-orange-500/20"
+      case "cancelled":
+        return "bg-gray-500/10 text-gray-500 border-gray-500/20"
       default:
         return "bg-gray-500/10 text-gray-500 border-gray-500/20"
+    }
+  }
+
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case "assigned":
+        return "Assigned"
+      case "in-progress":
+        return "In Progress"
+      case "completed":
+        return "Completed"
+      case "on-hold":
+        return "On Hold"
+      case "cancelled":
+        return "Cancelled"
+      default:
+        return status
     }
   }
 
@@ -154,7 +180,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <Briefcase className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">24</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{totalJobs}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -167,7 +197,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <Users className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">8</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{activeTechnicians}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -180,7 +214,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">12</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{assignedJobs}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -193,7 +231,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <Clock className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">8</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{inProgressJobs}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -206,7 +248,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">15</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{completedThisWeek}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -219,7 +265,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <AlertCircle className="h-5 w-5 text-red-500" />
-                  <span className="text-2xl font-bold text-red-500">3</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold text-red-500">{overdueJobs}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -285,38 +335,48 @@ export default function WorkforcePage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Technician</TableHead>
-                          <TableHead>Start Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {jobs.map((job) => (
-                          <TableRow key={job.id}>
-                            <TableCell className="font-medium">{job.id}</TableCell>
-                            <TableCell>{job.title}</TableCell>
-                            <TableCell>{job.technician}</TableCell>
-                            <TableCell>{job.startDate}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={getStatusColor(job.status)}>
-                                {job.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="sm">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
+                    {loading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : jobs.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No jobs found. Create your first job!
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Job #</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Technician</TableHead>
+                            <TableHead>Start Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Actions</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {jobs.slice(0, 10).map((job) => (
+                            <TableRow key={job.id}>
+                              <TableCell className="font-medium">{job.job_number}</TableCell>
+                              <TableCell>{job.title}</TableCell>
+                              <TableCell>{job.technician?.name || 'Unassigned'}</TableCell>
+                              <TableCell>{job.start_date ? new Date(job.start_date).toLocaleDateString() : '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={getStatusColor(job.status)}>
+                                  {formatStatus(job.status)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -396,45 +456,55 @@ export default function WorkforcePage() {
                   <CardDescription>Manage all jobs in the system</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Technician</TableHead>
-                        <TableHead>Start Date</TableHead>
-                        <TableHead>End Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {jobs.map((job) => (
-                        <TableRow key={job.id}>
-                          <TableCell className="font-medium">{job.id}</TableCell>
-                          <TableCell>{job.title}</TableCell>
-                          <TableCell>{job.technician}</TableCell>
-                          <TableCell>{job.startDate}</TableCell>
-                          <TableCell>{job.endDate}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={getStatusColor(job.status)}>
-                              {job.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="sm">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm">
-                                <MapPin className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : jobs.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No jobs found. Create your first job!
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Job #</TableHead>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Technician</TableHead>
+                          <TableHead>Start Date</TableHead>
+                          <TableHead>End Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {jobs.map((job) => (
+                          <TableRow key={job.id}>
+                            <TableCell className="font-medium">{job.job_number}</TableCell>
+                            <TableCell>{job.title}</TableCell>
+                            <TableCell>{job.technician?.name || 'Unassigned'}</TableCell>
+                            <TableCell>{job.start_date ? new Date(job.start_date).toLocaleDateString() : '-'}</TableCell>
+                            <TableCell>{job.end_date ? new Date(job.end_date).toLocaleDateString() : '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={getStatusColor(job.status)}>
+                                {formatStatus(job.status)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm">
+                                  <MapPin className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -479,36 +549,57 @@ export default function WorkforcePage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Active Jobs</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {technicians.map((tech, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{tech.name}</TableCell>
-                          <TableCell>{tech.phone}</TableCell>
-                          <TableCell>{tech.activeJobs}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
-                              {tech.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : technicians.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No technicians found. Add your first technician!
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {technicians.map((tech) => {
+                          const activeJobCount = jobs.filter(j => j.technician_id === tech.id && (j.status === 'assigned' || j.status === 'in-progress')).length
+                          return (
+                            <TableRow key={tech.id}>
+                              <TableCell className="font-medium">{tech.name}</TableCell>
+                              <TableCell>{tech.phone || '-'}</TableCell>
+                              <TableCell>{tech.email || '-'}</TableCell>
+                              <TableCell>{tech.role}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={
+                                  tech.status === 'active' 
+                                    ? "bg-green-500/10 text-green-500 border-green-500/20"
+                                    : tech.status === 'inactive'
+                                    ? "bg-gray-500/10 text-gray-500 border-gray-500/20"
+                                    : "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                                }>
+                                  {tech.status === 'active' ? 'Active' : tech.status === 'inactive' ? 'Inactive' : 'On Leave'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
