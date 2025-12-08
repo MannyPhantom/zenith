@@ -41,12 +41,20 @@ import {
   FileText,
   Settings,
   Trash2,
+  Loader2,
 } from "lucide-react"
+import {
+  getJobs,
+  getTechnicians,
+  type Job,
+  type Technician,
+} from "@/lib/wfm-api"
 
 export default function WorkforcePage() {
   const [activePortal, setActivePortal] = useState<"admin" | "technician">("admin")
   const [activeTab, setActiveTab] = useState("dashboard")
   const [technicianTab, setTechnicianTab] = useState("today")
+  const [loading, setLoading] = useState(true)
   
   // State management for calendar and jobs
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -175,55 +183,88 @@ export default function WorkforcePage() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
 
-  // Sample data
-  const [jobs, setJobs] = useState([
-    {
-      id: "#101",
-      title: "HVAC Repair",
-      technician: "John Smith",
-      startDate: "Jan 15, 2025",
-      endDate: "Jan 15, 2025",
-      status: "In Progress",
-    },
-    {
-      id: "#102",
-      title: "Plumbing Check",
-      technician: "Sarah Johnson",
-      startDate: "Jan 16, 2025",
-      endDate: "Jan 16, 2025",
-      status: "Assigned",
-    },
-    {
-      id: "#103",
-      title: "Electrical Install",
-      technician: "Mike Davis",
-      startDate: "Jan 17, 2025",
-      endDate: "Jan 17, 2025",
-      status: "Completed",
-    },
-    {
-      id: "#104",
-      title: "Roof Inspection",
-      technician: "John Smith",
-      startDate: "Jan 18, 2025",
-      endDate: "Jan 18, 2025",
-      status: "Assigned",
-    },
-    {
-      id: "#105",
-      title: "Paint Job",
-      technician: "Sarah Johnson",
-      startDate: "Jan 19, 2025",
-      endDate: "Jan 19, 2025",
-      status: "Overdue",
-    },
-  ])
+  // Database data
+  const [dbJobs, setDbJobs] = useState<Job[]>([])
+  const [dbTechnicians, setDbTechnicians] = useState<Technician[]>([])
 
-  const [technicians, setTechnicians] = useState([
-    { name: "John Smith", phone: "(555) 123-4567", activeJobs: 2, status: "Active" },
-    { name: "Sarah Johnson", phone: "(555) 234-5678", activeJobs: 2, status: "Active" },
-    { name: "Mike Davis", phone: "(555) 345-6789", activeJobs: 1, status: "Active" },
-  ])
+  // Legacy sample data structure for compatibility with existing code
+  const [jobs, setJobs] = useState<any[]>([])
+  const [technicians, setTechnicians] = useState<any[]>([])
+
+  // Calculate metrics from fetched data
+  const totalJobs = dbJobs.length
+  const activeTechnicians = dbTechnicians.filter(t => t.status === 'active' && t.is_active).length
+  const assignedJobs = dbJobs.filter(j => j.status === 'assigned').length
+  const inProgressJobs = dbJobs.filter(j => j.status === 'in-progress').length
+  
+  // Calculate completed this week
+  const now = new Date()
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(now.getDate() - now.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
+  const completedThisWeek = dbJobs.filter(j => {
+    if (j.status !== 'completed') return false
+    const completedDate = j.updated_at ? new Date(j.updated_at) : null
+    return completedDate && completedDate >= startOfWeek
+  }).length
+
+  // Calculate overdue jobs (end_date in the past and status not completed)
+  const overdueJobs = dbJobs.filter(j => {
+    if (j.status === 'completed' || j.status === 'cancelled') return false
+    if (!j.end_date) return false
+    const endDate = new Date(j.end_date)
+    return endDate < new Date()
+  }).length
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const [jobsData, techniciansData] = await Promise.all([
+        getJobs(),
+        getTechnicians(),
+      ])
+      setDbJobs(jobsData)
+      setDbTechnicians(techniciansData)
+      
+      // Convert database format to legacy format for compatibility
+      const convertedJobs = jobsData.map(job => {
+        const { technician: techObj, ...jobWithoutTech } = job
+        return {
+          ...jobWithoutTech,
+          id: job.job_number || job.id,
+          title: job.title,
+          technician: techObj?.name || 'Unassigned', // Convert object to string
+          startDate: job.start_date ? new Date(job.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+          endDate: job.end_date ? new Date(job.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+          status: job.status === 'in-progress' ? 'In Progress' : 
+                  job.status === 'assigned' ? 'Assigned' :
+                  job.status === 'completed' ? 'Completed' :
+                  job.status === 'on-hold' ? 'On Hold' :
+                  job.status === 'cancelled' ? 'Cancelled' : job.status,
+        }
+      })
+      
+      const convertedTechnicians = techniciansData.map(tech => ({
+        ...tech, // Include all original technician data first
+        name: tech.name,
+        phone: tech.phone || '',
+        email: tech.email || '',
+        activeJobs: jobsData.filter(j => j.technician_id === tech.id && (j.status === 'assigned' || j.status === 'in-progress')).length,
+        status: tech.status === 'active' ? 'Active' : tech.status === 'inactive' ? 'Inactive' : 'On Leave',
+      }))
+      
+      setJobs(convertedJobs)
+      setTechnicians(convertedTechnicians)
+    } catch (error) {
+      console.error('Error fetching WFM data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const recentActivity = [
     "Job #103 completed by Mike Davis",
@@ -1241,7 +1282,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <Briefcase className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">24</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{totalJobs}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -1254,7 +1299,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <Users className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">8</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{activeTechnicians}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -1267,7 +1316,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">12</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{assignedJobs}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -1280,7 +1333,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <Clock className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">8</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{inProgressJobs}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -1293,7 +1350,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">15</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold">{completedThisWeek}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -1306,7 +1367,11 @@ export default function WorkforcePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <AlertCircle className="h-5 w-5 text-red-500" />
-                  <span className="text-2xl font-bold text-red-500">3</span>
+                  {loading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : (
+                    <span className="text-2xl font-bold text-red-500">{overdueJobs}</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>

@@ -44,6 +44,12 @@ export function WidgetSettingsDialog({
       'TopClientsARR': 'Top Clients by ARR',
       'CSMPerformance': 'CSM Performance',
       'UpcomingMilestones': 'Milestone Progress',
+      // Z-MO Analytics widgets
+      'AnalyticsKPIs': 'Analytics KPIs',
+      'ProductionEfficiencyTrends': 'Production Efficiency Trends',
+      'MachinePerformanceBreakdown': 'Machine Performance Breakdown',
+      'KeyPerformanceIndicators': 'Key Performance Indicators',
+      'DataExportOptions': 'Data Export Options',
     }
     
     if (customLabels[type]) {

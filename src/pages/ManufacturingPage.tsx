@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +9,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { AlertTriangle, CheckCircle2, Download, RefreshCw, Plus, Clock, Zap, BarChart3, Package, ChevronRight, Cpu } from "lucide-react"
+import { Download, RefreshCw, Plus, Clock, BarChart3, Package, ChevronRight, Cpu, Settings } from "lucide-react"
+import { useWidgetLayout } from "@/hooks/useWidgetLayout"
+import { WidgetSettingsDialog } from "@/components/projects/widgets/WidgetSettingsDialog"
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from 'recharts'
 
 export default function ManufacturingPage() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -45,6 +65,21 @@ export default function ManufacturingPage() {
   const [newMaintenanceDate, setNewMaintenanceDate] = useState("")
   const [newMaintenanceNotes, setNewMaintenanceNotes] = useState("")
 
+  // Analytics widget settings
+  const [isAnalyticsWidgetSettingsOpen, setIsAnalyticsWidgetSettingsOpen] = useState(false)
+  
+  // Analytics widget layout
+  const analyticsWidgetLayout = useWidgetLayout({
+    defaultLayout: [
+      { id: 'analytics-kpis', type: 'AnalyticsKPIs', visible: true },
+      { id: 'production-efficiency', type: 'ProductionEfficiencyTrends', visible: true },
+      { id: 'machine-performance', type: 'MachinePerformanceBreakdown', visible: true },
+      { id: 'key-performance-indicators', type: 'KeyPerformanceIndicators', visible: true },
+      { id: 'data-export', type: 'DataExportOptions', visible: true },
+    ],
+    storageKey: 'zmo-analytics-widgets'
+  })
+
   // Mock data
   const kpis = {
     oee: { value: 85.2, availability: 92, performance: 88, quality: 95 },
@@ -53,35 +88,15 @@ export default function ManufacturingPage() {
     alarms: 0,
   }
 
-  const [machines, setMachines] = useState([
-    {
-      id: "CNC-01",
-      status: "RUN",
-      cell: "Cell-A",
-      goodParts: 245,
-      scrap: 5,
-      oee: 87.3,
-      type: "CNC Machine",
-    },
-    {
-      id: "CNC-02",
-      status: "IDLE",
-      cell: "Cell-A",
-      goodParts: 198,
-      scrap: 3,
-      oee: 82.1,
-      type: "CNC Machine",
-    },
-    {
-      id: "Press-01",
-      status: "RUN",
-      cell: "Cell-B",
-      goodParts: 312,
-      scrap: 8,
-      oee: 89.5,
-      type: "Hydraulic Press",
-    },
-  ])
+  const [machines, setMachines] = useState<Array<{
+    id: string
+    status: string
+    cell: string
+    goodParts: number
+    scrap: number
+    oee: number
+    type: string
+  }>>([])
 
   const downtimeReasons = [
     { reason: "Equipment Failure", minutes: 45, events: 3 },
@@ -198,29 +213,116 @@ export default function ManufacturingPage() {
     },
   ])
 
-  const predictions = [
-    {
-      type: "risk",
-      message: "All clear",
-      confidence: 95,
-      severity: "low",
-    },
-    {
-      type: "performance",
-      message: "CNC-02 showing 5% cycle time slowdown",
-      confidence: 87,
-      severity: "medium",
-    },
+  // Chart data preparation
+  const oeeTrendData = [
+    { day: 'Day 1', oee: 82 },
+    { day: 'Day 2', oee: 85 },
+    { day: 'Day 3', oee: 83 },
+    { day: 'Day 4', oee: 87 },
+    { day: 'Day 5', oee: 86 },
+    { day: 'Day 6', oee: 84 },
+    { day: 'Day 7', oee: 85 },
   ]
 
+  const downtimeChartData = downtimeReasons.map(r => ({
+    name: r.reason,
+    minutes: r.minutes,
+    events: r.events,
+  }))
+
+  const machinePerformanceData = machines.map(m => ({
+    name: m.id,
+    oee: m.oee,
+    goodParts: m.goodParts,
+    scrap: m.scrap,
+  }))
+
+  const workOrderStatusData = [
+    { name: 'Queued', value: workOrders.filter(wo => wo.status === 'Queued').length, color: '#3b82f6' },
+    { name: 'In Progress', value: workOrders.filter(wo => wo.status === 'In Progress').length, color: '#eab308' },
+    { name: 'Completed', value: workOrders.filter(wo => wo.status === 'Completed').length, color: '#22c55e' },
+    { name: 'On Hold', value: workOrders.filter(wo => wo.status === 'On Hold').length, color: '#f59e0b' },
+  ].filter(item => item.value > 0)
+
+  const workOrderProgressData = workOrders.map(wo => ({
+    name: wo.id,
+    completed: wo.completed,
+    remaining: wo.quantity - wo.completed,
+    progress: ((wo.completed / wo.quantity) * 100).toFixed(1),
+  }))
+
+  const qualityResultData = [
+    { name: 'Pass', value: qualityInspections.filter(qi => qi.result === 'Pass').length, color: '#22c55e' },
+    { name: 'Fail', value: qualityInspections.filter(qi => qi.result === 'Fail').length, color: '#ef4444' },
+  ].filter(item => item.value > 0)
+
+  const qualityTrendData = [
+    { day: 'Day 1', passRate: 95 },
+    { day: 'Day 2', passRate: 97 },
+    { day: 'Day 3', passRate: 94 },
+    { day: 'Day 4', passRate: 96 },
+    { day: 'Day 5', passRate: 98 },
+    { day: 'Day 6', passRate: 95 },
+    { day: 'Day 7', passRate: 97 },
+  ]
+
+  const maintenanceStatusData = [
+    { name: 'Scheduled', value: maintenanceTasks.filter(mt => mt.status === 'Scheduled').length, color: '#3b82f6' },
+    { name: 'In Progress', value: maintenanceTasks.filter(mt => mt.status === 'In Progress').length, color: '#eab308' },
+    { name: 'Completed', value: maintenanceTasks.filter(mt => mt.status === 'Completed').length, color: '#22c55e' },
+  ].filter(item => item.value > 0)
+
+  const machineOeeBreakdownData = machines.map(m => ({
+    name: m.id,
+    availability: 92,
+    performance: 88,
+    quality: 95,
+  }))
+
+  // Load machines from database
+  const loadMachines = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('zmo_machines')
+        .select('*')
+        .order('machine_id', { ascending: true })
+
+      if (error) throw error
+
+      if (data && data.length > 0) {
+        const formattedMachines = data.map(m => ({
+          id: m.machine_id,
+          status: m.status,
+          cell: m.cell,
+          goodParts: m.good_parts,
+          scrap: m.scrap,
+          oee: Number(m.oee),
+          type: m.machine_type,
+        }))
+        setMachines(formattedMachines)
+      }
+    } catch (error) {
+      console.error('Error loading machines:', error)
+    }
+  }
+
+  // Load machines on mount
+  useEffect(() => {
+    loadMachines()
+  }, [])
+
   // Handler functions
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true)
-    // Simulate refresh delay
-    setTimeout(() => {
+    try {
+      await loadMachines()
       setRefreshing(false)
       alert("Manufacturing data refreshed successfully!")
-    }, 1500)
+    } catch (error) {
+      console.error('Error refreshing:', error)
+      setRefreshing(false)
+      alert("Failed to refresh data. Please try again.")
+    }
   }
 
   const handleDownloadCSV = () => {
@@ -254,45 +356,62 @@ export default function ManufacturingPage() {
     }
   }
 
-  const handleAddMachine = () => {
+  const handleAddMachine = async () => {
     if (!newMachineId || !newMachineCell || !newMachineType) {
       alert("Please fill in all required fields")
       return
     }
 
-    const newMachine = {
-      id: newMachineId,
-      status: "IDLE",
-      cell: newMachineCell,
-      goodParts: 0,
-      scrap: 0,
-      oee: 0,
-      type: newMachineType,
-    }
+    try {
+      const { data, error } = await supabase
+        .from('zmo_machines')
+        .insert({
+          machine_id: newMachineId,
+          status: 'IDLE',
+          cell: newMachineCell,
+          machine_type: newMachineType,
+          good_parts: 0,
+          scrap: 0,
+          oee: 0,
+          availability: 0,
+          performance: 0,
+          quality: 0,
+        })
+        .select()
+        .single()
 
-    setMachines([...machines, newMachine])
-    
-    // Reset form
-    setNewMachineId("")
-    setNewMachineCell("")
-    setNewMachineType("")
-    setIsAddMachineOpen(false)
+      if (error) throw error
+
+      const newMachine = {
+        id: data.machine_id,
+        status: data.status,
+        cell: data.cell,
+        goodParts: data.good_parts,
+        scrap: data.scrap,
+        oee: Number(data.oee),
+        type: data.machine_type,
+      }
+
+      setMachines([...machines, newMachine])
+      
+      // Reset form
+      setNewMachineId("")
+      setNewMachineCell("")
+      setNewMachineType("")
+      setIsAddMachineOpen(false)
+    } catch (error: any) {
+      console.error('Error adding machine:', error)
+      if (error.code === '23505') {
+        alert("Machine ID already exists. Please use a different ID.")
+      } else {
+        alert("Failed to add machine. Please try again.")
+      }
+    }
   }
 
   const handleMachineDetail = (machine: any) => {
     setSelectedMachine(machine)
     setIsMachineDetailOpen(true)
-  }
-
-  const handleSuggest = (workOrder: any) => {
-    const suggestions = [
-      "Optimize tool path for 15% cycle time reduction",
-      "Schedule maintenance during next changeover",
-      "Increase feed rate by 10% based on material specs",
-      "Consider batch processing for efficiency gains"
-    ]
-    const randomSuggestion = suggestions[Math.floor(Math.random() * suggestions.length)]
-    alert(`AI Suggestion for ${workOrder.id}:\n\n${randomSuggestion}\n\nThis would integrate with your AI optimization system.`)
   }
 
   const handleAddWorkOrder = () => {
@@ -537,31 +656,6 @@ export default function ManufacturingPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          {/* Predictive Analytics */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" />
-                Predictive Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {predictions.map((pred, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                  {pred.severity === "low" ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
-                  ) : (
-                    <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm">{pred.message}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Confidence: {pred.confidence}%</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Machine Grid */}
             <div className="lg:col-span-2 space-y-4">
@@ -613,17 +707,38 @@ export default function ManufacturingPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-48 flex items-end justify-between gap-2">
-                    {[82, 85, 83, 87, 86, 84, 85].map((value, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                        <div
-                          className="w-full bg-gradient-to-t from-primary to-primary/50 rounded-t"
-                          style={{ height: `${value}%` }}
-                        />
-                        <span className="text-xs text-muted-foreground">Day {idx + 1}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={oeeTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="day" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <YAxis 
+                        domain={[0, 100]}
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        label={{ value: 'OEE %', angle: -90, position: 'insideLeft' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px'
+                        }}
+                        formatter={(value: number) => [`${value}%`, 'OEE']}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="oee" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
             </div>
@@ -638,21 +753,29 @@ export default function ManufacturingPage() {
                     Top Downtime Today
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {downtimeReasons.map((reason, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>{reason.reason}</span>
-                        <span className="font-semibold">{reason.minutes}m</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-red-500" style={{ width: `${(reason.minutes / 45) * 100}%` }} />
-                        </div>
-                        <span className="text-xs text-muted-foreground">{reason.events} events</span>
-                      </div>
-                    </div>
-                  ))}
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={downtimeChartData} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis type="number" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis 
+                        type="category" 
+                        dataKey="name" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        width={100}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px'
+                        }}
+                        formatter={(value: number) => [`${value} min`, 'Downtime']}
+                      />
+                      <Bar dataKey="minutes" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
 
@@ -692,14 +815,6 @@ export default function ManufacturingPage() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-muted-foreground">ETA: {wo.eta}</span>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-6 text-xs"
-                          onClick={() => handleSuggest(wo)}
-                        >
-                          Suggest
-                        </Button>
                       </div>
                     </div>
                   ))}
@@ -803,14 +918,25 @@ export default function ManufacturingPage() {
                           <Button 
                             size="sm"
                             variant={machine.status === 'RUN' ? 'destructive' : 'default'}
-                            onClick={() => {
+                            onClick={async () => {
                               const newStatus = machine.status === 'RUN' ? 'IDLE' : 'RUN'
-                              setMachines(machines.map(m => 
-                                m.id === machine.id 
-                                  ? { ...m, status: newStatus }
-                                  : m
-                              ))
-                              alert(`${machine.id} status changed to ${newStatus}`)
+                              try {
+                                const { error } = await supabase
+                                  .from('zmo_machines')
+                                  .update({ status: newStatus })
+                                  .eq('machine_id', machine.id)
+
+                                if (error) throw error
+
+                                setMachines(machines.map(m => 
+                                  m.id === machine.id 
+                                    ? { ...m, status: newStatus }
+                                    : m
+                                ))
+                              } catch (error) {
+                                console.error('Error updating machine status:', error)
+                                alert("Failed to update machine status. Please try again.")
+                              }
                             }}
                           >
                             {machine.status === 'RUN' ? 'Stop' : 'Start'}
@@ -878,26 +1004,32 @@ export default function ManufacturingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {machines.map((machine) => (
-                  <div key={machine.id} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{machine.id}</span>
-                      <span className="text-sm text-muted-foreground">{machine.oee}% OEE</span>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${
-                          machine.oee >= 85 ? 'bg-green-500' : 
-                          machine.oee >= 70 ? 'bg-yellow-500' : 
-                          'bg-red-500'
-                        }`}
-                        style={{ width: `${machine.oee}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={machinePerformanceData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="name" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <YAxis 
+                    domain={[0, 100]}
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    label={{ value: 'OEE %', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                    formatter={(value: number) => [`${value}%`, 'OEE']}
+                  />
+                  <Legend />
+                  <Bar dataKey="oee" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </TabsContent>
@@ -938,6 +1070,83 @@ export default function ManufacturingPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Work Order Status Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Work Order Status Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={workOrderStatusData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {workOrderStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Work Order Progress Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Work Order Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={workOrderProgressData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="name" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="completed" stackId="a" fill="#22c55e" name="Completed" />
+                  <Bar dataKey="remaining" stackId="a" fill="#e5e7eb" name="Remaining" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
           {/* Work Orders Management */}
           <Card>
@@ -1024,13 +1233,6 @@ export default function ManufacturingPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={() => handleSuggest(wo)}
-                          >
-                            Suggest
-                          </Button>
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -1159,6 +1361,93 @@ export default function ManufacturingPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Quality Result Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Quality Inspection Results
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={qualityResultData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {qualityResultData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Quality Trend Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                7-Day Quality Trend
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={qualityTrendData}>
+                  <defs>
+                    <linearGradient id="colorPassRate" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="day" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <YAxis 
+                    domain={[90, 100]}
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    label={{ value: 'Pass Rate %', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                    formatter={(value: number) => [`${value}%`, 'Pass Rate']}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="passRate" 
+                    stroke="#22c55e" 
+                    fillOpacity={1} 
+                    fill="url(#colorPassRate)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
           {/* Quality Inspections */}
           <Card>
@@ -1311,6 +1600,44 @@ export default function ManufacturingPage() {
             </Card>
           </div>
 
+          {/* Maintenance Status Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Maintenance Status Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={maintenanceStatusData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {maintenanceStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
           {/* Maintenance Tasks */}
           <Card>
             <CardHeader>
@@ -1450,8 +1777,22 @@ export default function ManufacturingPage() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
+          {/* Analytics Tab Header */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAnalyticsWidgetSettingsOpen(true)}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Widget Settings
+            </Button>
+          </div>
+
           {/* Analytics KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {analyticsWidgetLayout.layout.find(w => w.id === 'analytics-kpis')?.visible && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
                 <div className="text-center">
@@ -1493,8 +1834,10 @@ export default function ManufacturingPage() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Production Efficiency Chart */}
+          {analyticsWidgetLayout.layout.find(w => w.id === 'production-efficiency')?.visible && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1507,74 +1850,125 @@ export default function ManufacturingPage() {
                 {/* OEE Trend */}
                 <div>
                   <h4 className="font-semibold mb-4">7-Day OEE Trend</h4>
-                  <div className="h-48 flex items-end justify-between gap-2">
-                    {[82, 85, 83, 87, 86, 84, 85].map((value, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                        <div
-                          className="w-full bg-gradient-to-t from-primary to-primary/50 rounded-t"
-                          style={{ height: `${(value / 100) * 150}px` }}
-                        />
-                        <span className="text-xs text-muted-foreground">Day {idx + 1}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={oeeTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="day" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <YAxis 
+                        domain={[0, 100]}
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px'
+                        }}
+                        formatter={(value: number) => [`${value}%`, 'OEE']}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="oee" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
 
                 {/* Quality Trend */}
                 <div>
                   <h4 className="font-semibold mb-4">7-Day Quality Trend</h4>
-                  <div className="h-48 flex items-end justify-between gap-2">
-                    {[95, 97, 94, 96, 98, 95, 97].map((value, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                        <div
-                          className="w-full bg-gradient-to-t from-green-500 to-green-300 rounded-t"
-                          style={{ height: `${(value / 100) * 150}px` }}
-                        />
-                        <span className="text-xs text-muted-foreground">Day {idx + 1}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={qualityTrendData}>
+                      <defs>
+                        <linearGradient id="colorQualityTrend" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="day" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <YAxis 
+                        domain={[90, 100]}
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--background))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px'
+                        }}
+                        formatter={(value: number) => [`${value}%`, 'Pass Rate']}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="passRate" 
+                        stroke="#22c55e" 
+                        fillOpacity={1} 
+                        fill="url(#colorQualityTrend)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Machine Performance Breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {analyticsWidgetLayout.layout.find(w => w.id === 'machine-performance')?.visible && (
             <Card>
               <CardHeader>
                 <CardTitle>Machine Performance Breakdown</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {machines.map((machine) => (
-                    <div key={machine.id} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{machine.id}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {machine.goodParts} parts, {machine.oee}% OEE
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center p-2 bg-blue-500/10 rounded">
-                          <p className="text-xs text-blue-600 font-medium">Availability</p>
-                          <p className="text-sm font-bold">92%</p>
-                        </div>
-                        <div className="text-center p-2 bg-yellow-500/10 rounded">
-                          <p className="text-xs text-yellow-600 font-medium">Performance</p>
-                          <p className="text-sm font-bold">88%</p>
-                        </div>
-                        <div className="text-center p-2 bg-green-500/10 rounded">
-                          <p className="text-xs text-green-600 font-medium">Quality</p>
-                          <p className="text-sm font-bold">95%</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={machineOeeBreakdownData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="name" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      domain={[0, 100]}
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      label={{ value: '%', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                      formatter={(value: number) => [`${value}%`, '']}
+                    />
+                    <Legend />
+                    <Bar dataKey="availability" fill="#3b82f6" name="Availability" />
+                    <Bar dataKey="performance" fill="#eab308" name="Performance" />
+                    <Bar dataKey="quality" fill="#22c55e" name="Quality" />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
+            )}
 
+            {analyticsWidgetLayout.layout.find(w => w.id === 'key-performance-indicators')?.visible && (
             <Card>
               <CardHeader>
                 <CardTitle>Key Performance Indicators</CardTitle>
@@ -1608,9 +2002,11 @@ export default function ManufacturingPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
 
           {/* Export All Data */}
+          {analyticsWidgetLayout.layout.find(w => w.id === 'data-export')?.visible && (
           <Card>
             <CardHeader>
               <CardTitle>Data Export Options</CardTitle>
@@ -1704,6 +2100,16 @@ export default function ManufacturingPage() {
               </div>
             </CardContent>
           </Card>
+          )}
+
+          {/* Widget Settings Dialog */}
+          <WidgetSettingsDialog
+            open={isAnalyticsWidgetSettingsOpen}
+            onOpenChange={setIsAnalyticsWidgetSettingsOpen}
+            layout={analyticsWidgetLayout.layout}
+            onToggleWidget={analyticsWidgetLayout.toggleWidget}
+            onReset={analyticsWidgetLayout.resetLayout}
+          />
         </TabsContent>
       </Tabs>
 
