@@ -340,3 +340,6 @@ VALUES
 -- ============================================
 -- Run these to verify the schema was created correctly:
 -- SELECT * FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'inventory%' OR table_name IN ('suppliers', 'purchase_orders', 'po_line_items');
+
+
+
