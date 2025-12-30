@@ -727,7 +727,7 @@ export default function ManufacturingPage() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '6px'
                         }}
-                        formatter={(value: number) => [`${value}%`, 'OEE']}
+                        formatter={(value: any) => [`${(Number(value) || 0)}%`, 'OEE']}
                       />
                       <Line 
                         type="monotone" 
@@ -771,7 +771,7 @@ export default function ManufacturingPage() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '6px'
                         }}
-                        formatter={(value: number) => [`${value} min`, 'Downtime']}
+                        formatter={(value: any) => [`${(Number(value) || 0)} min`, 'Downtime']}
                       />
                       <Bar dataKey="minutes" fill="#ef4444" radius={[0, 4, 4, 0]} />
                     </BarChart>
@@ -1024,7 +1024,7 @@ export default function ManufacturingPage() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '6px'
                     }}
-                    formatter={(value: number) => [`${value}%`, 'OEE']}
+                    formatter={(value: any) => [`${(Number(value) || 0)}%`, 'OEE']}
                   />
                   <Legend />
                   <Bar dataKey="oee" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
@@ -1435,7 +1435,7 @@ export default function ManufacturingPage() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '6px'
                     }}
-                    formatter={(value: number) => [`${value}%`, 'Pass Rate']}
+                    formatter={(value: any) => [`${(Number(value) || 0)}%`, 'Pass Rate']}
                   />
                   <Area 
                     type="monotone" 
@@ -1869,7 +1869,7 @@ export default function ManufacturingPage() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '6px'
                         }}
-                        formatter={(value: number) => [`${value}%`, 'OEE']}
+                        formatter={(value: any) => [`${(Number(value) || 0)}%`, 'OEE']}
                       />
                       <Line 
                         type="monotone" 
@@ -1911,7 +1911,7 @@ export default function ManufacturingPage() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '6px'
                         }}
-                        formatter={(value: number) => [`${value}%`, 'Pass Rate']}
+                        formatter={(value: any) => [`${(Number(value) || 0)}%`, 'Pass Rate']}
                       />
                       <Area 
                         type="monotone" 
@@ -1956,7 +1956,7 @@ export default function ManufacturingPage() {
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '6px'
                       }}
-                      formatter={(value: number) => [`${value}%`, '']}
+                      formatter={(value: any) => [`${(Number(value) || 0)}%`, '']}
                     />
                     <Legend />
                     <Bar dataKey="availability" fill="#3b82f6" name="Availability" />
