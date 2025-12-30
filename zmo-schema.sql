@@ -352,3 +352,9 @@ CREATE POLICY "Enable all operations for all users on zmo_downtime_events"
 
 CREATE POLICY "Enable all operations for all users on zmo_oee_metrics" 
   ON zmo_oee_metrics FOR ALL USING (true) WITH CHECK (true);
+
+
+
+
+
+

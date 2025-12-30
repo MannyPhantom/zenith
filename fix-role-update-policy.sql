@@ -1,10 +1,10 @@
 -- ==========================================
--- ADD ADMIN ROLE UPDATE POLICY
+-- FIX ROLE UPDATE POLICY
 -- ==========================================
--- This migration adds a policy to allow owners and admins
--- to update user roles in their organization
+-- This fixes the RLS policy to include WITH CHECK clause
+-- which is required for UPDATE operations to work properly
 
--- Add policy for admins to update user profiles
+-- Drop and recreate the policy with WITH CHECK clause
 DROP POLICY IF EXISTS "Admins can update user profiles in their organization" ON public.user_profiles;
 CREATE POLICY "Admins can update user profiles in their organization" ON public.user_profiles
   FOR UPDATE
@@ -22,7 +22,7 @@ CREATE POLICY "Admins can update user profiles in their organization" ON public.
     )
   );
 
--- Verify the policy was created
+-- Verify the policy was updated
 SELECT 
   schemaname,
   tablename,
@@ -30,15 +30,12 @@ SELECT
   permissive,
   roles,
   cmd,
-  qual
+  qual,
+  with_check
 FROM pg_policies
-WHERE tablename = 'user_profiles'
-ORDER BY policyname;
+WHERE tablename = 'user_profiles' 
+  AND policyname = 'Admins can update user profiles in their organization';
 
 COMMENT ON POLICY "Admins can update user profiles in their organization" ON public.user_profiles 
-IS 'Allows organization owners and admins to update any user profile in their organization, including changing roles';
-
-
-
-
+IS 'Allows organization owners and admins to update any user profile in their organization, including changing roles. Includes WITH CHECK for proper UPDATE validation.';
 

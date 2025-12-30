@@ -32,6 +32,9 @@ import EmployeeProfilePage from './pages/employee/EmployeeProfilePage'
 import JobApplicationsPage from './pages/employee/JobApplicationsPage'
 import OnboardingPage from './pages/OnboardingPage'
 import OrganizationSettingsPage from './pages/OrganizationSettingsPage'
+import ESignPage from './pages/ESignPage'
+import ESignUploadPage from './pages/ESignUploadPage'
+import ESignConfigurePage from './pages/ESignConfigurePage'
 
 function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -108,6 +111,11 @@ function App() {
           <Route path="/hr" element={<HRPage />} />
           <Route path="/manufacturing" element={<ManufacturingPage />} />
           <Route path="/automation" element={<AutomationPage />} />
+          
+          {/* E-Sign Routes */}
+          <Route path="/esign" element={<ESignPage />} />
+          <Route path="/esign/upload" element={<ESignUploadPage />} />
+          <Route path="/esign/configure" element={<ESignConfigurePage />} />
           
           {/* Employee Portal Routes */}
           <Route path="/employee" element={<EmployeePortalPage />} />

@@ -377,7 +377,7 @@ export default function OrganizationSettingsPage() {
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="bg-background/95 backdrop-blur-md border-border">
                           <DropdownMenuLabel>Manage User</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openChangeRoleDialog(orgUser)}>

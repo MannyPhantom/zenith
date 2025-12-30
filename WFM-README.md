@@ -214,3 +214,9 @@ For issues or questions, check:
 1. Supabase logs (Dashboard > Logs)
 2. Browser console for errors
 3. Network tab for API calls
+
+
+
+
+
+

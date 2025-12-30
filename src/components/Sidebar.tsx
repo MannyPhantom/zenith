@@ -12,6 +12,7 @@ import {
   ChevronRight,
   User,
   Briefcase,
+  PenTool,
 } from 'lucide-react'
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { path: '/careers', label: 'Careers', icon: Briefcase },
   { path: '/manufacturing', label: 'Z-MO', icon: Cpu },
   { path: '/automation', label: 'Automation', icon: Bot },
+  { path: '/esign', label: 'E-Sign', icon: PenTool },
 ]
 
 interface SidebarProps {

@@ -194,6 +194,12 @@ CREATE POLICY "Admins can update user profiles in their organization" ON public.
       SELECT organization_id FROM public.user_profiles 
       WHERE id = auth.uid() AND role IN ('owner', 'admin')
     )
+  )
+  WITH CHECK (
+    organization_id IN (
+      SELECT organization_id FROM public.user_profiles 
+      WHERE id = auth.uid() AND role IN ('owner', 'admin')
+    )
   );
 
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.user_profiles;

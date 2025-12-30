@@ -686,3 +686,9 @@ export async function getTechnicianActiveJobs(technicianId: string): Promise<num
 
   return count || 0
 }
+
+
+
+
+
+
