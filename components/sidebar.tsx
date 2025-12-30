@@ -30,7 +30,6 @@ import {
   Wrench,
   Activity,
   FileText,
-  PenTool,
 } from "lucide-react"
 import { LeLoLogo } from "./lelo-logo"
 import { useSidebar } from "./sidebar-context"
@@ -100,13 +99,6 @@ const moduleNavigation: ModuleNavigation = {
     { label: "Logs", href: "/automation#logs", icon: <FileText className="w-4 h-4" /> },
     { label: "Settings", href: "/automation#settings", icon: <Settings className="w-4 h-4" /> },
   ],
-  "/esign": [
-    { label: "Dashboard", href: "/esign", icon: <LayoutDashboard className="w-4 h-4" /> },
-    { label: "My Documents", href: "/esign#my-documents", icon: <FileText className="w-4 h-4" /> },
-    { label: "To Sign", href: "/esign#to-sign", icon: <PenTool className="w-4 h-4" /> },
-    { label: "Upload", href: "/esign/upload", icon: <Activity className="w-4 h-4" /> },
-    { label: "Settings", href: "/esign#settings", icon: <Settings className="w-4 h-4" /> },
-  ],
 }
 
 const getMainModules = (isCollapsed: boolean) => [
@@ -118,7 +110,6 @@ const getMainModules = (isCollapsed: boolean) => [
   { label: "HR", href: "/hr", icon: <UserCog className={isCollapsed ? "w-6 h-6" : "w-4 h-4"} /> },
   { label: "Z-MO", href: "/manufacturing", icon: <Cpu className={isCollapsed ? "w-6 h-6" : "w-4 h-4"} /> },
   { label: "Automation", href: "/automation", icon: <Bot className={isCollapsed ? "w-6 h-6" : "w-4 h-4"} /> },
-  { label: "E-Sign", href: "/esign", icon: <PenTool className={isCollapsed ? "w-6 h-6" : "w-4 h-4"} /> },
 ]
 
 export function Sidebar() {
