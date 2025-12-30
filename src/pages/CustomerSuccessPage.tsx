@@ -3560,7 +3560,7 @@ export default function CustomerSuccessPage() {
                     <XAxis dataKey="name" />
                     <YAxis label={{ value: 'ARR ($K)', angle: -90, position: 'insideLeft' }} />
                     <Tooltip 
-                      formatter={(value: number) => [`$${value.toFixed(0)}K`, 'ARR']}
+                      formatter={(value: any) => [`$${(Number(value) || 0).toFixed(0)}K`, 'ARR']}
                       contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                     />
                     <Bar dataKey="arr" fill="#8884d8" radius={[8, 8, 0, 0]}>
@@ -3641,7 +3641,7 @@ export default function CustomerSuccessPage() {
                     <XAxis type="number" />
                     <YAxis type="category" dataKey="name" />
                     <Tooltip 
-                      formatter={(value: number) => [value, 'Interactions']}
+                      formatter={(value: any) => [(Number(value) || 0), 'Interactions']}
                       contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                     />
                     <Bar dataKey="count" fill="#8884d8" radius={[0, 8, 8, 0]}>
@@ -3756,7 +3756,7 @@ export default function CustomerSuccessPage() {
                   <XAxis dataKey="month" />
                   <YAxis label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }} />
                   <Tooltip 
-                    formatter={(value: number) => [`${value}%`, '']}
+                    formatter={(value: any) => [`${(Number(value) || 0)}%`, '']}
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                   />
                   <Legend />
@@ -3800,11 +3800,12 @@ export default function CustomerSuccessPage() {
                   <XAxis dataKey="month" />
                   <YAxis label={{ value: 'ARR ($K)', angle: -90, position: 'insideLeft' }} />
                   <Tooltip 
-                    formatter={(value: number, name: string) => {
-                      if (name === 'arr') return [`$${value.toFixed(0)}K`, 'Total ARR']
-                      if (name === 'expansion') return [`$${value}K`, 'Expansion']
-                      if (name === 'churn') return [`$${value}K`, 'Churn']
-                      return [value, name]
+                    formatter={(value: any, name: string) => {
+                      const val = Number(value) || 0
+                      if (name === 'arr') return [`$${val.toFixed(0)}K`, 'Total ARR']
+                      if (name === 'expansion') return [`$${val}K`, 'Expansion']
+                      if (name === 'churn') return [`$${val}K`, 'Churn']
+                      return [val, name]
                     }}
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                   />
@@ -3858,10 +3859,11 @@ export default function CustomerSuccessPage() {
                   <XAxis type="number" label={{ value: 'ARR ($K)', position: 'bottom' }} />
                   <YAxis type="category" dataKey="name" width={120} />
                   <Tooltip 
-                    formatter={(value: number, name: string) => {
-                      if (name === 'arr') return [`$${value.toFixed(0)}K`, 'ARR']
-                      if (name === 'health') return [`${value}%`, 'Health Score']
-                      return [value, name]
+                    formatter={(value: any, name: string) => {
+                      const val = Number(value) || 0
+                      if (name === 'arr') return [`$${val.toFixed(0)}K`, 'ARR']
+                      if (name === 'health') return [`${val}%`, 'Health Score']
+                      return [val, name]
                     }}
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                   />
