@@ -3800,12 +3800,12 @@ export default function CustomerSuccessPage() {
                   <XAxis dataKey="month" />
                   <YAxis label={{ value: 'ARR ($K)', angle: -90, position: 'insideLeft' }} />
                   <Tooltip 
-                    formatter={(value: any, name: string) => {
+                    formatter={(value: any, name?: any) => {
                       const val = Number(value) || 0
                       if (name === 'arr') return [`$${val.toFixed(0)}K`, 'Total ARR']
                       if (name === 'expansion') return [`$${val}K`, 'Expansion']
                       if (name === 'churn') return [`$${val}K`, 'Churn']
-                      return [val, name]
+                      return [val, String(name || '')]
                     }}
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                   />
@@ -3859,11 +3859,11 @@ export default function CustomerSuccessPage() {
                   <XAxis type="number" label={{ value: 'ARR ($K)', position: 'bottom' }} />
                   <YAxis type="category" dataKey="name" width={120} />
                   <Tooltip 
-                    formatter={(value: any, name: string) => {
+                    formatter={(value: any, name?: any) => {
                       const val = Number(value) || 0
                       if (name === 'arr') return [`$${val.toFixed(0)}K`, 'ARR']
                       if (name === 'health') return [`${val}%`, 'Health Score']
-                      return [val, name]
+                      return [val, String(name || '')]
                     }}
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                   />

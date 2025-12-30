@@ -1024,7 +1024,7 @@ export default function ManufacturingPage() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '6px'
                     }}
-                    formatter={(value: number) => [`${value}%`, 'OEE']}
+                    formatter={(value: any) => [`${(Number(value) || 0)}%`, 'OEE']}
                   />
                   <Legend />
                   <Bar dataKey="oee" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
